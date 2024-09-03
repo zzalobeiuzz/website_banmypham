@@ -1,7 +1,8 @@
 import { Route, Routes } from 'react-router-dom';
-import HomePage from "./pages/user/homePage/homepage";
-import { ROUTERS } from "./utils/router";
+import HomePage from "./pages/user/homePage/home_page.js";
+import ProfilePage from "./pages/user/profilePage/profile_page.js";
 import MasterLayout from './pages/user/theme/masterLayout/masterLayout.js';
+import { ROUTERS } from "./utils/router";
 
 
 const renderUserRouter = () => {
@@ -10,6 +11,10 @@ const renderUserRouter = () => {
         {
             path: ROUTERS.USER.HOME,   // Đường dẫn của route, giá trị này đến từ một đối tượng ROUTERS.USER
             component: <HomePage />    // Thành phần sẽ được render khi người dùng truy cập vào đường dẫn này
+        },
+        {
+            path: ROUTERS.USER.PROFILE,   // Đường dẫn của route, giá trị này đến từ một đối tượng ROUTERS.USER
+            component: <ProfilePage />    // Thành phần sẽ được render khi người dùng truy cập vào đường dẫn này
         }
     ];
 
