@@ -1,0 +1,114 @@
+.container {
+  max-width: 100vw;
+  padding: 0.3vw 7vw 0px 7vw;
+  /* Chiều cao mặc định */
+  font-size: 1.2vw;
+  color: rgb(255, 255, 255);
+  margin-right: auto;
+  margin-left: auto;
+  margin-top: -1.2vh;
+}
+
+svg {
+  vertical-align: middle;
+}
+
+.phone {
+  margin-left: 1vw;
+  font-size: 1.2vw;
+}
+
+.banner-img {
+  max-height: 30vh;
+  width: 100%;
+}
+
+@media (max-width: 650px) {
+}
+
+.container-header-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: auto;
+  width: 100%;
+  /* Chiếm toàn bộ chiều rộng của màn hình */
+  padding: 0 100px;
+  /* Padding trái và phải */
+  box-sizing: border-box;
+  /* Đảm bảo padding được tính vào kích thước tổng */
+}
+
+.logo-img {
+  width: 9vw;
+  height: auto;
+}
+
+.search,.search-bar,
+.search-icon {
+  display: flex;
+}
+.dropdown,
+.search-icon {
+  background: #000;
+  color: white;
+}
+.search-icon {
+  width: 4vw;
+  font-size: 20px;
+  border-radius: 0 5px 5px 0;
+  align-items: center;
+  padding: 0 1vw 0 1.1vw;
+}
+.dropdown {
+  border-radius: 5px 0 0 5px;
+  background: #000;
+  color: #fff;
+  height: 40px;
+  white-space: unset;
+  text-align: left;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+}
+.input-search {
+  width: 500px;
+  height: 40px;
+  padding: 0 16px;
+  font-size: 14px;
+  outline: none;
+  border-color: transparent;
+  box-shadow: 0 3px 3px rgba(0, 0, 0, 0.1);
+  border-radius: 0;
+  border: none;
+  background: none;
+  color: black;
+}
+.search-bar>Link{
+    border-radius: 200px;
+}
+.search-bar{
+    display: flex;
+    align-items: center;
+    justify-content: end;
+    gap: 30px;
+}
+img{
+    width: 40px;
+    height: auto;
+}
+.no-underline{
+    color: inherit;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 5px
+}
+.header-bottom,.container{
+    width: 100%;
+    background: #000;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    height: 5vh;
+}
