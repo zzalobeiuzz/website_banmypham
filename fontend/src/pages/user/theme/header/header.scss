@@ -1,6 +1,9 @@
-.container {
+.header{
+  font-size: 1vw;
+}
+.header .container {
   max-width: 100vw;
-  padding: 0.3vw 7vw 0px 7vw;
+  padding: 0.5vw 7vw 0px 7vw;
   /* Chiều cao mặc định */
   font-size: 1.2vw;
   color: rgb(255, 255, 255);
@@ -8,14 +11,13 @@
   margin-left: auto;
   margin-top: -1.2vh;
 }
-
 svg {
   vertical-align: middle;
 }
 
 .phone {
   margin-left: 1vw;
-  font-size: 1.2vw;
+  font-size: 1.1vw;
 }
 
 .banner-img {
@@ -42,6 +44,7 @@ svg {
 .logo-img {
   width: 9vw;
   height: auto;
+  
 }
 
 .search,.search-bar,
@@ -104,11 +107,39 @@ img{
     align-items: center;
     gap: 5px
 }
-.header-bottom,.container{
+.header .header-bottom, .header .container{
     width: 100%;
     background: #000;
-    height: 40px;
     display: flex;
     align-items: center;
-    height: 5vh;
+    height: 6vh;
+}
+// Animation để đẩy phần tử lên trên cùng màn hình
+@keyframes slideInFromTop {
+  0% {
+    transform: translateY(-100%); // Phần tử bắt đầu từ phía trên hoàn toàn ngoài khung nhìn
+    opacity: 0; // Phần tử hoàn toàn trong suốt
+  }
+  100% {
+    transform: translateY(0); // Phần tử trở về vị trí ban đầu
+    opacity: 1; // Phần tử hoàn toàn hiển thị
+  }
+}
+
+// Class để áp dụng animation khi phần tử trở về vị trí ban đầu
+.header-fixed {
+  position: fixed; // Đặt phần tử ở vị trí cố định trên màn hình
+  top: 0; // Đặt phần tử ở vị trí trên cùng của màn hình
+  left: 0; // Đặt phần tử ở vị trí bên trái của màn hình
+  width: 100%; // Đảm bảo phần tử trải rộng toàn bộ chiều rộng của màn hình
+  background-color: white; // Đặt nền của phần tử là màu trắng
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1); // Tạo hiệu ứng bóng để phân biệt với các phần tử khác
+  z-index: 1000; // Đảm bảo phần tử nằm trên các phần tử khác
+  animation: slideInFromTop 0.5s ease-in-out forwards; // Áp dụng animation với thời gian 0.5 giây
+}
+
+// Class để ẩn phần tử khỏi màn hình khi cuộn xuống
+.hidden-header {
+  transform: translateY(-100%); // Dịch chuyển phần tử lên phía trên hoàn toàn ngoài khung nhìn
+  opacity: 0; // Phần tử hoàn toàn trong suốt
 }

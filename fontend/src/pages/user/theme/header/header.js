@@ -1,32 +1,34 @@
+import React, { useState, useEffect, memo } from "react";
+import { Link } from "react-router-dom";
 import { faPhoneVolume } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import React, { memo, useState } from "react";
-import { Link } from "react-router-dom";
 import "./header.scss";
 
 const Header = () => {
-  const [isDropdownOpen, setDropdownOpen] = useState(false);
+  const [isFixed, setIsFixed] = useState(false);
 
-  const toggleDropdown = () => {
-    setDropdownOpen(!isDropdownOpen);
+  const handleScroll = () => {
+    if (window.scrollY > 100) { // Điều chỉnh giá trị 100px tùy thuộc vào kích thước header của bạn
+      setIsFixed(true);
+    } else {
+      setIsFixed(false);
+    }
   };
 
+  useEffect(() => {
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
-    <div className="header">
-      <div className="banner">
-        <img
-          className="banner-img"
-          src="https://cocolux.com/storage/upload_image/images/Bao_bi_moi/VQMM/topbanner.gif"
-          alt="Logo"
-        />
-      </div>
+    <div className={`header ${isFixed ? 'header-fixed' : ''}`}>
       <div className="header-top">
         <div className="container">
           <FontAwesomeIcon icon={faPhoneVolume} />
           <span className="phone">0364670752</span>
         </div>
       </div>
-      <div className="header-main">
+      <div className={`header-main ${isFixed ? 'hidden-header' : ''}`}>
         <div className="container-header-main">
           <Link to="/">
             <img
@@ -39,7 +41,6 @@ const Header = () => {
             <form className="search">
               <button
                 className="dropdown"
-                onClick={toggleDropdown}
                 style={{ padding: "10px 20px", cursor: "pointer" }}
               >
                 Tất cả
@@ -47,12 +48,12 @@ const Header = () => {
               <input
                 className="input-search"
                 placeholder="Tìm kiếm sản phẩm bạn mong muốn"
-              ></input>
+              />
               <button className="search-icon">
                 <img
                   src="/assets/icons/search-icon.png"
                   alt="icon-search"
-                  style={{ width: "100%", height: "auto"}}
+                  style={{ width: "100%", height: "auto" }}
                 />
               </button>
             </form>
@@ -66,7 +67,7 @@ const Header = () => {
             <Link className="no-underline">
               <img
                 src="/assets/icons/hotline-icon.png"
-                alt="icon-shopping-cart"
+                alt="icon-hotline"
               />
               <span>Hỗ trợ khách hàng</span>
             </Link>
@@ -74,7 +75,7 @@ const Header = () => {
         </div>
       </div>
       <div className="header-bottom">
-
+        {/* Nội dung phần dưới của header */}
       </div>
     </div>
   );
