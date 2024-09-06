@@ -1,16 +1,19 @@
-.header{
+.header {
   font-size: 1vw;
+  font-family: "BeVietnamPro", sans-serif;
 }
+
 .header .container {
   max-width: 100vw;
-  padding: 0.5vw 7vw 0px 7vw;
+  padding: 0px 7vw;
   /* Chiều cao mặc định */
   font-size: 1.2vw;
   color: rgb(255, 255, 255);
   margin-right: auto;
   margin-left: auto;
-  margin-top: -1.2vh;
+
 }
+
 svg {
   vertical-align: middle;
 }
@@ -25,8 +28,7 @@ svg {
   width: 100%;
 }
 
-@media (max-width: 650px) {
-}
+@media (max-width: 650px) {}
 
 .container-header-main {
   display: flex;
@@ -35,27 +37,33 @@ svg {
   height: auto;
   width: 100%;
   /* Chiếm toàn bộ chiều rộng của màn hình */
-  padding: 0 100px;
+  padding: 10px 0;
+  position: relative;
+  gap: 20px;
+  padding-left: 8vw;
   /* Padding trái và phải */
   box-sizing: border-box;
   /* Đảm bảo padding được tính vào kích thước tổng */
 }
 
 .logo-img {
-  width: 9vw;
+  width: 7vw;
   height: auto;
-  
+
 }
 
-.search,.search-bar,
+.search,
+.search-bar,
 .search-icon {
   display: flex;
 }
+
 .dropdown,
 .search-icon {
   background: #000;
   color: white;
 }
+
 .search-icon {
   width: 4vw;
   font-size: 20px;
@@ -63,16 +71,21 @@ svg {
   align-items: center;
   padding: 0 1vw 0 1.1vw;
 }
+
 .dropdown {
   border-radius: 5px 0 0 5px;
-  background: #000;
+  background: #000000;
   color: #fff;
   height: 40px;
   white-space: unset;
   text-align: left;
-  padding: 0 10px;
+  padding: 10px 10px;
   display: flex;
   align-items: center;
+
+}
+button{
+  border: none;
 }
 .input-search {
   width: 500px;
@@ -86,60 +99,88 @@ svg {
   border: none;
   background: none;
   color: black;
+  transition: width 0.1s ease-in-out; 
+  font-weight: 500;
 }
-.search-bar>Link{
-    border-radius: 200px;
+
+.search-bar>Link {
+  border-radius: 200px;
 }
-.search-bar{
-    display: flex;
-    align-items: center;
-    justify-content: end;
-    gap: 30px;
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  justify-content: end;
+  gap: 30px;
 }
-img{
-    width: 40px;
-    height: auto;
+
+img {
+  width: 40px;
+  height: auto;
 }
-.no-underline{
-    color: inherit;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    gap: 5px
+
+.shopping-cart,
+.custom-servce {
+  color: inherit;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 5px
 }
-.header .header-bottom, .header .container{
-    width: 100%;
-    background: #000;
-    display: flex;
-    align-items: center;
-    height: 6vh;
+
+.header .header-bottom,
+.header .container {
+  width: 100%;
+  background: #000;
+  display: flex;
+  align-items: center;
+  height: 5vh;
 }
-// Animation để đẩy phần tử lên trên cùng màn hình
+
+//=============================================================================================
+// Animation xuất hiện từ trên xuống
 @keyframes slideInFromTop {
   0% {
-    transform: translateY(-100%); // Phần tử bắt đầu từ phía trên hoàn toàn ngoài khung nhìn
-    opacity: 0; // Phần tử hoàn toàn trong suốt
+    transform: translateY(-100%);
+    opacity: 0;
   }
+
   100% {
-    transform: translateY(0); // Phần tử trở về vị trí ban đầu
-    opacity: 1; // Phần tử hoàn toàn hiển thị
+    transform: translateY(0);
+    opacity: 1;
   }
 }
-
-// Class để áp dụng animation khi phần tử trở về vị trí ban đầu
-.header-fixed {
-  position: fixed; // Đặt phần tử ở vị trí cố định trên màn hình
-  top: 0; // Đặt phần tử ở vị trí trên cùng của màn hình
-  left: 0; // Đặt phần tử ở vị trí bên trái của màn hình
-  width: 100%; // Đảm bảo phần tử trải rộng toàn bộ chiều rộng của màn hình
-  background-color: white; // Đặt nền của phần tử là màu trắng
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1); // Tạo hiệu ứng bóng để phân biệt với các phần tử khác
-  z-index: 1000; // Đảm bảo phần tử nằm trên các phần tử khác
-  animation: slideInFromTop 0.5s ease-in-out forwards; // Áp dụng animation với thời gian 0.5 giây
+//=================================CSS THAY ĐỔI CÁC THUỘC TÍNH SAU KHI THỰC HIENJ ANIMATION TRÊN
+// Chỉ cố định logo-img, search-bar và shopping-cart
+.fixed-elements {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background-color: white;
+  z-index: 1000;
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 7vw;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  animation: slideInFromTop 0.1s ease-in-out forwards;
+}
+.fixed-elements .logo-img{
+  width: 4vw;
+}
+.search-bar {
+  flex: 1;
+  margin: 0 20px;
+}
+.fixed-elements .input-search {
+  width: 904px; // Tăng chiều rộng ô input khi cuộn
+  transition: width 0.3s ease-in-out;
+}
+.shopping-cart {
+  display: flex;
+  align-items: center;
 }
 
-// Class để ẩn phần tử khỏi màn hình khi cuộn xuống
-.hidden-header {
-  transform: translateY(-100%); // Dịch chuyển phần tử lên phía trên hoàn toàn ngoài khung nhìn
-  opacity: 0; // Phần tử hoàn toàn trong suốt
+.hidden {
+  display: none;
 }
