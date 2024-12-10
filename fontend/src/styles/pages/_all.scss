@@ -1,5 +1,6 @@
 @use "sass:map";
 @import "theme";
+@import "responsive";
 /* styles.css hoặc styles.scss */
 html,
 body {
@@ -10,4 +11,8 @@ body {
     font-family: "Be Vietnam Pro", sans-serif;
     padding: 0;
     margin: 0;
+}
+
+@include Responsive($MEDIUM_DEVICE){
+    
 }
