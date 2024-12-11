@@ -2,6 +2,7 @@ import { memo } from "react";
 
 import Footer from "../footer/footer";
 import Header from "../header/header";
+import "../../../../styles/pages/_all.scss"
 
 const MasterLayout = ({ children, showHeaderFooter }) => {
   return (

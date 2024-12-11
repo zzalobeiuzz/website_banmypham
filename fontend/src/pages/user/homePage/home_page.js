@@ -1,18 +1,14 @@
-import { memo } from "react";
+// src/pages/HomePage.js
+import React, { memo } from 'react';
+import FlashSale from '../homePage/components/flash_sale'; // Import component FlashSale
+import './style_home_page.scss';
 
 const HomePage = () => {
   return (
-    <>
-      <h1>Body</h1>
-      <h1>Body</h1>
-      <h1>Body</h1>
-      <h1>Body</h1>
-      <h1>Body</h1>
-      <h1>Body</h1>
-      <h1>Body</h1>
-      <h1>Body</h1>
-      <h1>Body</h1>
-    </>
+    <div className='container'>
+      <FlashSale /> {/* FlashSale tự gọi API và hiển thị dữ liệu */}
+    </div>
   );
 };
+
 export default memo(HomePage);
