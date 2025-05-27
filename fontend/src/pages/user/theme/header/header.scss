@@ -1,0 +1,278 @@
+.header {
+  font-size: 1vw;
+  font-family: "BeVietnamPro", sans-serif;
+
+  .banner-img {
+    max-height: 30vh;
+    width: 100%;
+  }
+
+  .header-top {
+    background: #000;
+    color: #fff;
+    z-index: 10;
+    position: relative;
+  }
+
+  .container {
+    display: flex;
+    align-items: center;
+    height: 5.5vh;
+    font-size: 100%;
+    margin-left: 6vw;
+  }
+}
+
+.container {
+  padding: 0;
+}
+
+.header-bottom {
+  background: #000;
+  color: #fff;
+  z-index: 20;
+  position: relative;
+}
+
+.header-bottom .container {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.menu-content {
+  width: 130px;
+
+}
+
+.header-menu .menu-site {
+  z-index: 10;
+  width: 220px;
+}
+
+// .header-menu .menu-item {
+//   position: relative;
+// }
+.fas {
+  font-family: "Font Awesome 6 Free";
+  font-weight: 900;
+}
+
+.item {
+  text-transform: uppercase;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  line-height: normal;
+  height: 40px;
+  padding: 0 16px;
+  justify-content: center;
+}
+
+.header-main {
+
+  .container-header-main {
+    font-size: 12px;
+    .login-button{
+      background-color: #fff;
+    }
+    .shopping-cart,
+    .custom-service,
+    .login-button{
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      position: relative;
+      white-space: nowrap;
+      flex-direction: column;
+      justify-content: center;
+      img {
+        width: 37px;
+        height: auto;
+      }
+    }
+  }
+}
+
+/* Ẩn menu_content mặc định */
+.menu_content {
+  display: none;
+  /* Bạn có thể thêm các thuộc tính CSS khác để cải thiện hiển thị */
+  background-color: #f1f1f1;
+  /* Ví dụ: màu nền cho menu */
+  position: absolute;
+  top: 100%;
+  /* Hiển thị ngay dưới menu_item */
+  left: 0;
+  padding: 10px;
+  width: 200px;
+  border: 1px solid #ccc;
+}
+
+/* Khi di chuyển chuột tới menu_item với class menu_site, hiển thị menu_content */
+.menu_item.menu_site:hover .menu_content {
+  display: block;
+}
+
+.menu_site {
+  width: 220px;
+}
+
+.menu_item {
+  position: relative;
+}
+
+@media (max-width: 650px) {}
+
+.container-header-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 80%;
+  /* Chiếm toàn bộ chiều rộng của màn hình */
+  padding: 5px 6.5vw;
+  position: relative;
+  gap: 20%;
+  /* Padding trái và phải */
+  box-sizing: border-box;
+  /* Đảm bảo padding được tính vào kích thước tổng */
+
+  .logo-img {
+    width: 7vw;
+    height: auto;
+  }
+
+  .search,
+  .search-bar,
+  .search-icon {
+    display: flex;
+  }
+
+  .search-icon {
+    width: 5vw;
+    font-size: 20px;
+    border-radius: 0 5px 5px 0;
+    align-items: center;
+    padding: 0 1vw 0 1.1vw;
+  }
+}
+
+
+
+.dropdown {
+  border-radius: 5px 0 0 5px;
+  background: #000000;
+  color: #fff;
+  height: 40px;
+  white-space: unset;
+  text-align: left;
+  padding: 0px 10px;
+  display: flex;
+  align-items: center;
+
+}
+
+button {
+  border: none;
+  background-color: #000;
+  width: 6vw;
+}
+
+.input-search {
+  width: 500px;
+  height: 40px;
+  padding: 0 16px;
+  font-size: 14px;
+  outline: none;
+  border-color: transparent;
+  box-shadow: 0 3px 3px rgba(0, 0, 0, 0.1);
+  border-radius: 0;
+  border: none;
+  background: none;
+  color: black;
+  transition: width 0.1s ease-in-out;
+  font-weight: 500;
+}
+
+.search-bar>Link {
+  border-radius: 200px;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  justify-content: end;
+  gap: 30px;
+}
+
+
+
+
+.btn-secondary {
+  --bs-btn-hover-bg: #000000;
+  --bs-btn-active-bg: #000000;
+}
+
+//=================================CSS THAY ĐỔI CÁC THUỘC TÍNH SAU KHI THỰC HIENJ ANIMATION TRÊN
+// Chỉ cố định logo-img, search-bar và shopping-cart
+.fixed-elements {
+  .header-main {
+    .container-header-main {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      background-color: white;
+      z-index: 1000;
+      display: flex;
+      justify-content: space-between;
+      padding: 2px 2vw;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      gap: 30px;
+      height: 60px;
+
+      .header-menu {
+        margin-top: 60px;
+      }
+
+      .logo-img-fixed {
+        width: 4vw;
+      }
+
+      .search-bar {
+        width: 100%;
+        margin: 0 20px;
+        justify-content: center;
+        gap: 20px;
+      }
+
+      .input-search {
+        width: 804px; // Tăng chiều rộng ô input khi cuộn
+        transition: width 0.3s ease-in-out;
+      }
+
+      .dropdown {
+        width: 6vw;
+      }
+    }
+
+
+  }
+}
+
+
+
+
+
+
+
+.shopping-cart {
+  display: flex;
+  align-items: center;
+}
+
+.hidden {
+  display: none;
+}
