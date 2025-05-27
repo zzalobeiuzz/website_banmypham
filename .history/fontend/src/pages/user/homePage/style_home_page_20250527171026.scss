@@ -1,0 +1,104 @@
+.slide-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 55px;
+    border-bottom: 1px solid #e5e4e4;
+    padding: 0 10px;
+
+    .slide-title {
+        font-size: 16px;
+        text-transform: uppercase;
+        color: #c73030;
+
+        h2 {
+            font-size: inherit;
+            margin: 0;
+            font-weight: 700;
+
+        }
+    }
+
+    .slide-more {
+        color: #c73030;
+        font-size: 14px;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+}
+
+.slide-main {
+    padding: 5px;
+
+    .slide-template-slide {
+        display: flex;
+        max-height: 352px;
+        overflow: hidden;
+
+
+        .owl-stage-outer {
+            position: relative;
+            overflow: hidden;
+            margin: 0 20px;
+
+            .owl-stage {
+                display: flex;
+                position: relative;
+                touch-action: manipulation; // Chỉ cho phép cuộn ngang
+                cursor: grab;
+
+                .owl-item {
+                    width: 254px;
+                    position: relative;
+                    min-height: 1px;
+                    float: left;
+                    touch-action: pan-y;
+                    -webkit-user-select: none;
+                    -moz-user-select: none;
+                    user-select: none;
+                    pointer-events: none;
+
+                    /* Ngừng tương tác với ảnh */
+                    .product-template {
+                        padding: 8px 10px;
+                        border: 1px solid transparent;
+                        position: relative;
+                        display: block;
+                        background: #fff;
+
+                        .product-discount {
+                            z-index: 1;
+                            position: absolute;
+                            right: 10px;
+                            top: 8px;
+                            background: url(../../../../public/assets/images/sale-tag.svg) center right no-repeat;
+                            background-size: contain;
+                            font-weight: 600;
+                            color: #fff;
+                            font-size: 10px;
+                            width: 40px;
+                            height: 22px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: flex-end;
+                            transition: 0.1s ease-in-out;
+
+                        }
+
+                        img {
+                            border: 4px solid black;
+                            height: 220px;
+                            display: block;
+                            width: 100%;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    .img-fluid {
+        max-width: 100%;
+        height: auto;
+        width: 18px;
+    }

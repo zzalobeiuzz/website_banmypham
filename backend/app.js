@@ -12,7 +12,7 @@ app.get('/api/products', async (req, res) => {
     const pool = await connectDB();
     const result = await pool.request()
       .query(`
-        SELECT TOP 3 *
+        SELECT *
         FROM PRODUCT
         WHERE CAST(CategoryID AS NVARCHAR(MAX)) = 'CHAMSOCCOTHE'
       `); 
@@ -22,6 +22,12 @@ app.get('/api/products', async (req, res) => {
     res.status(500).json({ message: "Lỗi khi lấy dữ liệu từ cơ sở dữ liệu." });
   }
 });
+
+// Route gốc
+app.get('/', (req, res) => {
+  res.send('Server đang hoạt động!');
+});
+
 
 
 app.listen(port, () => {
