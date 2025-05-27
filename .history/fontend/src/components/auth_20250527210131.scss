@@ -1,0 +1,137 @@
+//=================================CSS POPUP ĐĂNG NHẬP========================================
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  .popup-wrapper {
+    width: 90%;
+    max-width: 460px;
+    height: 90%;
+  }
+}
+
+
+
+.login-section {
+  background-color: #ffffff;
+  border-radius: 1rem;
+  position: relative;
+  color: rgb(0, 0, 0);
+
+  form {
+    .form-check {
+      #rememberMe {
+        border: 2px solid #7DA6E3;
+      }
+    }
+
+    input {
+      font-size: 14px;
+    }
+
+    button {
+      width: 90%;
+      font-size: 16px;
+    }
+
+    .btn-login {
+      background-color: #000000;
+      border: 1px solid #000;
+      transition: color 0.3s, background-color 0.3s;
+      /* để hiệu ứng mượt */
+    }
+
+    .btn-login:hover {
+      color: black;
+      background-color: white;
+    }
+  }
+}
+
+.card-body .form-label {
+  color: #fff;
+}
+
+
+
+a.link-primary {
+  color: #fff;
+}
+
+a.link-primary:hover {
+  text-decoration: underline;
+}
+
+//==========================SIGNUP============================
+.bsb-btn-xl {
+  --bs-btn-padding-y: 0.625rem;
+  --bs-btn-padding-x: 1.25rem;
+  --bs-btn-font-size: calc(1.26rem + 0.12vw);
+  --bs-btn-border-radius: var(--bs-border-radius-lg)
+}
+
+@media(min-width:1200px) {
+  .bsb-btn-xl {
+    --bs-btn-font-size: 1.35rem
+  }
+}
+
+.bsb-btn-2xl {
+  --bs-btn-padding-y: 0.75rem;
+  --bs-btn-padding-x: 1.5rem;
+  --bs-btn-font-size: calc(1.27rem + 0.24vw);
+  --bs-btn-border-radius: var(--bs-border-radius-lg)
+}
+
+@media(min-width:1200px) {
+  .bsb-btn-2xl {
+    --bs-btn-font-size: 1.45rem
+  }
+}
+
+.bsb-btn-3xl {
+  --bs-btn-padding-y: 0.875rem;
+  --bs-btn-padding-x: 1.75rem;
+  --bs-btn-font-size: calc(1.28rem + 0.36vw);
+  --bs-btn-border-radius: var(--bs-border-radius-lg)
+}
+
+@media(min-width:1200px) {
+  .bsb-btn-3xl {
+    --bs-btn-font-size: 1.55rem
+  }
+}
+
+.bsb-btn-4xl {
+  --bs-btn-padding-y: 1rem;
+  --bs-btn-padding-x: 2rem;
+  --bs-btn-font-size: calc(1.29rem + 0.48vw);
+  --bs-btn-border-radius: var(--bs-border-radius-lg)
+}
+
+@media(min-width:1200px) {
+  .bsb-btn-4xl {
+    --bs-btn-font-size: 1.65rem
+  }
+}
+
+.bsb-btn-5xl {
+  --bs-btn-padding-y: 1.125rem;
+  --bs-btn-padding-x: 2.25rem;
+  --bs-btn-font-size: calc(1.3rem + 0.6vw);
+  --bs-btn-border-radius: var(--bs-border-radius-lg)
+}
+
+@media(min-width:1200px) {
+  .bsb-btn-5xl {
+    --bs-btn-font-size: 1.75rem
+  }
+}
