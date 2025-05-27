@@ -32,21 +32,23 @@
   color: #fff;
   z-index: 20;
   position: relative;
+}
 
-  .container {
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.header-bottom .container {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
-    .menu_item {
-      position: relative;
-    }
+.menu-content {
+  width: 130px;
 
-    .menu-content {
-      width: 130px;
-    }
-  }
+}
+
+.header-menu .menu-site {
+  z-index: 10;
+  width: 220px;
 }
 
 // .header-menu .menu-item {
@@ -70,18 +72,17 @@
 }
 
 .header-main {
+
   .container-header-main {
     font-size: 12px;
 
     .shopping-cart,
-    .custom-service,
-    .login-button {
+    .custom-service{
       display: flex;
       align-items: center;
       gap: 10px;
       position: relative;
       white-space: nowrap;
-
       img {
         width: 37px;
         height: auto;
@@ -92,14 +93,16 @@
 
 /* Ẩn menu_content mặc định */
 .menu_content {
-  display: block;
-  background-color: #ffffff;
+  display: none;
+  /* Bạn có thể thêm các thuộc tính CSS khác để cải thiện hiển thị */
+  background-color: #f1f1f1;
+  /* Ví dụ: màu nền cho menu */
   position: absolute;
   top: 100%;
+  /* Hiển thị ngay dưới menu_item */
   left: 0;
   padding: 10px;
   width: 200px;
-  color: black;
   border: 1px solid #ccc;
 }
 
@@ -108,8 +111,15 @@
   display: block;
 }
 
-@media (max-width: 650px) {
+.menu_site {
+  width: 220px;
 }
+
+.menu_item {
+  position: relative;
+}
+
+@media (max-width: 650px) {}
 
 .container-header-main {
   display: flex;
@@ -117,9 +127,9 @@
   justify-content: space-between;
   width: 100%;
   /* Chiếm toàn bộ chiều rộng của màn hình */
-  padding: 5px 5.5vw;
+  padding: 5px 6.5vw;
   position: relative;
-  gap: 12%;
+  gap: 20%;
   /* Padding trái và phải */
   box-sizing: border-box;
   /* Đảm bảo padding được tính vào kích thước tổng */
@@ -144,6 +154,8 @@
   }
 }
 
+
+
 .dropdown {
   border-radius: 5px 0 0 5px;
   background: #000000;
@@ -154,6 +166,7 @@
   padding: 0px 10px;
   display: flex;
   align-items: center;
+
 }
 
 button {
@@ -178,17 +191,8 @@ button {
   font-weight: 500;
 }
 
-.search-bar {
-  Link {
-    border-radius: 200px;
-  }
-
-  .login-button {
-    background-color: #fff;
-    color: #333;
-    padding: 0;
-    cursor: pointer;
-  }
+.search-bar>Link {
+  border-radius: 200px;
 }
 
 .search-bar {
@@ -198,10 +202,14 @@ button {
   gap: 30px;
 }
 
+
+
+
 .btn-secondary {
   --bs-btn-hover-bg: #000000;
   --bs-btn-active-bg: #000000;
 }
+
 //=================================CSS THAY ĐỔI CÁC THUỘC TÍNH SAU KHI THỰC HIENJ ANIMATION TRÊN
 // Chỉ cố định logo-img, search-bar và shopping-cart
 .fixed-elements {
@@ -219,6 +227,10 @@ button {
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       gap: 30px;
       height: 60px;
+
+      .header-menu {
+        margin-top: 60px;
+      }
 
       .logo-img-fixed {
         width: 4vw;
@@ -240,8 +252,16 @@ button {
         width: 6vw;
       }
     }
+
+
   }
 }
+
+
+
+
+
+
 
 .shopping-cart {
   display: flex;
