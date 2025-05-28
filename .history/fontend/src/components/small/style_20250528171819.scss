@@ -1,0 +1,182 @@
+body {
+    font-family: 'Karla', sans-serif;
+    background-color: #f2f5f8;
+}
+
+.registration-card {
+    width: 535px;
+    max-width: 100%;
+    min-height: 640px;
+    margin-left: auto;
+    margin-right: auto;
+    border: 0;
+    border-radius: 10px;
+    background-color: #fff;
+
+    .card-title {
+        font-size: 30px;
+        color: #030303;
+        text-align: center;
+    }
+
+    .card-body {
+        padding: 42px 78px 72px;
+
+        @media (max-width: 767px ) {
+            padding: 24px;
+        }
+    }
+}
+
+/* Wizard */
+
+.wizard {
+
+    .audible {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    .steps {
+
+        padding-top: 30px;
+        padding-bottom: 37.5px;
+
+        &>ul {
+            list-style: none;
+            padding-left: 0;
+            display: flex;
+            justify-content: space-between;
+            background-image: linear-gradient(#f5f6fa, #f5f6fa);
+            background-size: calc(100% - 75px) 2px;
+            background-repeat: no-repeat;
+            background-position: center 20px;
+            margin-bottom: 0;
+
+            li {
+                a {
+                    display: inline-block;
+                    text-align: center;
+                }
+
+                .bd-wizard-step-indicator {
+                    position: relative;
+                    display: inline-block;
+                    width: 25px;
+                    height: 25px;
+                    margin-top: 8.5px;
+                    margin-bottom: 8.5px;
+                    border-radius: 50%;
+                    box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.15);
+                    background-color: #ffffff;
+                    transition: all 0.4s ease-in-out, box-shadow 0s;
+
+                    &::before {
+                        content: "\F764";
+                        font-family: "Material Design Icons";
+                        font-size: 8px;
+                        width: 8px;
+                        height: 8px;
+                        opacity: 0.42;
+                        color: #6f787d;
+                        transition: all 0.4s ease-in-out;
+                    }
+                }
+
+                .bd-wizard-step-title {
+                    font-size: 14px;
+                    font-weight: bold;
+                    color: #6f787d;
+                    margin-top: 5.5px;
+                }
+
+                &.current,
+                &.done {
+                    .bd-wizard-step-indicator {
+                        background-color: #00b234;
+                        box-shadow: 0 0 0 7.5px rgba(#00b234, 0.11);
+
+                        &::before {
+                            content: "\FE6E";
+                            color: #fff;
+                            opacity: 1;
+                            font-size: 11px;
+                        }
+                    }
+
+                    .bd-wizard-step-title {
+                        font-size: 14px;
+                        color: #000000;
+                    }
+                }
+            }
+        }
+    }
+
+    .content {
+        margin-bottom: 45px;
+
+        .title {
+            display: none;
+        }
+
+        .bd-wizard-step-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #7b7f89;
+            margin-bottom: 45px;
+        }
+
+        p {
+            font-size: 16px;
+            color: #030303
+        }
+
+        .form-control {
+            padding: 16px 29px;
+            min-height: 50px;
+            border-radius: 4px;
+            border: solid 1px #ececec;
+
+            &::placeholder {
+                color: #919aa3;
+            }
+        }
+    }
+
+    .actions {
+
+        &>ul {
+            list-style: none;
+            padding-left: 0;
+            display: flex;
+        }
+
+        li {
+            a {
+                display: inline-block;
+                border-radius: 6px;
+                background-color: #00d69f;
+                padding: 16px 30px;
+                color: #fff;
+                font-style: 15px;
+                font-weight: bold;
+
+                &:hover {
+                    text-decoration: none;
+                }
+            }
+
+            &.disabled {
+                display: none;
+            }
+        }
+    }
+}
