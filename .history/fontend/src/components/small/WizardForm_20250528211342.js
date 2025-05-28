@@ -197,4 +197,4 @@ const WizardForm = () => {
   );
 };
 
-export default WizardForm;
+export default RegistrationForm;

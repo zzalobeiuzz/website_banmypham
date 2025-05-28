@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './style.scss';
 
-const WizardForm = () => {
+const RegistrationForm = () => {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     username: '',
@@ -197,4 +197,4 @@ const WizardForm = () => {
   );
 };
 
-export default WizardForm;
+export default RegistrationForm;

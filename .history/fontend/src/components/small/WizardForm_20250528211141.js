@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './style.scss';
 
-const WizardForm = () => {
+const RegistrationForm = () => {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     username: '',
@@ -157,7 +157,7 @@ const WizardForm = () => {
                 <button
                   type="button"
                   className="link-button"
-                  onClick={() => navigate("/", { state: { showLogin: true } })}
+                  onClick={() => navigate("", { state: { showLogin: true } })}
                 >
                   Đăng nhập
                 </button>
@@ -197,4 +197,4 @@ const WizardForm = () => {
   );
 };
 
-export default WizardForm;
+export default RegistrationForm;
