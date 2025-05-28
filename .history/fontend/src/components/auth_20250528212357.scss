@@ -1,7 +1,10 @@
 //=================================CSS POPUP ĐĂNG NHẬP========================================
 .popup-overlay {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background-color: rgba(0, 0, 0, 0.5);
   z-index: 9999;
   display: flex;
@@ -15,11 +18,13 @@
   }
 }
 
+
+
 .login-section {
-  background: #fff;
+  background-color: #ffffff;
   border-radius: 1rem;
   position: relative;
-  color: #000;
+  color: rgb(0, 0, 0);
 
   form {
     .form-check {
@@ -38,25 +43,26 @@
     }
 
     .btn-login {
-      background-color: #000;
+      background-color: #000000;
       border: 1px solid #000;
       transition: color 0.3s, background-color 0.3s;
+      /* để hiệu ứng mượt */
+    }
 
-      &:hover {
-        color: #000;
-        background-color: #fff;
-      }
+    .btn-login:hover {
+      color: black;
+      background-color: white;
     }
 
     .btn-google {
       background-color: #dd4b39;
-      color: #fff;
+      color: white;
       width: 100%;
     }
 
     .btn-facebook {
       background-color: #3b5998;
-      color: #fff;
+      color: white;
       width: 100%;
     }
   }
@@ -66,14 +72,15 @@
   color: #fff;
 }
 
+
+
 a.link-primary {
   color: #fff;
-
-  &:hover {
-    text-decoration: underline;
-  }
 }
 
+a.link-primary:hover {
+  text-decoration: underline;
+}
 
 //==========================SIGNUP============================
 .sign-up {

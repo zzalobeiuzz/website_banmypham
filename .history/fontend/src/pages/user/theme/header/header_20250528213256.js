@@ -6,56 +6,34 @@ import LoginPopup from "../../../../components/login";
 import "./header.scss";
 
 const Header = () => {
-  // Xác định trạng thái header có đang cố định (fixed) khi scroll xuống không
   const [isFixed, setIsFixed] = useState(false);
-
-  // Lưu giá trị scroll trước đó để biết người dùng đang cuộn lên hay xuống
   const [lastScrollY, setLastScrollY] = useState(0);
-
-  // Hiển thị/ẩn phần "Hỗ trợ khách hàng" khi scroll
   const [showCustomService, setShowCustomService] = useState(true);
-
-  // Hiển thị/ẩn popup đăng nhập
   const [showLogin, setShowLogin] = useState(false);
-
-  // Lấy thông tin route hiện tại (bao gồm state được gửi kèm khi navigate)
   const location = useLocation();
 
-  // Theo dõi sự kiện scroll để thay đổi trạng thái fixed và hiển thị dịch vụ
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-
-      // Nếu cuộn xuống quá 20px thì cố định header
       setIsFixed(currentScrollY > 20);
-
-      // Ẩn/hiện phần hỗ trợ khách hàng tùy theo vị trí scroll
       setShowCustomService(currentScrollY <= 20);
-
-      // Nếu người dùng đang cuộn lên thì bỏ cố định header
       if (currentScrollY < lastScrollY) setIsFixed(false);
-
       setLastScrollY(currentScrollY);
     };
-
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, [lastScrollY]);
-
-  // Khi chuyển trang và có state { showLogin: true }, thì bật popup đăng nhập
+  
   useEffect(() => {
     if (location.state?.showLogin) {
       setShowLogin(true);
 
-      // Reset lại state để không hiện lại popup khi reload
+      // Reset state (nếu dùng navigate)
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
 
-  // Toggle hiển thị popup đăng nhập
   const toggleLoginPopup = () => setShowLogin((prev) => !prev);
-
-  // Xử lý submit form đăng nhập
   const handleLoginSubmit = (e) => {
     e.preventDefault();
     alert("Đăng nhập thành công (ví dụ)");
@@ -64,9 +42,7 @@ const Header = () => {
 
   return (
     <>
-      {/* HEADER CHÍNH */}
       <div className={`header ${isFixed ? "fixed-elements" : ""}`}>
-        {/* Header top: hiển thị số điện thoại */}
         <div className="header-top">
           <div className="container">
             <FontAwesomeIcon icon={faPhoneVolume} />
@@ -74,18 +50,15 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Header main: logo, tìm kiếm, giỏ hàng, đăng nhập */}
         <div className="header-main">
           <div className="container-header-main">
             <Link to="/">
-              {/* Logo bình thường */}
               <img
                 className="logo-img"
                 style={{ display: isFixed ? "none" : "block" }}
                 src="/assets/images/logo.png"
                 alt="logo"
               />
-              {/* Logo cố định khi scroll */}
               <img
                 className="logo-img-fixed"
                 style={{ display: isFixed ? "block" : "none" }}
@@ -95,7 +68,6 @@ const Header = () => {
             </Link>
 
             <div className="search-bar">
-              {/* Thanh tìm kiếm sản phẩm */}
               <form className="search">
                 <button
                   className="btn btn-secondary dropdown-toggle dropdown"
@@ -129,7 +101,6 @@ const Header = () => {
                 </button>
               </form>
 
-              {/* Giỏ hàng */}
               <Link className="shopping-cart">
                 <img
                   src="/assets/icons/shopping-cart-icon.png"
@@ -138,7 +109,6 @@ const Header = () => {
                 <span>Giỏ hàng</span>
               </Link>
 
-              {/* Hỗ trợ khách hàng (chỉ hiện khi chưa scroll xuống) */}
               {showCustomService && (
                 <Link className="custom-service">
                   <img
@@ -149,7 +119,6 @@ const Header = () => {
                 </Link>
               )}
 
-              {/* Nút đăng nhập */}
               <button onClick={toggleLoginPopup} className="login-button">
                 <img
                   src="/assets/icons/icons8-web-account.png"
@@ -161,13 +130,11 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Menu dưới cùng */}
         <div
           className="header-bottom"
           style={{ marginTop: isFixed ? "70px" : 0 }}
         >
           <div className="container header-bottom-menu header-menu">
-            {/* Menu bên trái: danh mục sản phẩm */}
             <div className="menu_item menu_site">
               <a href="/" className="item">
                 <FontAwesomeIcon icon={faBars} className="fas" />
@@ -182,7 +149,6 @@ const Header = () => {
               </div>
             </div>
 
-            {/* Các mục menu chính */}
             {[
               "Khuyến mãi",
               "Thương hiệu",
@@ -198,7 +164,6 @@ const Header = () => {
               </div>
             ))}
 
-            {/* Tra cứu đơn hàng */}
             <div className="menu-content"></div>
             <div className="menu_search_order">
               <a href="/" className="item">
@@ -209,7 +174,6 @@ const Header = () => {
         </div>
       </div>
 
-      {/* Popup đăng nhập (hiện khi showLogin === true) */}
       {showLogin && (
         <LoginPopup
           toggleLoginPopup={toggleLoginPopup}

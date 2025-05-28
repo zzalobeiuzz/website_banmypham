@@ -3,16 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import './style.scss';
 
 const WizardForm = () => {
-  const [step, setStep] = useState(1); // Theo dõi bước hiện tại
-  const [formData, setFormData] = useState({
-    username: '',
-    phoneNumber: '',
-    location: ''
-  }); // Lưu dữ liệu form
+  const [step, setStep] = useState(1);
+  const [formData, setFormData] = useState({ username: '', phoneNumber: '', location: '' });
   const navigate = useNavigate();
 
-  const handleChange = e =>
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  const handleChange = e => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
   const isStepOneComplete = () =>
     Object.values(formData).every(val => val.trim() !== '');
@@ -39,7 +34,6 @@ const WizardForm = () => {
 
   return (
     <div className="registration-form">
-      {/* Thanh điều hướng các bước */}
       <div className="steps-container">
         <div className="step-line" />
         {[1, 2, 3].map(s => (
@@ -53,7 +47,6 @@ const WizardForm = () => {
       </div>
 
       <div className="step-content">
-        {/* Bước 1: Nhập thông tin cá nhân */}
         {step === 1 && (
           <form onSubmit={e => { e.preventDefault(); handleNext(); }}>
             <h3>Thông tin cá nhân</h3>
@@ -62,10 +55,7 @@ const WizardForm = () => {
                 key={field}
                 className="input-field"
                 type="text"
-                placeholder={
-                  field === 'username' ? 'Tên đăng nhập' :
-                  field === 'phoneNumber' ? 'Số điện thoại' : 'Địa điểm'
-                }
+                placeholder={field === 'username' ? 'Tên đăng nhập' : field === 'phoneNumber' ? 'Số điện thoại' : 'Địa điểm'}
                 name={field}
                 value={formData[field]}
                 onChange={handleChange}
@@ -74,27 +64,17 @@ const WizardForm = () => {
             ))}
             <button type="submit" className="btn">Tiếp theo</button>
 
-            {/* Đăng ký bằng mạng xã hội */}
             <div className="sign-up-social">
               <span>Đăng kí với</span>
               <div className="social-buttons">
                 {[
-                  {
-                    name: 'google',
-                    iconDefault: './assets/icons/icons8-google-24.png',
-                    iconHover: './assets/icons/icons8-google-white.png'
-                  },
-                  {
-                    name: 'facebook',
-                    iconDefault: './assets/icons/icons8-facebook-24.png',
-                    iconHover: './assets/icons/icons8-facebook-white.png'
-                  }
+                  { name: 'google', iconDefault: './assets/icons/icons8-google-24.png', iconHover: './assets/icons/icons8-google-white.png' },
+                  { name: 'facebook', iconDefault: './assets/icons/icons8-facebook-24.png', iconHover: './assets/icons/icons8-facebook-white.png' }
                 ].map(({ name, iconDefault, iconHover }) => (
                   <button
                     key={name}
                     type="button"
                     className={`social ${name}`}
-                    // Hover để đổi icon
                     onMouseEnter={e => (e.currentTarget.querySelector('img').src = iconHover)}
                     onMouseLeave={e => (e.currentTarget.querySelector('img').src = iconDefault)}
                   >
@@ -103,7 +83,6 @@ const WizardForm = () => {
                 ))}
               </div>
 
-              {/* Chuyển về trang chủ và hiển thị popup đăng nhập */}
               <span className="return-login">
                 Bạn đã có tài khoản?{' '}
                 <button
@@ -118,7 +97,6 @@ const WizardForm = () => {
           </form>
         )}
 
-        {/* Bước 2: Placeholder cho thông tin ngân hàng */}
         {step === 2 && (
           <>
             <h3>Thông tin ngân hàng</h3>
@@ -130,17 +108,13 @@ const WizardForm = () => {
           </>
         )}
 
-        {/* Bước 3: Xác nhận lại thông tin */}
         {step === 3 && (
           <form onSubmit={handleSubmit}>
             <h3>Xác nhận</h3>
             <ul>
               {Object.entries(formData).map(([key, value]) => (
                 <li key={key}>
-                  <strong>
-                    {key === 'username' ? 'Tên đăng nhập' :
-                     key === 'phoneNumber' ? 'Số điện thoại' : 'Địa điểm'}:
-                  </strong> {value}
+                  <strong>{key === 'username' ? 'Tên đăng nhập' : key === 'phoneNumber' ? 'Số điện thoại' : 'Địa điểm'}:</strong> {value}
                 </li>
               ))}
             </ul>
