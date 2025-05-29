@@ -18,7 +18,7 @@ const WizardForm = () => {
     },
   });
   const navigate = useNavigate();
-
+  
   const [showSuccessMessage, setShowSuccessMessage] = useState(false); //Thêm state để điều khiển hiển thị thông báo:
 
   const handleChange = (e, section) => {
@@ -51,7 +51,6 @@ const WizardForm = () => {
   const handleBack = () => step > 1 && setStep(step - 1);
 
   const handleSubmit = (e) => {
-    //Nút hoàn thành
     e.preventDefault();
     setShowSuccessMessage(true); // Hiện thông báo
     console.log("Dữ liệu:", formData);
@@ -105,8 +104,8 @@ const WizardForm = () => {
                     <img
                       src={
                         showPassword
-                          ? "./assets/icons/icons8-eye-48.png"
-                          : "./assets/icons/icons8-hide-64.png"
+                        ? "./assets/icons/icons8-eye-48.png"
+                        : "./assets/icons/icons8-hide-64.png"
                       }
                       alt={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
                     />
@@ -125,6 +124,8 @@ const WizardForm = () => {
                 />
               )
             )}
+            
+            
 
             <button type="submit" className="btn">
               Tiếp theo
@@ -201,7 +202,7 @@ const WizardForm = () => {
                 name={field}
                 value={formData.personal[field]}
                 onChange={(e) => handleChange(e, "personal")}
-                required={field !== "address"} // 👉 Chỉ required nếu không phải là "address"
+                required
               />
             ))}
             <div className="button-group">
@@ -217,67 +218,66 @@ const WizardForm = () => {
 
         {step === 3 && (
           <form onSubmit={handleSubmit}>
-            <h3>Xác nhận thông tin</h3>
-            <ul>
-              {Object.entries(formData.account).map(([key, value]) => (
-                <li key={key}>
-                  <strong>
-                    {key === "username"
-                      ? "Tên đăng nhập"
-                      : key === "email"
-                      ? "Email"
-                      : key === "password"
-                      ? "Mật khẩu"
-                      : key}
-                    :
-                  </strong>{" "}
-                  {value}
-                </li>
-              ))}
-              {Object.entries(formData.personal).map(([key, value]) => (
-                <li key={key}>
-                  <strong>
-                    {key === "fullName"
-                      ? "Họ và tên"
-                      : key === "phoneNumber"
-                      ? "Số điện thoại"
-                      : key === "address"
-                      ? "Địa chỉ"
-                      : key}
-                    :
-                  </strong>{" "}
-                  {value}
-                </li>
-              ))}
-            </ul>
+  <h3>Xác nhận thông tin</h3>
+  <ul>
+    {Object.entries(formData.account).map(([key, value]) => (
+      <li key={key}>
+        <strong>
+          {key === "username"
+            ? "Tên đăng nhập"
+            : key === "email"
+            ? "Email"
+            : key === "password"
+            ? "Mật khẩu"
+            : key}
+          :
+        </strong>{" "}
+        {value}
+      </li>
+    ))}
+    {Object.entries(formData.personal).map(([key, value]) => (
+      <li key={key}>
+        <strong>
+          {key === "fullName"
+            ? "Họ và tên"
+            : key === "phoneNumber"
+            ? "Số điện thoại"
+            : key === "address"
+            ? "Địa chỉ"
+            : key}
+          :
+        </strong>{" "}
+        {value}
+      </li>
+    ))}
+  </ul>
 
-            <div className="button-group">
-              {!showSuccessMessage && (
-                <>
-                  <button type="button" className="btn" onClick={handleBack}>
-                    Quay lại
-                  </button>
-                  <button type="submit" className="btn">
-                    Hoàn tất
-                  </button>
-                </>
-              )}
+  <div className="button-group">
+    {!showSuccessMessage && (
+      <>
+        <button type="button" className="btn" onClick={handleBack}>
+          Quay lại
+        </button>
+        <button type="submit" className="btn">
+          Hoàn tất
+        </button>
+      </>
+    )}
 
-              {showSuccessMessage && (
-                <div className="success-message">
-                  <p>🎉 Đăng ký thành công!</p>
-                  <button
-                    className="btn ok-btn"
-                    onClick={() =>
-                      navigate("/", { state: { showLogin: true } })
-                    }
-                  >
-                    Đăng nhập ngay
-                  </button>
-                </div>
-              )}
-            </div>
-          </form>
+    {showSuccessMessage && (
+      <div className="success-message">
+        <p>🎉 Đăng ký thành công!</p>
+        <button
+          className="btn ok-btn"
+          onClick={() => navigate("/", { state: { showLogin: true } })}
+        >
+          OK
+        </button>
+      </div>
+    )}
+  </div>
+</form>
+
         )}
       </div>
     </div>

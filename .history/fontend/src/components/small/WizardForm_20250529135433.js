@@ -4,7 +4,6 @@ import "./style.scss";
 
 const WizardForm = () => {
   const [step, setStep] = useState(1);
-  const [showPassword, setShowPassword] = useState(false); // trạng thái hiện mật khẩu
   const [formData, setFormData] = useState({
     account: {
       username: "",
@@ -19,18 +18,27 @@ const WizardForm = () => {
   });
   const navigate = useNavigate();
 
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false); //Thêm state để điều khiển hiển thị thông báo:
+const handleChange = (e, section) => {
+  const { name, value } = e.target;
 
-  const handleChange = (e, section) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [section]: {
-        ...prev[section],
-        [name]: value,
-      },
-    }));
-  };
+  // Nếu là mật khẩu thì lọc ký tự không hợp lệ
+  if (name === "password") {
+    const asciiOnly = /^[\x00-\x7F]*$/; // chỉ ký tự ASCII
+    const noSpaces = !/\s/.test(value); // không có khoảng trắng
+
+    if (!asciiOnly.test(value) || !noSpaces) {
+      return; // Không cập nhật nếu có ký tự Unicode hoặc khoảng trắng
+    }
+  }
+
+  setFormData((prev) => ({
+    ...prev,
+    [section]: {
+      ...prev[section],
+      [name]: value,
+    },
+  }));
+};
 
   const isStepOneComplete = () =>
     Object.values(formData.account).every((val) => val.trim() !== "");
@@ -51,9 +59,8 @@ const WizardForm = () => {
   const handleBack = () => step > 1 && setStep(step - 1);
 
   const handleSubmit = (e) => {
-    //Nút hoàn thành
     e.preventDefault();
-    setShowSuccessMessage(true); // Hiện thông báo
+    alert("Đăng ký thành công!");
     console.log("Dữ liệu:", formData);
   };
 
@@ -84,48 +91,24 @@ const WizardForm = () => {
             }}
           >
             <h3>Thông tin tài khoản</h3>
-            {["username", "email", "password"].map((field) =>
-              field === "password" ? (
-                <div key={field} className="password-input-wrapper">
-                  <input
-                    className="input-field password-input"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Mật khẩu"
-                    name="password"
-                    value={formData.account.password}
-                    onChange={(e) => handleChange(e, "account")}
-                    required
-                  />
-                  <span
-                    className="password-toggle"
-                    onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-                    title={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-                  >
-                    <img
-                      src={
-                        showPassword
-                          ? "./assets/icons/icons8-eye-48.png"
-                          : "./assets/icons/icons8-hide-64.png"
-                      }
-                      alt={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-                    />
-                  </span>
-                </div>
-              ) : (
-                <input
-                  key={field}
-                  className="input-field"
-                  type="text"
-                  placeholder={field === "username" ? "Tên đăng nhập" : "Email"}
-                  name={field}
-                  value={formData.account[field]}
-                  onChange={(e) => handleChange(e, "account")}
-                  required
-                />
-              )
-            )}
-
+            {["username", "email", "password"].map((field) => (
+              <input
+                key={field}
+                className="input-field"
+                type={field === "password" ? "password" : "text"}
+                placeholder={
+                  field === "username"
+                    ? "Tên đăng nhập"
+                    : field === "email"
+                    ? "Email"
+                    : "Mật khẩu"
+                }
+                name={field}
+                value={formData.account[field]}
+                onChange={(e) => handleChange(e, "account")}
+                required
+              />
+            ))}
             <button type="submit" className="btn">
               Tiếp theo
             </button>
@@ -201,7 +184,7 @@ const WizardForm = () => {
                 name={field}
                 value={formData.personal[field]}
                 onChange={(e) => handleChange(e, "personal")}
-                required={field !== "address"} // 👉 Chỉ required nếu không phải là "address"
+                required
               />
             ))}
             <div className="button-group">
@@ -217,7 +200,7 @@ const WizardForm = () => {
 
         {step === 3 && (
           <form onSubmit={handleSubmit}>
-            <h3>Xác nhận thông tin</h3>
+            <h3>Xác nhận</h3>
             <ul>
               {Object.entries(formData.account).map(([key, value]) => (
                 <li key={key}>
@@ -252,30 +235,12 @@ const WizardForm = () => {
             </ul>
 
             <div className="button-group">
-              {!showSuccessMessage && (
-                <>
-                  <button type="button" className="btn" onClick={handleBack}>
-                    Quay lại
-                  </button>
-                  <button type="submit" className="btn">
-                    Hoàn tất
-                  </button>
-                </>
-              )}
-
-              {showSuccessMessage && (
-                <div className="success-message">
-                  <p>🎉 Đăng ký thành công!</p>
-                  <button
-                    className="btn ok-btn"
-                    onClick={() =>
-                      navigate("/", { state: { showLogin: true } })
-                    }
-                  >
-                    Đăng nhập ngay
-                  </button>
-                </div>
-              )}
+              <button type="button" className="btn" onClick={handleBack}>
+                Quay lại
+              </button>
+              <button type="submit" className="btn">
+                Hoàn tất
+              </button>
             </div>
           </form>
         )}

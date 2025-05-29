@@ -201,7 +201,7 @@ const WizardForm = () => {
                 name={field}
                 value={formData.personal[field]}
                 onChange={(e) => handleChange(e, "personal")}
-                required={field !== "address"} // 👉 Chỉ required nếu không phải là "address"
+                required
               />
             ))}
             <div className="button-group">
@@ -272,7 +272,7 @@ const WizardForm = () => {
                       navigate("/", { state: { showLogin: true } })
                     }
                   >
-                    Đăng nhập ngay
+                    OK
                   </button>
                 </div>
               )}

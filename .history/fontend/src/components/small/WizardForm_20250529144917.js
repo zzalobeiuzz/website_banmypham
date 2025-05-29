@@ -18,7 +18,7 @@ const WizardForm = () => {
     },
   });
   const navigate = useNavigate();
-
+  
   const [showSuccessMessage, setShowSuccessMessage] = useState(false); //Thêm state để điều khiển hiển thị thông báo:
 
   const handleChange = (e, section) => {
@@ -51,7 +51,6 @@ const WizardForm = () => {
   const handleBack = () => step > 1 && setStep(step - 1);
 
   const handleSubmit = (e) => {
-    //Nút hoàn thành
     e.preventDefault();
     setShowSuccessMessage(true); // Hiện thông báo
     console.log("Dữ liệu:", formData);
@@ -105,8 +104,8 @@ const WizardForm = () => {
                     <img
                       src={
                         showPassword
-                          ? "./assets/icons/icons8-eye-48.png"
-                          : "./assets/icons/icons8-hide-64.png"
+                        ? "./assets/icons/icons8-eye-48.png"
+                        : "./assets/icons/icons8-hide-64.png"
                       }
                       alt={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
                     />
@@ -125,6 +124,8 @@ const WizardForm = () => {
                 />
               )
             )}
+            
+            
 
             <button type="submit" className="btn">
               Tiếp theo
@@ -201,7 +202,7 @@ const WizardForm = () => {
                 name={field}
                 value={formData.personal[field]}
                 onChange={(e) => handleChange(e, "personal")}
-                required={field !== "address"} // 👉 Chỉ required nếu không phải là "address"
+                required
               />
             ))}
             <div className="button-group">
@@ -252,27 +253,17 @@ const WizardForm = () => {
             </ul>
 
             <div className="button-group">
-              {!showSuccessMessage && (
-                <>
-                  <button type="button" className="btn" onClick={handleBack}>
-                    Quay lại
-                  </button>
-                  <button type="submit" className="btn">
-                    Hoàn tất
-                  </button>
-                </>
-              )}
-
+              <button type="button" className="btn" onClick={handleBack}>
+                Quay lại
+              </button>
+              <button type="submit" className="btn" >
+                Hoàn tất
+              </button>
               {showSuccessMessage && (
                 <div className="success-message">
                   <p>🎉 Đăng ký thành công!</p>
-                  <button
-                    className="btn ok-btn"
-                    onClick={() =>
-                      navigate("/", { state: { showLogin: true } })
-                    }
-                  >
-                    Đăng nhập ngay
+                  <button className="btn ok-btn" onClick={() => navigate("/", { state: { showLogin: true } })}>
+                    OK
                   </button>
                 </div>
               )}

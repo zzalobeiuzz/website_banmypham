@@ -19,8 +19,6 @@ const WizardForm = () => {
   });
   const navigate = useNavigate();
 
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false); //Thêm state để điều khiển hiển thị thông báo:
-
   const handleChange = (e, section) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -51,9 +49,8 @@ const WizardForm = () => {
   const handleBack = () => step > 1 && setStep(step - 1);
 
   const handleSubmit = (e) => {
-    //Nút hoàn thành
     e.preventDefault();
-    setShowSuccessMessage(true); // Hiện thông báo
+    alert("Đăng ký thành công!");
     console.log("Dữ liệu:", formData);
   };
 
@@ -86,30 +83,33 @@ const WizardForm = () => {
             <h3>Thông tin tài khoản</h3>
             {["username", "email", "password"].map((field) =>
               field === "password" ? (
-                <div key={field} className="password-input-wrapper">
+                <div key={field} className="password-input-wrapper" style={{ position: 'relative' }}>
                   <input
-                    className="input-field password-input"
+                    className="input-field"
                     type={showPassword ? "text" : "password"}
                     placeholder="Mật khẩu"
                     name="password"
                     value={formData.account.password}
                     onChange={(e) => handleChange(e, "account")}
                     required
+                    style={{ paddingRight: '40px' }}
                   />
                   <span
-                    className="password-toggle"
                     onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                      position: "absolute",
+                      right: 10,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      cursor: "pointer",
+                      userSelect: "none",
+                      fontSize: "18px",
+                      color: "#666",
+                    }}
                     aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
                     title={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
                   >
-                    <img
-                      src={
-                        showPassword
-                          ? "./assets/icons/icons8-eye-48.png"
-                          : "./assets/icons/icons8-hide-64.png"
-                      }
-                      alt={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-                    />
+                    {showPassword ? "🙈" : "👁️"}
                   </span>
                 </div>
               ) : (
@@ -201,7 +201,7 @@ const WizardForm = () => {
                 name={field}
                 value={formData.personal[field]}
                 onChange={(e) => handleChange(e, "personal")}
-                required={field !== "address"} // 👉 Chỉ required nếu không phải là "address"
+                required
               />
             ))}
             <div className="button-group">
@@ -217,7 +217,7 @@ const WizardForm = () => {
 
         {step === 3 && (
           <form onSubmit={handleSubmit}>
-            <h3>Xác nhận thông tin</h3>
+            <h3>Xác nhận</h3>
             <ul>
               {Object.entries(formData.account).map(([key, value]) => (
                 <li key={key}>
@@ -252,30 +252,12 @@ const WizardForm = () => {
             </ul>
 
             <div className="button-group">
-              {!showSuccessMessage && (
-                <>
-                  <button type="button" className="btn" onClick={handleBack}>
-                    Quay lại
-                  </button>
-                  <button type="submit" className="btn">
-                    Hoàn tất
-                  </button>
-                </>
-              )}
-
-              {showSuccessMessage && (
-                <div className="success-message">
-                  <p>🎉 Đăng ký thành công!</p>
-                  <button
-                    className="btn ok-btn"
-                    onClick={() =>
-                      navigate("/", { state: { showLogin: true } })
-                    }
-                  >
-                    Đăng nhập ngay
-                  </button>
-                </div>
-              )}
+              <button type="button" className="btn" onClick={handleBack}>
+                Quay lại
+              </button>
+              <button type="submit" className="btn">
+                Hoàn tất
+              </button>
             </div>
           </form>
         )}

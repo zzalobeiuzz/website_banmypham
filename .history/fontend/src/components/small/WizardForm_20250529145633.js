@@ -272,7 +272,7 @@ const WizardForm = () => {
                       navigate("/", { state: { showLogin: true } })
                     }
                   >
-                    Đăng nhập ngay
+                    OK
                   </button>
                 </div>
               )}
