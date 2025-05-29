@@ -1,4 +1,4 @@
-import { faAngleRight, faBars, faPhoneVolume } from "@fortawesome/free-solid-svg-icons";
+import { faBars, faPhoneVolume } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import React, { memo, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
@@ -8,13 +8,13 @@ import "./header.scss";
 const Header = () => {
   // State để theo dõi trạng thái cố định (fixed) khi scroll quá 20px
   const [isFixed, setIsFixed] = useState(false);
-
+  
   // Lưu vị trí scroll Y lần trước để so sánh với vị trí hiện tại (dùng để xác định scroll lên hay xuống)
   const [lastScrollY, setLastScrollY] = useState(0);
-
+  
   // Hiển thị phần hỗ trợ khách hàng ở header top (ẩn khi scroll quá 20px)
   const [showCustomService, setShowCustomService] = useState(true);
-
+  
   // Quản lý trạng thái hiển thị popup đăng nhập
   const [showLogin, setShowLogin] = useState(false);
 
@@ -28,15 +28,16 @@ const Header = () => {
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-
+      
       // Nếu scroll quá 20px, bật trạng thái fixed header
       setIsFixed(currentScrollY > 20);
-
+      
       // Ẩn phần hỗ trợ khách hàng nếu scroll quá 20px
       setShowCustomService(currentScrollY <= 20);
-
+      
       // Nếu scroll lên (currentScrollY < lastScrollY) thì tắt trạng thái fixed
       if (currentScrollY < lastScrollY) setIsFixed(false);
+      
       // Cập nhật vị trí scroll mới
       setLastScrollY(currentScrollY);
     };
@@ -51,7 +52,7 @@ const Header = () => {
   useEffect(() => {
     if (location.state?.showLogin) {
       setShowLogin(true);
-
+      
       // Xóa trạng thái showLogin trong history để tránh popup mở lại khi back trang
       window.history.replaceState({}, document.title);
     }
@@ -67,8 +68,8 @@ const Header = () => {
     setShowLogin(false);
   };
 
-// Hàm này dùng để bật/tắt trạng thái dropdown menu "Tất cả"
-  const toggleDropdown = () => setDropdownOpen((prev) => !prev);  // và cập nhật nó thành giá trị ngược lại (true -> false, false -> true)
+  // Hàm toggle mở/đóng dropdown menu "Tất cả"
+  const toggleDropdown = () => setDropdownOpen((prev) => !prev);
 
   // --- JSX render ---
 
@@ -102,23 +103,6 @@ const Header = () => {
                 alt="logo"
               />
             </Link>
-            {/* ✅ Thêm menu_site vào đây khi isFixed === true */}
-            {isFixed && (
-              <div className="menu_item menu_site show-when-fixed">
-                <a href="/" className="item">
-                  <FontAwesomeIcon icon={faBars} className="fas" />
-                  Danh mục sản phẩm
-                </a>
-                <div className="menu_content">
-                  {Array.from({ length: 5 }, (_, i) => (
-                    <div className="menu_subcategory" key={i}>
-                      <a href="/">sd</a>
-                      <FontAwesomeIcon icon={faAngleRight} className="angle-icon" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Thanh tìm kiếm */}
             <div className="search-bar">
@@ -132,7 +116,7 @@ const Header = () => {
                   type="button"
                   className="btn btn-secondary dropdown-toggle dropdown"
                   aria-expanded={dropdownOpen}
-                  onClick={toggleDropdown}// Sự kiện click vào dropdown
+                  onClick={toggleDropdown}
                 >
                   Tất cả
                 </button>
@@ -200,7 +184,7 @@ const Header = () => {
         <div className="header-bottom" style={{ marginTop: isFixed ? "70px" : 0 }}>
           <div className="container header-bottom-menu header-menu">
             {/* Menu danh mục sản phẩm với icon */}
-            <div className={`menu_item menu_site ${isFixed ? "fixed-elements" : ""}`}>
+            <div className="menu_item menu_site">
               <a href="/" className="item">
                 <FontAwesomeIcon icon={faBars} className="fas" />
                 Danh mục sản phẩm
@@ -209,7 +193,6 @@ const Header = () => {
                 {Array.from({ length: 5 }, (_, i) => (
                   <div className="menu_subcategory" key={i}>
                     <a href="/">sd</a>
-                    <FontAwesomeIcon icon={faAngleRight} className="angle-icon" />
                   </div>
                 ))}
               </div>

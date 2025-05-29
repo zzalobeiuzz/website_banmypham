@@ -1,24 +1,3 @@
-//===============================Các biến dùng lại===========================
-@mixin menu-subcategory-style {
-  width: 100%;
-  height: 36.4px;
-  border-bottom: 1px solid #d4d4d4;
-  font-size: 12px;
-  text-transform: none;
-  padding: 0 16px;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  line-height: normal;
-  justify-content: space-between;
-
-  .angle-icon {
-    font-family: "Font Awesome 6 Free";
-    font-weight: 900;
-  }
-}
-
-// ==============================================================================
 .header {
   font-size: 1vw;
   font-family: "BeVietnamPro", sans-serif;
@@ -64,6 +43,7 @@
 
 .menu-content {
   width: 130px;
+
 }
 
 .header-menu .menu-site {
@@ -92,6 +72,7 @@
 }
 
 .header-main {
+
   .container-header-main {
     font-size: 12px;
 
@@ -111,7 +92,7 @@
       justify-content: center;
 
       img {
-        width: 30px;
+        width: 37px;
         height: auto;
       }
     }
@@ -133,7 +114,21 @@
   border: 1px solid #ccc;
 
   .menu_subcategory {
-    @include menu-subcategory-style;
+    width: 100%;
+    height: 36.4px;
+    border-bottom: 1px solid #d4d4d4;
+    font-size: 12px;
+    text-transform: none;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    line-height: normal;
+    justify-content: space-between;
+    .angle-icon {
+      font-family: "Font Awesome 6 Free";
+      font-weight: 900;
+    }
   }
 }
 
@@ -148,6 +143,7 @@
 
 .menu_item {
   position: relative;
+
 }
 
 @media (max-width: 650px) {}
@@ -185,6 +181,8 @@
   }
 }
 
+
+
 .dropdown {
   border-radius: 5px 0 0 5px;
   background: #000000;
@@ -195,6 +193,7 @@
   padding: 0px 10px;
   display: flex;
   align-items: center;
+
 }
 
 button {
@@ -229,6 +228,9 @@ button {
   justify-content: end;
   gap: 30px;
 }
+
+
+
 
 .btn-secondary {
   --bs-btn-hover-bg: #000000;
@@ -266,13 +268,6 @@ button {
         margin-right: 20px;
         justify-content: center;
         gap: 20px;
-
-        .search {
-          .dropdown-menu {
-            top: 88%;
-            left: 22.5%;
-          }
-        }
       }
 
       .input-search {
@@ -283,25 +278,20 @@ button {
       .dropdown {
         width: 6vw;
       }
-
-      .menu_site {
-        margin-left: 10px;
+      .menu_site{
+        ma
         background: #000;
-        color: #fff;
-        z-index: 20;
-        width: 290px;
-
-        .menu_subcategory {
+          color: #fff;
+          z-index: 20;
+          width: 290px;
+        .menu_subcategory{
           display: none;
-
-        }
-
-        &:hover .menu_subcategory {
-          display: block;
-          @include menu-subcategory-style;
+          
         }
       }
     }
+
+
   }
 }
 

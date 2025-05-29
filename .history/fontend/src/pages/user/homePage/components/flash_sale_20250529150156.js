@@ -93,6 +93,10 @@ const handleMouseUp = (e) => {
 
   // Cập nhật giá trị scrolledItemsCount
   scrolledItemsCount.current += direction * itemsScrollable;
+  console.log('Số lượng pixel vừa lướt: ', deltaX);
+  console.log('Sản phẩm vừa lướt quá: ', itemsScrollable);
+  console.log('Tổng sản phẩm đã lướt: ', scrolledItemsCount.current);
+  console.log('======================================');
   // Đảm bảo scrolledItemsCount không vượt ngoài giới hạn
   scrolledItemsCount.current = Math.max(
     Math.min(scrolledItemsCount.current, products.length - VISIBLE_COUNT),

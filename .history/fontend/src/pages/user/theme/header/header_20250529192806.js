@@ -68,7 +68,8 @@ const Header = () => {
   };
 
 // Hàm này dùng để bật/tắt trạng thái dropdown menu "Tất cả"
-  const toggleDropdown = () => setDropdownOpen((prev) => !prev);  // và cập nhật nó thành giá trị ngược lại (true -> false, false -> true)
+  const toggleDropdown = () => setDropdownOpen((prev) => !prev);  // setDropdownOpen nhận giá trị hiện tại của state (prev)
+  // và cập nhật nó thành giá trị ngược lại (true -> false, false -> true)
 
   // --- JSX render ---
 

@@ -67,8 +67,8 @@ const Header = () => {
     setShowLogin(false);
   };
 
-// Hàm này dùng để bật/tắt trạng thái dropdown menu "Tất cả"
-  const toggleDropdown = () => setDropdownOpen((prev) => !prev);  // và cập nhật nó thành giá trị ngược lại (true -> false, false -> true)
+  // Hàm toggle mở/đóng dropdown menu "Tất cả"
+  const toggleDropdown = () => setDropdownOpen((prev) => !prev);
 
   // --- JSX render ---
 
@@ -132,7 +132,7 @@ const Header = () => {
                   type="button"
                   className="btn btn-secondary dropdown-toggle dropdown"
                   aria-expanded={dropdownOpen}
-                  onClick={toggleDropdown}// Sự kiện click vào dropdown
+                  onClick={toggleDropdown}// Sự kiện click gọi hàm này
                 >
                   Tất cả
                 </button>

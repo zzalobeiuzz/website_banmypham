@@ -1,4 +1,4 @@
-import { faAngleRight, faBars, faPhoneVolume } from "@fortawesome/free-solid-svg-icons";
+import { faBars, faPhoneVolume } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import React, { memo, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
@@ -6,77 +6,53 @@ import LoginPopup from "../../../../components/login";
 import "./header.scss";
 
 const Header = () => {
-  // State để theo dõi trạng thái cố định (fixed) khi scroll quá 20px
   const [isFixed, setIsFixed] = useState(false);
-
-  // Lưu vị trí scroll Y lần trước để so sánh với vị trí hiện tại (dùng để xác định scroll lên hay xuống)
   const [lastScrollY, setLastScrollY] = useState(0);
-
-  // Hiển thị phần hỗ trợ khách hàng ở header top (ẩn khi scroll quá 20px)
   const [showCustomService, setShowCustomService] = useState(true);
-
-  // Quản lý trạng thái hiển thị popup đăng nhập
   const [showLogin, setShowLogin] = useState(false);
 
-  // Quản lý trạng thái dropdown menu "Tất cả" mở hay đóng
+  // State quản lý dropdown "Tất cả"
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
-  // Hook để lấy thông tin location từ react-router (dùng để xử lý khi chuyển trang có state truyền vào)
   const location = useLocation();
 
-  // useEffect để xử lý sự kiện scroll trang
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-
-      // Nếu scroll quá 20px, bật trạng thái fixed header
       setIsFixed(currentScrollY > 20);
-
-      // Ẩn phần hỗ trợ khách hàng nếu scroll quá 20px
       setShowCustomService(currentScrollY <= 20);
-
-      // Nếu scroll lên (currentScrollY < lastScrollY) thì tắt trạng thái fixed
       if (currentScrollY < lastScrollY) setIsFixed(false);
-      // Cập nhật vị trí scroll mới
       setLastScrollY(currentScrollY);
     };
 
     window.addEventListener("scroll", handleScroll);
-
-    // Cleanup event listener khi component unmount hoặc lastScrollY thay đổi
     return () => window.removeEventListener("scroll", handleScroll);
   }, [lastScrollY]);
 
-  // useEffect kiểm tra nếu location.state có trường showLogin = true thì mở popup đăng nhập
   useEffect(() => {
     if (location.state?.showLogin) {
       setShowLogin(true);
-
-      // Xóa trạng thái showLogin trong history để tránh popup mở lại khi back trang
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
 
-  // Hàm toggle bật/tắt popup đăng nhập
   const toggleLoginPopup = () => setShowLogin((prev) => !prev);
 
-  // Hàm xử lý submit form đăng nhập (ví dụ alert thành công và đóng popup)
   const handleLoginSubmit = (e) => {
     e.preventDefault();
     alert("Đăng nhập thành công (ví dụ)");
     setShowLogin(false);
   };
 
-// Hàm này dùng để bật/tắt trạng thái dropdown menu "Tất cả"
-  const toggleDropdown = () => setDropdownOpen((prev) => !prev);  // và cập nhật nó thành giá trị ngược lại (true -> false, false -> true)
+  // Toggle dropdown khi click nút "Tất cả"
+  const toggleDropdown = () => setDropdownOpen((prev) => !prev);
 
-  // --- JSX render ---
+  // Đóng dropdown khi click ra ngoài (nếu cần)
+  // hoặc bạn có thể dùng onBlur/onFocus để cải thiện UX
 
   return (
     <>
-      {/* Header chính */}
       <div className={`header ${isFixed ? "fixed-elements" : ""}`}>
-        {/* Phần header-top: hotline */}
         <div className="header-top">
           <div className="container">
             <FontAwesomeIcon icon={faPhoneVolume} />
@@ -84,10 +60,8 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Phần header-main: logo + thanh tìm kiếm + giỏ hàng + đăng nhập */}
         <div className="header-main">
           <div className="container-header-main">
-            {/* Logo (hiển thị logo khác khi fixed) */}
             <Link to="/">
               <img
                 className="logo-img"
@@ -102,44 +76,24 @@ const Header = () => {
                 alt="logo"
               />
             </Link>
-            {/* ✅ Thêm menu_site vào đây khi isFixed === true */}
-            {isFixed && (
-              <div className="menu_item menu_site show-when-fixed">
-                <a href="/" className="item">
-                  <FontAwesomeIcon icon={faBars} className="fas" />
-                  Danh mục sản phẩm
-                </a>
-                <div className="menu_content">
-                  {Array.from({ length: 5 }, (_, i) => (
-                    <div className="menu_subcategory" key={i}>
-                      <a href="/">sd</a>
-                      <FontAwesomeIcon icon={faAngleRight} className="angle-icon" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
-            {/* Thanh tìm kiếm */}
             <div className="search-bar">
               <form
                 className="search"
                 tabIndex={0}
-                onBlur={() => setDropdownOpen(false)} // Tự động đóng dropdown khi mất focus (click ra ngoài)
+                onBlur={() => setDropdownOpen(false)} // Tự động đóng dropdown khi mất focus
               >
-                {/* Nút dropdown "Tất cả" */}
                 <button
                   type="button"
                   className="btn btn-secondary dropdown-toggle dropdown"
                   aria-expanded={dropdownOpen}
-                  onClick={toggleDropdown}// Sự kiện click vào dropdown
+                  onClick={toggleDropdown}
                 >
                   Tất cả
                 </button>
 
-                {/* Hiển thị dropdown menu khi dropdownOpen = true */}
                 {dropdownOpen && (
-                  <ul className="dropdown-menu show">
+                  <ul className="dropdown-menu bg-black show">
                     {["Action", "Another action", "Something else here"].map(
                       (text, i) => (
                         <li key={i}>
@@ -156,7 +110,6 @@ const Header = () => {
                   </ul>
                 )}
 
-                {/* Input tìm kiếm */}
                 <input
                   className="input-search"
                   placeholder="Tìm kiếm sản phẩm bạn mong muốn"
@@ -170,7 +123,6 @@ const Header = () => {
                 </button>
               </form>
 
-              {/* Link giỏ hàng */}
               <Link className="shopping-cart">
                 <img
                   src="/assets/icons/shopping-cart-icon.png"
@@ -179,7 +131,6 @@ const Header = () => {
                 <span>Giỏ hàng</span>
               </Link>
 
-              {/* Hiển thị link hỗ trợ khách hàng khi chưa scroll quá 20px */}
               {showCustomService && (
                 <Link className="custom-service">
                   <img src="/assets/icons/hotline-icon.png" alt="icon-hotline" />
@@ -187,7 +138,6 @@ const Header = () => {
                 </Link>
               )}
 
-              {/* Nút đăng nhập */}
               <button onClick={toggleLoginPopup} className="login-button">
                 <img src="/assets/icons/icons8-web-account.png" alt="icon-user" />
                 <span>Đăng nhập</span>
@@ -196,26 +146,22 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Phần header-bottom: menu điều hướng chính */}
         <div className="header-bottom" style={{ marginTop: isFixed ? "70px" : 0 }}>
           <div className="container header-bottom-menu header-menu">
-            {/* Menu danh mục sản phẩm với icon */}
-            <div className={`menu_item menu_site ${isFixed ? "fixed-elements" : ""}`}>
+            <div className="menu_item menu_site">
               <a href="/" className="item">
                 <FontAwesomeIcon icon={faBars} className="fas" />
                 Danh mục sản phẩm
               </a>
               <div className="menu_content">
-                {Array.from({ length: 5 }, (_, i) => (
-                  <div className="menu_subcategory" key={i}>
+                {Array.from({ length: 11 }, (_, i) => (
+                  <div className="menu_item" key={i}>
                     <a href="/">sd</a>
-                    <FontAwesomeIcon icon={faAngleRight} className="angle-icon" />
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Các menu link khác */}
             {[
               "Khuyến mãi",
               "Thương hiệu",
@@ -232,8 +178,6 @@ const Header = () => {
             ))}
 
             <div className="menu-content"></div>
-
-            {/* Link tra cứu đơn hàng */}
             <div className="menu_search_order">
               <a href="/" className="item">
                 Tra cứu đơn hàng
@@ -243,7 +187,6 @@ const Header = () => {
         </div>
       </div>
 
-      {/* Popup đăng nhập hiển thị khi showLogin = true */}
       {showLogin && (
         <LoginPopup
           toggleLoginPopup={toggleLoginPopup}
