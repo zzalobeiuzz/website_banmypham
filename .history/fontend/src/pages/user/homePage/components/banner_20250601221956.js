@@ -9,44 +9,47 @@ const bannerImages = [
 
 const Banner = () => {
   const [activeIndex, setActiveIndex] = useState(0);
-  const translateX = -activeIndex * 710; // 700 width + 10 margin
+
   useEffect(() => {
     const interval = setInterval(() => {
       setActiveIndex((prevIndex) => (prevIndex + 1) % bannerImages.length);
     }, 4000);
     return () => clearInterval(interval);
-  }, []);
+  }, [bannerImages.length]);
+
+  const translateX = -activeIndex * 710; // 700px + 10px margin
 
   return (
     <div className="section-banner-top mb-4">
       <div className="banner-slide">
         <div className="banner-slick owl-carousel owl-loaded owl-drag">
-        <div className="owl-stage-outer">
-        <div
-          className="owl-stage"
-          style={{
-            transform: `translate3d(${translateX}px, 0, 0)`,
-            transition: "transform 0.25s ease",
-          }}
-        >
-          {bannerImages.map((item, index) => (
+          <div className="owl-stage-outer">
             <div
-              className={`owl-item${index === activeIndex ? " active" : ""}`}
-              key={index}
+              className="owl-stage"
+              style={{
+                transform: `translate3d(${translateX}px, 0, 0)`,
+                transition: "transform 1s ease-in-out",
+              }}
             >
-              <div>
-                <a href="./">
-                  <img
-                    src={`/assets/banner/${item}`}
-                    alt={`Banner ${item}`}
-                  />
-                </a>
-              </div>
+              {bannerImages.map((item, index) => (
+                <div
+                  className={`owl-item ${
+                    index === activeIndex ? "owl-active" : ""
+                  }`}
+                  key={index}
+                >
+                  <div>
+                    <a href="./">
+                      <img
+                        src={`/assets/banner/${item}`}
+                        alt={`Banner ${item}`}
+                      />
+                    </a>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </div>
-      
+          </div>
 
           <div className="owl-nav">
             <button type="button" role="presentation" className="owl-prev">

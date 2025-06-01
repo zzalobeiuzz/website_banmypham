@@ -9,7 +9,7 @@ const bannerImages = [
 
 const Banner = () => {
   const [activeIndex, setActiveIndex] = useState(0);
-  const translateX = -activeIndex * 710; // 700 width + 10 margin
+
   useEffect(() => {
     const interval = setInterval(() => {
       setActiveIndex((prevIndex) => (prevIndex + 1) % bannerImages.length);
@@ -17,36 +17,32 @@ const Banner = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const translateX = -activeIndex * 710; // 700px width + 10px margin-right
+
   return (
     <div className="section-banner-top mb-4">
       <div className="banner-slide">
         <div className="banner-slick owl-carousel owl-loaded owl-drag">
-        <div className="owl-stage-outer">
-        <div
-          className="owl-stage"
-          style={{
-            transform: `translate3d(${translateX}px, 0, 0)`,
-            transition: "transform 0.25s ease",
-          }}
-        >
-          {bannerImages.map((item, index) => (
-            <div
-              className={`owl-item${index === activeIndex ? " active" : ""}`}
-              key={index}
+          <div className="owl-stage-outer">
+            <divclassName="owl-stage"
             >
-              <div>
-                <a href="./">
-                  <img
-                    src={`/assets/banner/${item}`}
-                    alt={`Banner ${item}`}
-                  />
-                </a>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      
+              {bannerImages.map((item, index) => (
+                <div
+                  className={`owl-item${index === activeIndex ? " active" : ""}`}
+                  key={index}
+                >
+                  <div>
+                    <a href="./">
+                      <img
+                        src={`/assets/banner/${item}`}
+                        alt={`Banner ${item}`}
+                      />
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </divclassName=>
+          </div>
 
           <div className="owl-nav">
             <button type="button" role="presentation" className="owl-prev">
