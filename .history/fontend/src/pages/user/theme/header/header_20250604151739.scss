@@ -1,0 +1,331 @@
+//===============================Các mixin tái sử dụng===========================
+@mixin menu-subcategory-style {
+  width: 100%;
+  height: 36.4px;
+  border-bottom: 1px solid #d4d4d4;
+  font-size: 12px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+  line-height: normal;
+  text-transform: none;
+
+  .angle-icon {
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+  }
+}
+
+//===============================Cấu trúc chính===========================
+.container {
+  padding: 0 !important;
+}
+
+.header {
+  font-size: 1vw;
+  font-family: "BeVietnamPro", sans-serif;
+
+  .banner-img {
+    max-height: 30vh;
+    width: 100%;
+  }
+
+  .header-top {
+    background: #000;
+    color: #fff;
+    z-index: 10;
+    position: relative;
+
+    .container {
+      display: flex;
+      align-items: center;
+      height: 40px;
+      font-size: 14px;
+    }
+  }
+
+  .header-main {
+    background: #fff;
+    height: 100px;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0);
+    transition: height 0.4s ease, box-shadow 0.3s ease;
+
+    .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      gap: 20px;
+
+      .logo-img {
+        width: 6.545vw;
+        background: transparent;
+      }
+
+      .container-header-main {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+        font-size: 12px;
+        padding: 10px 0;
+
+        .menu_site {
+          background: #000;
+          color: #fff;
+          z-index: 20;
+
+          .item {
+            width: 220px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 7px;
+            text-transform: uppercase;
+            font-size: 13px;
+          }
+
+          .menu_subcategory {
+            display: none;
+          }
+
+          &:hover .menu_subcategory {
+            display: block;
+            @include menu-subcategory-style;
+          }
+        }
+
+        .search-bar {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 30px;
+
+          .search {
+            position: relative;
+
+            .dropdown-menu {
+              position: absolute;
+              top: 81%;
+              left: 0;
+              z-index: 1000;
+              width: 250px;
+              background-color: #fffafa;
+              color: #000;
+              border-radius: 6px;
+              box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+              overflow-y: auto;
+            }
+
+            .input-search {
+              width: 435px;
+              height: 40px;
+              padding: 0 16px;
+              font-size: 14px;
+              border: none;
+              outline: none;
+              background: none;
+              color: black;
+              box-shadow: 0 3px 3px rgba(0, 0, 0, 0.1);
+              transition: all 0.4s ease;
+              font-weight: 500;
+            }
+
+            .search-icon {
+              width: 5vw;
+              font-size: 20px;
+              padding: 0 1vw 0 1.1vw;
+              align-items: center;
+              border-radius: 0 5px 5px 0;
+            }
+          }
+
+          .shopping-cart,
+          .custom-service,
+          .login-button {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            position: relative;
+            white-space: nowrap;
+
+            img {
+              width: 30px;
+            }
+          }
+
+          .login-button {
+            background-color: #fff;
+          }
+
+          Link {
+            border-radius: 200px;
+          }
+        }
+      }
+    }
+  }
+
+  .header-bottom {
+    background: #000;
+    color: #fff;
+    z-index: 20;
+    position: relative;
+
+    .container {
+      height: 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      .menu_site {
+        width: 220px;
+        position: relative;
+        background: #272727;
+
+        .item {
+          height: 40px;
+          padding: 0 16px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          text-transform: uppercase;
+          font-size: 13px;
+          gap: 7px;
+        }
+
+        .menu_content {
+          display: block;
+          position: absolute;
+          top: 100%;
+          left: 0;
+          width: 220px;
+          background-color: #fff;
+          color: #000;
+          border: 1px solid #ccc;
+
+          .menu_subcategory {
+            @include menu-subcategory-style;
+          }
+        }
+      }
+
+      .menu-content {
+        width: 130px;
+      }
+    }
+  }
+}
+
+//===============================Cố định khi scroll===========================
+.header.fixed-elements {
+  .header-main {
+    height: 60px;
+    z-index: 99;
+
+    .container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      background-color: #fff;
+      box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+      max-width: 100vw !important;
+      padding: 0;
+      gap: 0;
+
+      .logo-img {
+        width: 0;
+      }
+
+      .logo-img-fixed {
+        width: 2.6vw;
+        position: absolute;
+        top: 20%;
+        left: 2%;
+      }
+    }
+
+    .container-header-main {
+      width: 100%;
+      height: 60px;
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 0;
+      margin: 0 6.3vw;
+      z-index: 1000;
+
+      .menu_content {
+        display: block;
+        top: 84%;
+        left: 0;
+        width: 220px;
+        background-color: #fff;
+        color: #000;
+        border: 1px solid #ccc;
+
+        .menu_subcategory {
+          @include menu-subcategory-style;
+        }
+      }
+
+      .search-bar {
+        width: 100%;
+        display: flex;
+        justify-content: flex-end;
+        gap: 20px;
+
+        .search {
+          position: relative;
+
+          .dropdown {
+            width: 6vw;
+            height: 40px;
+            padding: 0 10px;
+            background: #000;
+            color: #fff;
+            border-radius: 5px 0 0 5px;
+            display: flex;
+            align-items: center;
+            text-align: left;
+          }
+
+          .dropdown-menu {
+            top: 106%;
+            left: -0.2%;
+          }
+
+          .input-search {
+            width: 718px;
+          }
+        }
+      }
+    }
+  }
+}
+
+//===============================Các class hỗ trợ===========================
+.fas {
+  font-family: "Font Awesome 6 Free";
+  font-weight: 900;
+}
+
+button {
+  border: none;
+  background-color: #000;
+  width: 6vw;
+}
+
+.btn-secondary {
+  --bs-btn-hover-bg: #000000;
+  --bs-btn-active-bg: #000000;
+}
+
+@media (max-width: 650px) {
+  // Responsive xử lý thêm nếu cần
+}
