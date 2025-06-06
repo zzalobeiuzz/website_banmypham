@@ -1,8 +1,8 @@
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import SignUp from './components/signup.js';
 import NotFoundPage from "./pages/NotFoundPage/NotFoundPage.js";
 import AdminHomePage from "./pages/admin/homepage/homepage.js";
-import AdminMasterLayout from './pages/admin/theme/masterLayout.js';
+import AdminMasterLayout from './pages/admin/masterLayout.js';
 import HomePage from "./pages/user/homePage/home_page.js";
 import ProfilePage from "./pages/user/profilePage/profile_page.js";
 import MasterLayout from './pages/user/theme/masterLayout/masterLayout.js';
@@ -65,7 +65,7 @@ const RouterCustom = () => {
     return (
         <Routes>
             {/* Chuyển hướng trang gốc "/" sang "/admin" */}
-            {/*<Route path="/" element={<Navigate to="/admin" />} />*/}
+            <Route path="/" element={<Navigate to="/admin" />} />
             {renderUserRouter()}
             {renderAdminRouter()}
             {/* Route not found - nên đặt cuối cùng */}

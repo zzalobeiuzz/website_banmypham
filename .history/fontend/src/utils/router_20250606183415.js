@@ -5,8 +5,8 @@ export const ROUTERS = {
         SIGNUP: "signup",
     },
     ADMIN:{
-        HOME:"admin",
-    },
+        HOME:""
+    }
     NOTFOUNDPAGE:{
         NOTFOUNDPAGE : "*"
     }
