@@ -10,7 +10,7 @@ const HomePage = () => {
       <Voucher/>
       <FlashSale /> {/* FlashSale tự gọi API và hiển thị dữ liệu */}
       <HotProduct/>
-      <TopBrand/>
+      <TopBrand>
     </div>
   );
 };

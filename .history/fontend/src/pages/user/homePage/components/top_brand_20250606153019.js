@@ -1,12 +1,12 @@
 import React from 'react';
 import Select from './selection';
 
-const FlashSale = () => {
-    const brandTitle = "Flash Sale";
+const top_brand = () => {
+    const brandTitle = "Thương hiệu nổi bật";
 
     return (
         <Select title={brandTitle} />
     );
 };
 
-export default FlashSale;
+export default top_brand;

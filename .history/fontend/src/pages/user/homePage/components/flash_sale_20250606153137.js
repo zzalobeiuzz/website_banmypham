@@ -2,7 +2,7 @@ import React from 'react';
 import Select from './selection';
 
 const FlashSale = () => {
-    const brandTitle = "Flash Sale";
+    const brandTitle = "Flash";
 
     return (
         <Select title={brandTitle} />
