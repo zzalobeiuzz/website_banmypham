@@ -22,32 +22,8 @@ const Homepage = () => {
           <ul>
             <li>
               <button>
-                <img src="./assets/icons/icons-product-management.png" alt="" />
+                <img src="./assets/icons/icons8-home-50.png" alt="" />
                 <span>Sản phẩm</span>
-              </button>
-            </li>
-            <li>
-              <button>
-                <img src="./assets/icons/icons-product-category.png" alt="" />
-                <span>Danh mục sản phẩm</span>
-              </button>
-            </li>
-            <li>
-              <button>
-                <img src="./assets/icons/icons-shipment.png" alt="" />
-                <span>Lô hàng</span>
-              </button>
-            </li>
-            <li>
-              <button>
-                <img src="./assets/icons/icons-customer.png" alt="" />
-                <span>Khách hàng</span>
-              </button>
-            </li>
-            <li>
-              <button>
-                <img src="./assets/icons/icons-account.png" alt="" />
-                <span>Tài khoản</span>
               </button>
             </li>
           </ul>

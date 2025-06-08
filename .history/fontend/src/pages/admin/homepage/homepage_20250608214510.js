@@ -46,7 +46,7 @@ const Homepage = () => {
             </li>
             <li>
               <button>
-                <img src="./assets/icons/icons-account.png" alt="" />
+                <img src="./assets/icons/icons-users.png" alt="" />
                 <span>Tài khoản</span>
               </button>
             </li>

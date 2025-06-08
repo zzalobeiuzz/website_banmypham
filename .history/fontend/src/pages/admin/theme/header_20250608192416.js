@@ -30,17 +30,17 @@ const Header = () => {
                                 src="./assets/icons/icons8-menu-50.png"
                                 alt=""
                                 className="icon_search"
-                         
+                                style={{ width: "40px" }}
                             />  Inventory
                         </button>
                     </li>{" "}
                     <li>
-                        <button className="chat">
+                        <button className="">
                             <img
                                 src="./assets/icons/icons8-chat.gif"
                                 alt=""
                                 className="icon_search"
-                                
+                                style={{ width: "40px" }}
                             />  Inventory
                         </button>
 
@@ -52,7 +52,7 @@ const Header = () => {
                                 src="./assets/icons/icons8-bell.gif"
                                 alt=""
                                 className="icon_search"
-                
+                                style={{ width: "40px" }}
                             />  Inventory
                         </button>
                         

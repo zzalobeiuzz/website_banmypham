@@ -44,12 +44,7 @@ const Homepage = () => {
                 <span>Khách hàng</span>
               </button>
             </li>
-            <li>
-              <button>
-                <img src="./assets/icons/icons-account.png" alt="" />
-                <span>Tài khoản</span>
-              </button>
-            </li>
+            
           </ul>
         </div>
       </div>

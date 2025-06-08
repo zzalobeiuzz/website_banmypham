@@ -52,7 +52,7 @@ const Header = () => {
                                 src="./assets/icons/icons8-bell.gif"
                                 alt=""
                                 className="icon_search"
-                
+                                style={{ width: "40px" }}
                             />  Inventory
                         </button>
                         
