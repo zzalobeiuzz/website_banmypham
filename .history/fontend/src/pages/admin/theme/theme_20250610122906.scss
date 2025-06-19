@@ -1,0 +1,132 @@
+//=============================== HEADER ===============================
+header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+  
+    .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+  
+      .logo {
+        img {
+          width: 80px;
+        }
+      }
+  
+      .search-wrapper {
+        position: relative;
+      
+        .search {
+          display: flex;
+          align-items: center;
+          transition: all 0.3s ease;
+      
+          // Trạng thái chưa mở input
+          & {
+            .btn_search {
+              width: 40px;
+              height: 40px;
+              background-color: black;
+              border: none;
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              cursor: pointer;
+      
+              .icon_search {
+                width: 20px;
+                height: 20px;
+              }
+            }
+          }
+      
+          // Khi hiển thị input
+          &.show {
+            border: 1px solid black;
+            border-radius: 999px;
+            padding: 0 10px;
+            background-color: white;
+      
+            .input_search {
+              width: 180px;
+              opacity: 1;
+              border: none;
+              outline: none;
+              padding: 0 10px;
+              height: 40px;
+              transition: all 0.3s ease;
+            }
+      
+            .btn_search {
+              margin-left: 10px;
+            }
+          }
+        }
+      }
+      
+      
+      
+      
+      .function_button {
+        .nav {
+          display: flex;
+          align-items: center;
+          gap: 15px;
+          margin: 0;
+          padding: 0;
+  
+          li {
+            list-style: none;
+  
+            button {
+              display: flex;
+              align-items: center;
+              gap: 6px;
+              background: none;
+              border: none;
+              padding: 6px 10px;
+              cursor: pointer;
+  
+              img {
+                width: 25px;
+              }
+  
+              .arrow-down {
+                width: 15px;
+              }
+  
+              &.mega_menu,
+              &.notification,
+              &.chat {
+                // thêm style riêng nếu cần
+              }
+            }
+          }
+        }
+      }
+  
+      .admin {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+  
+        .btn_admin {
+          background-color: #f9f7f7;
+          border: none;
+          padding: 0;
+  
+          .icon_admin {
+            width: 40px;
+          }
+        }
+  
+        .name_admin {
+          font-size: 14px;
+          margin-top: 4px;
+        }
+      }
+    }
+  }
+  

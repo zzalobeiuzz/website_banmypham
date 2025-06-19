@@ -1,0 +1,107 @@
+//*********************************HomePage*********************************
+.homepage {
+  padding: 0;
+  margin: 0;
+  height: 100%;
+  width: 100%;
+
+  .app-sidebar {
+    padding: 2px 1.5rem 1.5rem;
+
+
+    .vertical-nav-menu {
+      margin: 0;
+      padding: 0;
+      position: relative;
+      list-style: none;
+
+      .app-sidebar__heading {
+        text-transform: uppercase;
+        font-size: .8rem;
+        margin: .75rem 0;
+        font-weight: bold;
+        color: #3f6ad8;
+        white-space: nowrap;
+        position: relative;
+      }
+
+      .btn_top {
+        button {
+          padding: 0; // tránh padding bị tính cả ngoài
+          border: none;
+          background: none;
+          width: 100%;
+          display: block;
+
+          a {
+            padding: 5px 0px;
+            display: flex;
+            align-items: center;
+            width: 100%;
+            background: none;
+            color: white;
+            text-decoration: none;
+            box-sizing: border-box;
+
+            justify-content: space-around;/ đảm bảo padding không làm tràn 
+            img {
+              width: 34px;
+              margin-right: 10px;
+            }
+
+            span {
+              font-size: 14px;
+            }
+          }
+        }
+      }
+
+      .btn_manage {
+        .line {
+          position: relative;
+          margin: 20px 10px;
+          height: 40px; // hoặc tùy bạn set chiều cao dòng
+          display: flex;
+          align-items: center;
+
+          &::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background-color: white;
+            z-index: 0;
+          }
+
+          .line-content {
+            position: relative;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 16px;
+            background-color: transparent; // không che đường kẻ
+            z-index: 1;
+            border: none;
+            color: white;
+
+            .label {
+              background-color: #198754; // cùng màu nền
+              padding: 0 8px;
+              z-index: 2;
+            }
+
+            img {
+              height: 12px;
+              background-color: #198754; // giúp "nổi" lên dòng
+              padding: 0 4px;
+              z-index: 2;
+            }
+          }
+        }
+      }
+    }
+  }
+}

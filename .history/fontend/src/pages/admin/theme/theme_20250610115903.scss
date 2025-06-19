@@ -1,0 +1,128 @@
+//=============================== HEADER ===============================
+header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+  
+    .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+  
+      // Logo
+      .logo {
+        img {
+          width: 80px;
+        }
+      }
+  
+      // Ô tìm kiếm với hiệu ứng trượt
+      .search-wrapper {
+        display: flex;
+        align-items: center;
+        position: relative;
+  
+        .search {
+          max-width: 0;
+          opacity: 0;
+          transform: translateX(20px);
+          transition: all 0.3s ease;
+          overflow: hidden;
+          border: 1px solid black;
+          border-radius: 999px;
+  
+          .input_search {
+            width: 390px;
+            padding: 0 12px;
+            height: 40px;
+            border: none;
+            outline: none;
+          }
+        }
+  
+        &.show .search {
+          max-width: 400px;
+          opacity: 1;
+          transform: translateX(0);
+        }
+  
+        .btn_search {
+          width: 40px;
+          height: 40px;
+          background-color: black;
+          border: none;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-left: 10px;
+  
+          .icon_search {
+            width: 24px;
+            height: 24px;
+          }
+        }
+      }
+  
+      // Menu chức năng trung tâm
+      .function_button {
+        .nav {
+          display: flex;
+          align-items: center;
+          gap: 15px;
+          margin: 0;
+          padding: 0;
+  
+          li {
+            list-style: none;
+  
+            button {
+              display: flex;
+              align-items: center;
+              gap: 6px;
+              background: none;
+              border: none;
+              padding: 6px 10px;
+              cursor: pointer;
+  
+              img {
+                width: 25px;
+              }
+  
+              .arrow-down {
+                width: 15px;
+              }
+  
+              &.mega_menu,
+              &.notification,
+              &.chat {
+                // thêm style riêng nếu cần
+              }
+            }
+          }
+        }
+      }
+  
+      // Admin khu vực
+      .admin {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+  
+        .btn_admin {
+          background-color: #f9f7f7;
+          border: none;
+          padding: 0;
+  
+          .icon_admin {
+            width: 40px;
+          }
+        }
+  
+        .name_admin {
+          font-size: 14px;
+          margin-top: 4px;
+        }
+      }
+    }
+  }
+  

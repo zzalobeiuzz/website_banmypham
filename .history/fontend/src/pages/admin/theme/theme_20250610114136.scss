@@ -1,0 +1,118 @@
+//=============================== HEADER ===============================
+header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+
+    .container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        .logo {
+            img {
+                width: 80px;
+            }
+        }
+
+        .midel {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+
+            .search {
+                display: flex;
+                align-items: center;
+                border: 1px solid black;
+                border-radius: 999px; // bo tròn toàn bộ khối
+                overflow: hidden; // tránh các thành phần con tràn ra ngoài
+              
+                .btn_search {
+                  background: none;
+                  border: none;
+                  width: 40px;
+                  height: 40px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  background-color: black;
+                  border-radius: 50%;
+              
+                  .icon_search {
+                    width: 24px;
+                    height: 24px;
+                  }
+                }
+              
+                .input_search {
+                  border: none;
+                  outline: none;
+                  padding: 0 12px;
+                  height: 40px;
+                //   flex: 1;
+                }
+              }
+              
+
+            .nav {
+                display: flex;
+                align-items: center;
+                gap: 15px;
+
+                li {
+                    list-style: none;
+
+                    button {
+                        display: flex;
+                        align-items: center;
+                        gap: 6px;
+                        background: none;
+                        border: none;
+                        padding: 6px 10px;
+                        cursor: pointer;
+
+                        img {
+                            width: 25px;
+                        }
+
+                        &.mega_menu {
+                            // tuỳ chỉnh riêng nếu cần
+                        }
+
+                        &.notification {
+                            // tuỳ chỉnh riêng nếu cần
+                        }
+
+                        &.chat {
+                            // tuỳ chỉnh riêng nếu cần
+                        }
+
+                        .arrow-down {
+                            width: 15px;
+                        }
+                    }
+                }
+            }
+        }
+
+        .admin {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+
+            .btn_admin {
+                background-color: #f9f7f7;
+                border: none;
+                padding: 0;
+
+                .icon_admin {
+                    width: 40px;
+                }
+            }
+
+            .name_admin {
+                font-size: 14px;
+                margin-top: 4px;
+            }
+        }
+    }
+}

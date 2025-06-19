@@ -1,0 +1,108 @@
+//=============================== HEADER ===============================
+header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+  
+    .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+  
+      .logo {
+        img {
+          width: 80px;
+        }
+      }
+  
+      .midel {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+  
+        .search {
+          display: flex;
+          align-items: center;
+  
+          .btn_search {
+            background: none;
+            border: none;
+            padding: 0;
+  
+            .icon_search {
+              width: 40px;
+              background-color: black;
+              padding: 5px;
+              color: white;
+            }
+          }
+  
+          .input_search {
+            height: 40px;
+            border: 1px solid black;
+            padding: 0 10px;
+          }
+        }
+  
+        .nav {
+          display: flex;
+          align-items: center;
+          gap: 15px;
+  
+          li {
+            list-style: none;
+  
+            button {
+              display: flex;
+              align-items: center;
+              gap: 6px;
+              background: none;
+              border: none;
+              padding: 6px 10px;
+              cursor: pointer;
+  
+              img {
+                width: 25px;
+              }
+  
+              &.mega_menu {
+                // tuỳ chỉnh riêng nếu cần
+              }
+  
+              &.notification {
+                // tuỳ chỉnh riêng nếu cần
+              }
+  
+              &.chat {
+                // tuỳ chỉnh riêng nếu cần
+              }
+              .arrow_down{
+                width: 15px;
+              }
+            }
+          }
+        }
+      }
+  
+      .admin {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+  
+        .btn_admin {
+          background-color: #f9f7f7;
+          border: none;
+          padding: 0;
+  
+          .icon_admin {
+            width: 40px;
+          }
+        }
+  
+        .name_admin {
+          font-size: 14px;
+          margin-top: 4px;
+        }
+      }
+    }
+  }
+  

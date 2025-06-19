@@ -1,0 +1,66 @@
+//=================================HomePage===========================
+// homepage.scss
+
+.homepage {
+    height: 100%;
+  
+    .btn_top {
+      ul {
+        list-style: none;
+        padding: 0;
+  
+        li {
+          button {
+            display: flex;
+            align-items: center;
+            background: none;
+            border: none;
+            padding: 10px;
+            width: 100%;
+            color: white;
+            img {
+              width: 20px;
+              height: 20px;
+              margin-right: 10px;
+            }
+            span {
+              font-size: 14px;
+            }
+          }
+        }
+      }
+    }
+  
+    .btn_mid {
+        .line {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+          margin: 20px 10px;
+      
+          &::before,
+          &::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background-color: white;
+          }
+      
+          span {
+         // Trùng với nền
+            padding: 0 10px;
+            color: rgb(0, 0, 0);
+            font-weight: bold;
+            font-size: 14px;
+            white-space: nowrap;
+          }
+      
+          .icon {
+            margin-left: 8px;
+            font-size: 12px;
+          }
+        }
+      }      
+  }
+  

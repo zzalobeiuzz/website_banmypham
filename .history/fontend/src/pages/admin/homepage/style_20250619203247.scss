@@ -1,0 +1,116 @@
+//*********************************HomePage*********************************
+.homepage {
+  padding: 0;
+  margin: 0;
+  height: 100%;
+  width: 100%;
+
+  .menu-panel {
+    width: 280px;
+
+    .app-sidebar {
+      padding: 2px 1.5rem 1.5rem;
+
+
+      .vertical-nav-menu {
+        margin: 0;
+        padding: 0;
+        position: relative;
+        list-style: none;
+
+        button {
+          width: 100%;
+          display: flex;
+          line-height: 2.4rem;
+          height: 2.4rem;
+          padding: 0 1rem 0 20px;
+          position: relative;
+          border-radius: 0.25rem;
+          color: #343a40;
+          white-space: nowrap;
+          transition: all 0.2s;
+          margin: 0.1rem 0;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        ul {
+          margin: 0;
+          padding: 0;
+          position: relative;
+          list-style: none;
+          &::before{
+              content: '';
+              height: 100%;
+              opacity: 1;
+              width: 3px;
+              background: #e0f3ff;
+              position: absolute;
+              left: 20px;
+              top: 0;
+              border-radius: 15px;
+          }
+        }
+
+        img {
+          width: 24px;
+          height: 24px;
+        }
+
+        .app-sidebar__heading {
+          text-transform: uppercase;
+          font-size: .8rem;
+          margin: .75rem 0;
+          font-weight: bold;
+          color: #3f6ad8;
+          white-space: nowrap;
+          position: relative;
+        }
+
+        .btn_top {
+          button {
+            padding: 0; // tránh padding bị tính cả ngoài
+            border: none;
+          
+            width: 100%;
+            display: block;
+
+            a {
+              padding: 10px 0;
+              display: flex;
+              align-items: center;
+              width: 100%;
+              background: transparent;
+              color: white;
+              text-decoration: none;
+              box-sizing: border-box;
+
+              img {
+                width: 34px;
+                margin-right: 10px;
+              }
+
+              span {
+                font-size: 14px;
+              }
+            }
+          }
+        }
+
+        .menu-section {
+          .list-child {
+            .child {
+              color: #6c757d;
+              height: 2rem;
+              line-height: 2rem;
+              padding-left:1.5rem;
+            }
+          }
+        }
+
+
+
+      }
+    }
+  }
+}

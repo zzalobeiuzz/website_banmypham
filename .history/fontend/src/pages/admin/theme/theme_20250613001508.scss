@@ -1,0 +1,128 @@
+header {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+
+  .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .logo img {
+      width: 80px;
+    }
+
+    .search-container {
+      width: 300px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+
+      .search-wrapper {
+        width: 40px;
+        transition: width 0.3s ease;
+        display: flex;
+        align-items: center;
+
+        .search {
+          display: flex;
+          align-items: center;
+          height: 40px;
+          background: white;
+          border-radius: 999px;
+          overflow: hidden;
+          width: 100%;
+
+          .input_search {
+            display: nnone
+            ;
+            border: none;
+            outline: none;
+            height: 100%;
+            padding: 0 10px;
+            background-color: white;
+            width: 0;
+            opacity: 0;
+            pointer-events: none;
+            transition: width 0.3s ease, opacity 0.3s ease;
+          }
+
+          .btn_search {
+            width: 40px;
+            height: 40px;
+            background-color: black;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+
+            .icon_search {
+              width: 20px;
+              height: 20px;
+            }
+          }
+        }
+
+        &.active {
+          width: 220px;
+
+          .input_search {
+            width: 100%;
+            opacity: 1;
+            pointer-events: auto;
+          }
+        }
+      }
+    }
+
+    .function_button .nav {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+
+      li {
+        list-style: none;
+
+        button {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: none;
+          border: none;
+          padding: 6px 10px;
+          cursor: pointer;
+
+          img {
+            width: 25px;
+
+            &.arrow-down {
+              width: 15px;
+            }
+          }
+        }
+      }
+    }
+
+    .admin {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+
+      .btn_admin {
+        background-color: #f9f7f7;
+        border: none;
+        padding: 0;
+
+        .icon_admin {
+          width: 40px;
+        }
+      }
+
+      .name_admin {
+        font-size: 14px;
+        margin-top: 4px;
+      }
+    }
+  }
+}
