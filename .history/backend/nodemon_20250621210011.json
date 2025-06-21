@@ -1,0 +1,9 @@
+{
+    "chú thích": "Cấu hình nodemon để theo dõi src/ và restart khi file .js hoặc .json thay đổi",
+
+    
+    "watch": ["src"],
+    "ext": "js,json",
+    "exec": "node src/server.js",
+    "verbose": true
+  }

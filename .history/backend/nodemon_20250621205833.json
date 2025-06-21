@@ -1,0 +1,14 @@
+{
+    /*   Theo dõi thư mục "src" để restart khi có thay đổi
+    "watch": ["src"],
+  
+    /*   Chỉ theo dõi các file có phần mở rộng là .js hoặc .json
+    "ext": "js,json",
+  
+    /*  Tập tin được thực thi khi server khởi chạy (server chính)
+    "exec": "node src/server.js",
+  
+    /*  (Tùy chọn) Hiển thị log chi tiết khi nodemon restart 
+    "verbose": true
+  }
+  

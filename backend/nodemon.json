@@ -1,0 +1,9 @@
+{
+    "chú thích": "CẤU HÌNH NODEMON ĐỂ THEO DÕI SRC/ VÀ RESTART KHI FILE .JS HOẶC .JSON THAY ĐỔI",
+
+
+    "watch": ["src"],
+    "ext": "js,json",
+    "exec": "node src/server.js",
+    "verbose": true
+  }

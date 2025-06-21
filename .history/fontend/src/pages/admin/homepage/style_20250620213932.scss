@@ -1,0 +1,157 @@
+//********************************* HomePage *********************************
+.homepage {
+  height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  margin: 0;
+  padding: 0;
+
+  .menu-panel {
+    width: 280px;
+
+    .app-sidebar {
+      padding: 2px 1.5rem 1.5rem;
+
+      .vertical-nav-menu {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+
+        // =================== Chung cho button ===================
+        button {
+          background-color: transparent;
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          line-height: 2.4rem;
+          height: 2.4rem;
+          padding: 0 1rem 0 20px;
+          border-radius: 0.25rem;
+          color: #343a40;
+          white-space: nowrap;
+          margin: 0.3rem 0;
+          transition: all 0.2s ease;
+
+          &:hover {
+            background-color: #e0f3ff;
+            font-weight: bold;
+            color: #3f6ad8;
+          }
+
+          &.content:hover {
+            color: black;
+          }
+        }
+
+        // =================== Chung cho hình ảnh ===================
+        img {
+          width: 34px;
+          height: 34px;
+        }
+
+        .app-sidebar__heading {
+          text-transform: uppercase;
+          font-size: 0.8rem;
+          font-weight: bold;
+          margin: 0.75rem 0;
+          color: #3f6ad8;
+          white-space: nowrap;
+        }
+
+        .btn_top {
+          button {
+            padding: 0;
+            border: none;
+            width: 100%;
+            display: block;
+
+            a {
+              display: flex;
+              align-items: center;
+              width: 100%;
+              color: black;
+              text-decoration: none;
+              box-sizing: border-box;
+
+              img {
+                width: 34px;
+                margin-right: 10px;
+              }
+
+              span {
+                font-size: 14px;
+              }
+            }
+          }
+        }
+
+        // =================== MenuSection ===================
+        .menu-section {
+          margin-top: 15px;
+        
+          .content {
+            img {
+              width: 14px;
+              height: 14px;
+              transition: transform 0.3s ease;
+            }
+          }
+        
+          .list-child {
+            overflow: hidden;
+            max-height: 0;
+            transition: max-height 0.4s ease;
+            but
+          }
+        
+          &.open {
+            .content img {
+              transform: rotate(180deg);
+            }
+        
+            .list-child {
+              max-height: 1000px; // Giá trị đủ lớn để chứa nội dung
+            }
+          }
+        }
+        
+
+        // =================== Line kẻ dọc bên trái ===================
+        ul {
+          margin: 0;
+          padding: 0;
+          list-style: none;
+          position: relative;
+
+          &::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 20px;
+            width: 3px;
+            height: 100%;
+            background: #e0f3ff;
+            border-radius: 15px;
+          }
+        }
+      }
+    }
+  }
+
+  // =================== Khu vực nội dung bên phải ===================
+  .dynamic-content {
+    height: 1300px;
+    flex: 1;
+    z-index: 9;
+    padding: 20px;
+    background: #f1f3f5;
+
+    box-shadow:
+      0 0.46875rem 2.1875rem rgba(4, 9, 20, 0.03),
+      0 0.9375rem 1.40625rem rgba(4, 9, 20, 0.03),
+      0 0.25rem 0.53125rem rgba(4, 9, 20, 0.05),
+      0 0.125rem 0.1875rem rgba(4, 9, 20, 0.03);
+  }
+}
