@@ -1,0 +1,7 @@
+// ============================= NHẬN DỮ LIỆU FORM ĐĂNG NHẬP ĐƯỢC GỬI LÊN TỪ CLIENT==================
+exports.loginHandler = async (req, res) => {
+    const { email, password } = req.body;
+    const result = await loginUser(email, password); // gọi service
+    res.status(200).json(result);
+  };
+  
