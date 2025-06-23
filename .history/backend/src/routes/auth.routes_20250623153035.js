@@ -1,0 +1,10 @@
+// routes/auth.routes.js
+const express = require("express");
+const router = express.Router();
+const { loginHandler } = require("../controllers/");
+const { validateLoginInput } = require("../middlewares/validateInput");
+
+// POST /api/auth/login
+router.post("/login", validateLoginInput, loginHandler);
+
+module.exports = router;
