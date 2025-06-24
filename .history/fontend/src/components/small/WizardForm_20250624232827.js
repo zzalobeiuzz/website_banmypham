@@ -88,7 +88,9 @@ const WizardForm = () => {
   };
 
   // 📨 Gửi mã xác thực đến email người dùng
-  const handleSubmitEmail = async () => {
+  const handleSubmitEmail = async (e) => {
+    e.preventDefault();
+
     const payload = { email: formData.account.email };
 
     try {
@@ -148,6 +150,7 @@ const WizardForm = () => {
   // 🔁 Gửi lại mã xác thực + đặt lại thời gian chờ
   const handleResendCode = async () => {
     await handleSubmitEmail(); // 🔁 gọi lại gửi mã
+    alert(`Mã xác thực mới đã được gửi đến ${formData.account.email}`);
     setResendCooldown(120); // reset thời gian đếm ngược
   };
 

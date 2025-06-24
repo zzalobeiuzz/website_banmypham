@@ -11,7 +11,7 @@ const WizardForm = () => {
   const [verificationCode, setVerificationCode] = useState(""); // Mã người dùng nhập
   const [sentCode, setSentCode] = useState(""); // Mã đã gửi từ server
   const [showSuccessMessage, setShowSuccessMessage] = useState(false); // Hiện thông báo thành công
-  const [resendCooldown, setResendCooldown] = useState(120); // Đếm ngược gửi lại mã
+  const [resendCooldown, setResendCooldown] = useState(3); // Đếm ngược gửi lại mã
   const [emailError, setEmailError] = useState(null); // Lỗi nếu email đã dùng
 
   // 📝 Dữ liệu từ form đăng ký
