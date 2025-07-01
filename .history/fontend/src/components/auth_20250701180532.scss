@@ -1,0 +1,173 @@
+//=================================CSS POPUP ĐĂNG NHẬP========================================
+.popup-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  .popup-wrapper {
+    width: 90%;
+  max-width: 460px;
+  height: auto; // <-- nên để auto hoặc max-height thay vì height: 90%
+  max-height: 90vh;
+  }
+}
+
+.login-section {
+  background: #fff;
+  border-radius: 1rem;
+  position: relative;
+  color: #000;
+  -webkit-user-select: none; /* ✅ Safari & iOS */
+  -moz-user-select: none;    /* ✅ Firefox cũ */
+  -ms-user-select: none;     /* ✅ IE, Edge cũ */
+  user-select: none;         /* ✅ Browser chuẩn */
+
+  form {
+    .form-control{
+      
+    }
+    .form-check {
+      #rememberMe {
+        border: 2px solid #7DA6E3;
+      }
+    }
+
+    input {
+      font-size: 14px;
+    }
+
+    button {
+      width: 90%;
+      font-size: 16px;
+    }
+
+    .btn-login {
+      background-color: #000;
+      border: 1px solid #000;
+      transition: color 0.3s, background-color 0.3s;
+
+      &:hover {
+        color: #000;
+        background-color: #fff;
+      }
+    }
+
+    .btn-google {
+      background-color: #dd4b39;
+      color: #fff;
+      width: 100%;
+    }
+
+    .btn-facebook {
+      background-color: #3b5998;
+      color: #fff;
+      width: 100%;
+    }
+  }
+}
+
+.card-body .form-label {
+  color: #fff;
+}
+
+a.link-primary {
+  color: #fff;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
+input[type="password"]::-webkit-credentials-auto-fill-button {
+  display: none !important;
+}
+
+input[type="password"]::-webkit-textfield-decoration-container {
+  display: none !important;
+}
+
+//==========================SIGNUP============================
+.sign-up {
+  margin-right: 0 !important;
+  padding-right: 0 !important;
+  width: 100%;
+  height: 100vh;
+
+  .video-bg {
+    position: absolute;
+    top: 50%;
+    left: 40%;
+    transform: translate(-50%, -50%);
+    object-fit: cover;
+    width: 90%;
+    height: 100vh;
+    pointer-events: none; 
+  }
+
+  .container {
+    background-color: #E4E2D5;
+    margin: 0;
+    width: 51%;
+    position: fixed;
+    right: 0;
+    top: 0;
+    height: 100vh;
+
+    .row {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+
+      .welcome,
+      .form-signup {
+        height: 80vh;
+        width: 50%;
+      }
+
+      .form-signup {
+        .card {
+          height: 100%;
+        }
+      }
+
+      .welcome {
+        color: #6B7B8C;
+
+        ul {
+          list-style: none;
+          padding-left: 40px;
+          width: 80%;
+
+          li {
+            text-align: start;
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-start;
+            margin-bottom: 10px;
+            gap: 8px;
+
+            img {
+              width: 10%;
+              height: 10%;
+            }
+          }
+        }
+
+        .h3 {
+          font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+          font-weight: bold;
+        }
+      }
+    }
+  }
+}
