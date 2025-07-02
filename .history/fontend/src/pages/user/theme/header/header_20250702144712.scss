@@ -1,0 +1,398 @@
+//===============================Các biến dùng lại===========================
+@mixin menu-subcategory-style {
+  width: 100%;
+  height: 36.4px;
+  border-bottom: 1px solid #d4d4d4;
+  font-size: 12px;
+  text-transform: none;
+  padding: 0 16px;
+  align-items: center;
+  gap: 7px;
+  line-height: normal;
+
+  .angle-icon {
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+  }
+}
+
+.container {
+  padding: 0 !important;
+}
+
+// ================================ HEADER ================================
+.header {
+  font-size: 1vw;
+  font-family: "BeVietnamPro", sans-serif;
+
+  .banner-img {
+    max-height: 30vh;
+    width: 100%;
+  }
+
+  .header-top {
+    background: #000;
+    color: #fff;
+    z-index: 10;
+    position: relative;
+
+    .container {
+      display: flex;
+      align-items: center;
+      height: 40px;
+      font-size: 14px;
+    }
+  }
+
+  .header-main {
+    background: #fff;
+    height: 100px;
+    transition: height 0.4s ease, box-shadow 0.3s ease;
+
+    .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+      position: relative;
+      gap: 20px;
+
+      .logo-img {
+        width: 6.545vw;
+        height: auto;
+        background: transparent;
+      }
+
+      .container-header-main {
+        display: flex;
+        align-items: center;
+        justify-content: end;
+        gap: 20px;
+        font-size: 12px;
+        width: 100%;
+
+        .menu_site {
+          background: #272727;
+          color: #fff;
+          z-index: 20;
+          position: relative;
+
+          .item {
+            padding: 0;
+            text-transform: uppercase;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            height: 40px;
+            justify-content: center;
+            width: 220px;
+          }
+
+          .menu_subcategory {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background-color: #fff;
+            color: #000;
+            z-index: 1000;
+            @include menu-subcategory-style;
+
+            .menu-content {
+              top: 0;
+              left: 220px;
+              border: 1px solid #c73030;
+              height: 100%;
+              padding: 5px 15px 0 15px;
+              overflow: hidden;
+              width: 650px;
+              z-index: 2;
+              background: #fff;
+            }
+          }
+
+          &:hover .menu_subcategory {
+            display: block;
+          }
+        }
+
+        .search-bar {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+
+          .login-info {
+            .btn-danger {
+              height: 50px;
+            }
+          }
+
+          gap: 30px;
+
+          .login-button {
+            background-color: #fff;
+          }
+
+          .search {
+            position: relative;
+            display: flex;
+
+            .input-search {
+              width: 435px;
+              height: 40px;
+              padding: 0 16px;
+              font-size: 14px;
+              outline: none;
+              border: none;
+              background: none;
+              color: black;
+              font-weight: 500;
+              box-shadow: 0 3px 3px rgba(0, 0, 0, 0.1);
+              transition: all 0.3s ease;
+            }
+
+            .search-icon {
+              display: flex;
+              align-items: center;
+              padding: 0 20px;
+              height: 40px;
+              background: #000;
+              border-radius: 0 5px 5px 0;
+
+              img {
+                max-width: 100%;
+                width: 29px;
+                height: 29px;
+              }
+            }
+
+            .dropdown {
+              border-radius: 5px 0 0 5px;
+              background: #000;
+              color: #fff;
+              height: 40px;
+              white-space: unset;
+              text-align: left;
+              padding: 0 10px;
+              display: flex;
+              align-items: center;
+            }
+
+            .dropdown-menu {
+              width: 250px;
+              position: absolute;
+              top: 105%;
+              left: 0;
+              background-color: #fffafa;
+              border-radius: 6px;
+              box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+              z-index: 1000;
+              overflow-y: auto;
+            }
+          }
+
+          .shopping-cart,
+          .custom-service,
+          .login-button {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            flex-direction: column;
+            justify-content: center;
+            white-space: nowrap;
+
+            img {
+              width: 30px;
+              height: auto;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .header-bottom {
+    background: #000;
+    color: #fff;
+    z-index: 20;
+    position: relative;
+
+    .container {
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      .menu_site {
+        width: 220px;
+        background: #272727;
+        position: relative;
+
+        .item {
+          font-size: 13px;
+          height: 40px;
+          padding: 0 16px;
+          text-transform: uppercase;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
+        }
+
+        .menu_content {
+          display: block;
+          background-color: #ffffff;
+          color: #000;
+          position: absolute;
+          top: 100%;
+          left: 0;
+          width: 220px;
+          border: 1px solid #ccc;
+
+          .menu_subcategory {
+            @include menu-subcategory-style;
+          }
+        }
+      }
+
+      .menu-content {
+        width: 130px;
+      }
+    }
+  }
+}
+
+// ================================ FIXED HEADER ================================
+.header.fixed-elements {
+  .header-main {
+    height: 60px;
+    z-index: 99;
+
+    .container {
+      max-width: 100vw !important;
+      position: fixed;
+      top: 0;
+      left: 0;
+      background-color: #fff;
+      padding: 0;
+      box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+      gap: 0;
+      z-index: 999;
+
+      .logo-img {
+        width: 0;
+      }
+
+      .logo-img-fixed {
+        width: 2.6vw;
+        position: absolute;
+        top: 20%;
+        left: 2%;
+      }
+    }
+
+    .container-header-main {
+      margin: 0 6.3vw;
+      height: 60px;
+      gap: 20px;
+
+      .show-when-fixed {
+        width: 220px;
+        background: #272727;
+        color: #fff;
+        position: relative;
+        flex-shrink: 0; // 👈 NGĂN KHÔNG CHO CO LẠI
+
+        &:hover {
+          .menu_content {
+            display: block;
+          }
+        }
+
+        .menu_content {
+          display: none;
+          top: 108%;
+          left: 0px;
+          position: absolute;
+          background: #ffffff;
+          color: #272727;
+          width: 220px;
+
+          .menu_subcategory {
+            @include menu-subcategory-style;
+
+            a {
+              width: 100%;
+              cursor: pointer;
+              color: inherit;
+              text-decoration: none;
+              transition: 0.1s ease-in-out;
+              display: flex;
+              justify-content: space-between;
+            }
+          }
+        }
+
+        .item {
+          font-size: 13px;
+          height: 40px;
+          padding: 0 16px;
+          text-transform: uppercase;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
+        }
+      }
+
+      .search-bar {
+        justify-content: flex-end;
+        gap: 20px;
+
+        .search {
+          .input-search {
+            width: 804px;
+          }
+
+          .dropdown {
+            width: 6vw;
+            height: 40px;
+            background: #000;
+            color: #fff;
+            padding: 0 10px;
+            display: flex;
+            align-items: center;
+            border-radius: 5px 0 0 5px;
+          }
+
+          .dropdown-menu {
+            top: 106%;
+            left: -0.2%;
+          }
+        }
+      }
+    }
+  }
+}
+
+// ================================ ICON FONT ================================
+.fas {
+  font-family: "Font Awesome 6 Free";
+  font-weight: 900;
+}
+
+// ================================ BUTTON STYLE ================================
+button {
+  border: none;
+}
+
+.btn-secondary {
+  --bs-btn-hover-bg: #000000;
+  --bs-btn-active-bg: #000000;
+}
+
+// ================================ MEDIA QUERY ================================
+@media (max-width: 650px) {
+  // Add mobile styles here as needed
+}

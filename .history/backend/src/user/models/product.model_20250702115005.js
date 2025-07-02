@@ -1,0 +1,53 @@
+const { connectDB } = require("../../config/connect");
+
+//===============TRUY VẤN SẢN PHẨM SALE===============
+exports.findSaleProducts = async () => {
+  const pool = await connectDB();
+  const result = await pool.request().query(`
+    SELECT 
+      P.ProductName,
+      P.SupplierID,
+      P.Price,
+      P.Image,
+      PS.sale_price,
+      PS.start_date,
+      PS.end_date
+    FROM PRODUCT_SALE PS
+    JOIN PRODUCT P ON PS.product_id = P.ProductID;
+  `);
+  return result.recordset;
+};
+
+//===============TRUY VẤN SẢN PHẨM HOT===============
+exports.findHotProducts = async () => {
+  const pool = await connectDB();
+  const result = await pool.request().query(`
+    SELECT 
+    P.ProductID,         -- Lấy mã sản phẩm từ bảng PRODUCT
+    P.ProductName,       -- Lấy tên sản phẩm
+    P.SupplierID,        -- Lấy mã nhà cung cấp
+    P.Price,             -- Lấy giá gốc sản phẩm
+    P.Image,             -- Lấy ảnh sản phẩm
+    P.isHot,             -- Lấy trạng thái "hot" (1 = sản phẩm hot)
+    PS.sale_price        -- Lấy giá khuyến mãi từ bảng PRODUCT_SALE nếu 
+    FROM PRODUCT P
+    LEFT JOIN PRODUCT_SALE PS ON P.ProductID = PS.product_id
+    WHERE P.isHot = 1;
+  `);
+  return result.recordset;
+};
+// ===============TRUY VẤN SẢN PHẨM HOT===============
+const getAllCategories = async () => {
+  try {
+    const pool = await connectDB();
+    const result = await pool.request().query("SELECT id, name FROM Category");
+    return result.recordset;
+  } catch (err) {
+    console.error("❌ Lỗi truy vấn Category:", err);
+    throw err;
+  }
+};
+
+module.exports = {
+  getAllCategories,
+};
