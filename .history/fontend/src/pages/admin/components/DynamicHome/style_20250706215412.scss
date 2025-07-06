@@ -1,0 +1,100 @@
+.product-wrapper {
+    .product-topbar {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        height: 70px;
+        padding: 0 10px;
+        background-color: #fff;
+        border-bottom: 1px solid #ddd;
+        font-weight: bold;
+        font-size: 15px;
+        color: #333;
+    
+    
+        // Toggle button
+        .toggle-button {
+            margin-right: 10px;
+            padding: 8px 12px;
+            cursor: pointer;
+            background-color: #000000;
+            border: 1px solid #000000;
+            border-radius: 4px;
+            color: #ffffff;
+            transition: background-color 0.3s;
+    
+            &:hover {
+                background-color: #ffffff;
+                color: #020202;
+            }
+        }
+    
+        .category-buttons {
+            display: flex;
+            justify-content: space-around;
+            overflow: hidden;
+            opacity: 0;
+            visibility: hidden;
+    
+            button {
+                margin: 0 5px;
+                padding: 8px 12px;
+                border-radius: 20px;
+                border: 1px solid #000000;
+                background-color: #000000;
+                color: #fff9f9;
+                cursor: pointer;
+                transition: background-color 0.3s;
+    
+                &:hover {
+                    background-color: #f0f0f0;
+                    color: #000000;
+                }
+            }
+        }
+    
+        // Khi thêm class show vào product-topbar
+        &.show {
+            justify-content: space-around;
+            .category-buttons {
+                visibility: visible;
+                opacity: 1;
+            }
+        }
+    }
+    
+    
+
+    .product-content {
+        padding: 0 15px;
+        display: flex;
+        width: 100%;
+        gap: 2%;
+        text-align: center;
+
+        .product-left {
+            flex-basis: 18%;
+            flex-shrink: 0;
+            background-color: #f0f0f0;
+            padding: 20px;
+
+            p {
+                margin: 0;
+                font-weight: bold;
+                color: #333;
+            }
+        }
+
+        .product-right {
+            flex-basis: 80%;
+            flex-shrink: 0;
+            background-color: #fafafa;
+            padding: 20px;
+
+            div {
+                font-size: 16px;
+                color: #444;
+            }
+        }
+    }
+}

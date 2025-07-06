@@ -1,0 +1,32 @@
+// ==============================CSS của ProductOverview======================
+.product-wrapper {
+    display: flex;
+    width: 100%;
+    padding: 0 20px;
+  
+    .product-left {
+      flex-basis: 30%;
+      flex-shrink: 0;
+      background-color: #f0f0f0;
+      padding: 20px;
+  
+      p {
+        margin: 0;
+        font-weight: bold;
+        color: #333;
+      }
+    }
+  
+    .product-right {
+      flex-basis: 68%;
+      flex-shrink: 0;
+      background-color: #fafafa;
+      padding: 20px;
+  
+      div {
+        font-size: 16px;
+        color: #444;
+      }
+    }
+  }
+  
