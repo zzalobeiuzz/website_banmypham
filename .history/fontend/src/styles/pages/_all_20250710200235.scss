@@ -1,0 +1,28 @@
+@use "sass:map";
+@import "theme";
+@import "responsive";
+/* styles.css hoặc styles.scss */
+html,
+body {
+    margin: 0;
+    -webkit-user-select: text; /* cho Safari */
+    user-select: text;
+    button img{
+      -webkit-user-select: none; /* cho Safari */
+      user-select:none;
+    }
+}
+
+* {
+    font-family: "Be Vietnam Pro", sans-serif;
+    padding: 0;
+    margin: 0;
+    font-size: 14px;
+}
+
+@include Responsive($MEDIUM_DEVICE){
+    
+}
+main{
+    background-color: #f3f3f3;
+}
