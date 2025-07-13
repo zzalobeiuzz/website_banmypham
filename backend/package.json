@@ -5,10 +5,12 @@
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^4.21.2",
+    "express-fileupload": "^1.5.2",
     "express-session": "^1.18.1",
     "jsonwebtoken": "^9.0.2",
     "msnodesqlv8": "^4.4.0",
     "mssql": "^11.0.1",
+    "node-cron": "^4.2.1",
     "nodemailer": "^7.0.3",
     "react-qr-barcode-scanner": "^2.1.8"
   },
