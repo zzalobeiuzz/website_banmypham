@@ -1,0 +1,29 @@
+const express = require("express");
+const router = express.Router();
+
+const {
+  update,
+  checkExisProduct,
+  uploadPreviewImage,
+  addProduct,
+  saveExternalImage,
+} = require("../controllers/product.controller");
+
+const upload = require("../middlewares/upload.middleware");
+
+// PUT: update sản phẩm
+router.put("/updateProducts", update);
+
+// GET: kiểm tra sản phẩm tồn tại (barcode)
+router.get("/checkProductExistence", checkExisProduct);
+
+// POST: upload ảnh preview editor (ReactQuill)
+router.post("/preview_upload", uploadPreviewImage);
+
+// POST: thêm sản phẩm mới (có upload hình ảnh)
+router.post("/add", upload.single("Image"), addProduct);
+
+// ✅ POST: lưu ảnh từ URL external
+router.post("/save_external_images ", saveExternalImage);
+
+module.exports = router;

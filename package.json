@@ -3,8 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "chú thích":"====cho phép chạy 2 server 1 lúc",
-
+    "chú thích": "====cho phép chạy 2 server 1 lúc",
     "start": "concurrently \"npm --prefix frontend start\" \"npm --prefix backend start\""
   },
   "keywords": [],
@@ -13,5 +12,8 @@
   "description": "",
   "devDependencies": {
     "concurrently": "^9.1.2"
+  },
+  "dependencies": {
+    "sweetalert2": "^11.22.2"
   }
 }
