@@ -1,0 +1,81 @@
+//========================TOOLBAR========================
+//=======================================================
+.tool-bar-style{
+    padding: 10px 20px;
+    box-shadow: 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+    z-index: 50;
+    background-color: #FFFFFF;
+}
+//====================BARCODE POPUP======================
+//=======================================================
+.scanner-popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+
+  .scanner-content {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    animation: fadeIn 0.3s ease;
+
+    h2 {
+      margin-top: 0;
+      font-size: 1.4rem;
+      color: #333;
+    }
+
+    select {
+      margin: 10px 0;
+      padding: 8px;
+      width: 100%;
+      border-radius: 6px;
+      border: 1px solid #ddd;
+      font-size: 1rem;
+    }
+
+    video {
+      margin-top: 10px;
+    }
+
+    .close-btn {
+      margin-top: 15px;
+      padding: 10px 20px;
+      background: #ff4d4f;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.3s;
+
+      &:hover {
+        background: #d9363e;
+      }
+    }
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+//
+  
+  
