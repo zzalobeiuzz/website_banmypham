@@ -8,7 +8,6 @@ const LoginForm = ({ email, setEmail, password, setPassword, onSubmit, switchToF
   const toggleShowPassword = () => {
     setShowPassword((prev) => !prev);
   };
-
   return (
     <form onSubmit={onSubmit}>
       {/* Email */}
@@ -22,7 +21,7 @@ const LoginForm = ({ email, setEmail, password, setPassword, onSubmit, switchToF
           required
         />
       </div>
-
+ 
       {/* Mật khẩu */}
       <div className="form-outline mb-4 position-relative">
         <input
