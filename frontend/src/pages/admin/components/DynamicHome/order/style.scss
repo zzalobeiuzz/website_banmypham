@@ -1,0 +1,123 @@
+.order-page {
+  padding: 24px;
+  background: #f9f9f9;
+  min-height: 100vh;
+
+  .order-status-filters {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+
+    .filter-button {
+      padding: 8px 18px;
+      border: none;
+      border-radius: 4px;
+      background: #e0e0e0;
+      color: #333;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+
+      &:hover,
+      &.active {
+        background: #1976d2;
+        color: #fff;
+      }
+    }
+  }
+
+  .order-list {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    padding: 0 0 16px 0;
+    margin-bottom: 24px;
+
+    .header-row {
+      border-bottom: 1px solid #e0e0e0;
+      padding: 12px 0;
+
+      .header-columns {
+        display: flex;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+
+        .column {
+          font-weight: 600;
+          color: #1976d2;
+          padding: 0 12px;
+          &.number { width: 60px; }
+          &.order-id { width: 140px; }
+          &.customer-name { flex: 1; min-width: 140px; }
+          &.order-date { width: 120px; }
+          &.total-amount { width: 120px; text-align: right; }
+          &.status { width: 120px; }
+          &.actions { width: 160px; text-align: center; }
+        }
+      }
+    }
+
+    .order-rows {
+      .order-row {
+        display: flex;
+        align-items: center;
+        list-style: none;
+        margin: 0;
+        padding: 12px 0;
+        border-bottom: 1px solid #f0f0f0;
+        background: #fff;
+        transition: background 0.2s;
+
+        &:hover {
+          background: #f5faff;
+        }
+
+        .column {
+          padding: 0 12px;
+          font-size: 15px;
+          &.number { width: 60px; }
+          &.order-id { width: 140px; }
+          &.customer-name { flex: 1; min-width: 140px; }
+          &.order-date { width: 120px; }
+          &.total-amount { width: 120px; text-align: right; }
+          &.status { width: 120px; }
+          &.actions { width: 160px; text-align: center; }
+
+          .btn-view,
+          .btn-edit,
+          .btn-delete {
+            margin: 0 4px;
+            padding: 4px 10px;
+            border: none;
+            border-radius: 4px;
+            font-size: 15px;
+            cursor: pointer;
+            transition: background 0.2s;
+          }
+
+          .btn-view {
+            background: #e3f2fd;
+            color: #1976d2;
+            &:hover { background: #bbdefb; }
+          }
+          .btn-edit {
+            background: #fffde7;
+            color: #fbc02d;
+            &:hover { background: #fff9c4; }
+          }
+          .btn-delete {
+            background: #ffebee;
+            color: #d32f2f;
+            &:hover { background: #ffcdd2; }
+          }
+        }
+      }
+    }
+  }
+
+  .sidebar {
+    // Thêm style cho sidebar chi tiết đơn hàng nếu cần
+    margin-top: 24px;
+  }
+}

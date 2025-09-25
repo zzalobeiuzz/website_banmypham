@@ -2,7 +2,8 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import React, { useState } from 'react';
 import "./components.scss";
 
-const ToolBar = ({ onSearchChange }) => {
+const ToolBar = ({ onSearchChange, title }) => {
+  console.log("ToolBar title:", title); // Thêm dòng này để kiểm tra
   const [searchKeyword, setSearchKeyword] = useState("");
 
   const handleSubmit = (e) => {
@@ -20,9 +21,9 @@ const ToolBar = ({ onSearchChange }) => {
   };
 
   return (
-    <div className="d-flex justify-content-between align-items-center tool-bar-style">
+    <div className="d-flex justify-content-end align-items-center tool-bar-style">
       <div className="btn-group" role="group">
-        {/* Thêm nút nếu muốn */}
+        <h2 className="title">{title}</h2> {/* Sử dụng biến title */}
       </div>
 
       <form

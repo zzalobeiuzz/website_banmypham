@@ -9,81 +9,72 @@ import ProfilePage from "./pages/user/profilePage/profile_page.js";
 import MasterLayout from "./pages/user/theme/masterLayout/masterLayout.js";
 
 // Admin
-import AddProduct from "../src/pages/admin/components/DynamicHome/product/AddProduct.js";
+import AddProduct from "./pages/admin/components/DynamicHome/product/AddProduct.js";
 import { ProductOverview } from "./pages/admin/components/DynamicHome/product/ProductOverview.js";
 import AdminHomepage from "./pages/admin/homepage/homepage.js";
 import AdminMasterLayout from "./pages/admin/theme/masterLayout.js";
-import ProductDetail from "./pages/admin/components/DynamicHome/product/DetailProduct.js"
+import ProductDetail from "./pages/admin/components/DynamicHome/product/DetailProduct.js";
+import OrderPage from "./pages/admin/components/DynamicHome/order/OrderPage.js";
+import AddOrder from "./pages/admin/components/DynamicHome/order/AddOrder.js";
+import OrderDetail from "./pages/admin/components/DynamicHome/order/OrderDetail.js";
 
 import { ROUTERS } from "./utils/router";
 
-const renderUserRouter = () => {
-  const userRouters = [
-    {
-      path: ROUTERS.USER.HOME,
-      component: <HomePage />,
-      isShowHeader_Footer: true,
-    },
-    {
-      path: ROUTERS.USER.PROFILE,
-      component: <ProfilePage />,
-      isShowHeader_Footer: true,
-    },
-    {
-      path: ROUTERS.USER.SIGNUP,
-      component: <SignUp />,
-      isShowHeader_Footer: false,
-    },
-  ];
+// Cấu hình các route user
+const userRoutes = [
+  { path: ROUTERS.USER.HOME, element: <HomePage />, showHeaderFooter: true },
+  { path: ROUTERS.USER.PROFILE, element: <ProfilePage />, showHeaderFooter: true },
+  { path: ROUTERS.USER.SIGNUP, element: <SignUp />, showHeaderFooter: false },
+];
 
-  return userRouters.map((item, key) => (
-    <Route
-      key={key}
-      path={item.path}
-      element={
-        <MasterLayout showHeaderFooter={item.isShowHeader_Footer}>
-          {item.component}
-        </MasterLayout>
-      }
-    />
-  ));
-};
+// Cấu hình các route admin
+const adminRoutes = [
+  { path: ROUTERS.ADMIN.PRODUCT.INDEX, element: <ProductOverview /> },
+  { path: ROUTERS.ADMIN.PRODUCT.ADD, element: <AddProduct /> },
+  { path: ROUTERS.ADMIN.PRODUCT.DETAIL, element: <ProductDetail /> },
+  // Nếu có component cho EDIT thì thêm:
+  // { path: ROUTERS.ADMIN.PRODUCT.EDIT, element: <EditProduct /> },
+  { path: ROUTERS.ADMIN.ORDER.INDEX, element: <OrderPage /> },
+  { path: ROUTERS.ADMIN.ORDER.ADD, element: <AddOrder /> },
+  { path: ROUTERS.ADMIN.ORDER.DETAIL, element: <OrderDetail /> },
+  // Thêm các route admin khác ở đây nếu cần
+];
 
-const renderAdminRouter = () => {
-    return (
-        <Route
-        path={ROUTERS.ADMIN.HOME}
+const RouterCustom = () => (
+  <Routes>
+    {/* User routes */}
+    {userRoutes.map((route, idx) => (
+      <Route
+        key={idx}
+        path={route.path}
         element={
-          <ProtectedRoute requiredRole={1}>
-            <AdminMasterLayout />
-          </ProtectedRoute>
+          <MasterLayout showHeaderFooter={route.showHeaderFooter}>
+            {route.element}
+          </MasterLayout>
         }
-      >
-        {/* Khi vào /admin, Outlet trong AdminMasterLayout sẽ render Homepage */}
-        <Route element={<AdminHomepage />}>
-          {/* Mặc định vào /admin, Outlet trong Homepage render ProductOverview */}
-          <Route index element={<ProductOverview />} />
-          
-          {/* Các route con khác của admin */}
-          <Route path="product" element={<ProductOverview />} />
-          <Route path="product/add" element={<AddProduct />} />
-          <Route path="products/:id" element={<ProductDetail />} />
-          {/* ... tiếp tục thêm */}
-        </Route>
-      </Route>
-      
-    );
-  };
-  
+      />
+    ))}
 
-const RouterCustom = () => {
-  return (
-    <Routes>
-      {renderUserRouter()}
-      {renderAdminRouter()}
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
-  );
-};
+    {/* Admin routes */}
+    <Route
+      path={ROUTERS.ADMIN.HOME}
+      element={
+        <ProtectedRoute requiredRole={1}>
+          <AdminMasterLayout />
+        </ProtectedRoute>
+      }
+    >
+      <Route element={<AdminHomepage />}>
+        <Route index element={<ProductOverview />} />
+        {adminRoutes.map((route, idx) => (
+          <Route key={idx} path={route.path} element={route.element} />
+        ))}
+      </Route>
+    </Route>
+
+    {/* Not found */}
+    <Route path="*" element={<NotFoundPage />} />
+  </Routes>
+);
 
 export default RouterCustom;

@@ -1,34 +1,36 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FixedSizeList as List } from "react-window";
-import { API_BASE, UPLOAD_BASE } from "../../../../../constants";
-import useHttp from "../../../../../hooks/useHttp";
-import ToolBar from "../../ToolBar";
-import "./style.scss";
+import { FixedSizeList as List } from "react-window"; // 📜 Virtualized list để render danh sách dài
+import { API_BASE, UPLOAD_BASE } from "../../../../../constants"; // 🌐 API endpoint & path upload
+import useHttp from "../../../../../hooks/useHttp"; // ⚡ Custom hook request HTTP
+import ToolBar from "../../ToolBar"; // 🔍 Toolbar search/filter
+import "./style.scss"; // 🎨 Styles
 
 const ProductOverviewComponent = () => {
-  const { request } = useHttp();
-  const [categories, setCategories] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [originalProducts, setOriginalProducts] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState("Tất cả");
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [showFilterContent, setShowFilterContent] = useState(false);
-  const [showCategories, setShowCategories] = useState(true);
-  const [containerVisible, setContainerVisible] = useState(true);
-  const [showCloseButton, setShowCloseButton] = useState(true);
-  const [selectMode, setSelectMode] = useState(false);
-  const [selectedProducts, setSelectedProducts] = useState([]);
-  const [editMode, setEditMode] = useState(false);
-  const [searchKeyword, setSearchKeyword] = useState("");
-  const navigate = useNavigate();
+  const { request } = useHttp(); // ⚡ Gọi request HTTP
+  // 🏷 State quản lý dữ liệu & UI
+  const [categories, setCategories] = useState([]); // 📂 Danh mục sản phẩm
+  const [products, setProducts] = useState([]); // 🛍 Danh sách sản phẩm đang hiển thị
+  const [originalProducts, setOriginalProducts] = useState([]); // 🗄 Dữ liệu gốc, dùng khi hủy chỉnh sửa
+  const [selectedCategory, setSelectedCategory] = useState("Tất cả"); // 📌 Category filter
+  const [filterOpen, setFilterOpen] = useState(false); // 🔧 Toggle bộ lọc
+  const [showFilterContent, setShowFilterContent] = useState(false); // 👀 Hiển thị nội dung filter
+  const [showCategories, setShowCategories] = useState(true); // 👀 Hiển thị category buttons
+  const [containerVisible, setContainerVisible] = useState(true); // 🖼 Hiển thị container category
+  const [showCloseButton, setShowCloseButton] = useState(true); // ❌ Hiển thị nút đóng category
+  const [selectMode, setSelectMode] = useState(false); // ✔ Chọn nhiều sản phẩm
+  const [selectedProducts, setSelectedProducts] = useState([]); // 🗂 Danh sách sản phẩm được chọn
+  const [editMode, setEditMode] = useState(false); // ✏️ Chế độ chỉnh sửa
+  const [searchKeyword, setSearchKeyword] = useState(""); // 🔍 Keyword search
+  const navigate = useNavigate(); // 🔀 Navigate giữa route
 
+  // 🌐 Lấy dữ liệu categories & products từ API khi component mount
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [categoryRes, productRes] = await Promise.all([
-          request("GET", `${API_BASE}/api/user/products/loadCategory`),
-          request("GET", `${API_BASE}/api/user/products/loadAllProducts`),
+          request("GET", `${API_BASE}/api/user/products/loadCategory`), // 📂 Lấy danh mục
+          request("GET", `${API_BASE}/api/user/products/loadAllProducts`), // 🛍 Lấy tất cả sản phẩm
         ]);
         setCategories(categoryRes.data);
         setProducts(productRes.data);
@@ -40,10 +42,12 @@ const ProductOverviewComponent = () => {
     fetchData();
   }, [request]);
 
+  // ➕ Navigate đến trang thêm sản phẩm
   const handleAddProduct = () => {
     navigate("/admin/product/add");
   };
-  
+
+  // 🔎 Filter products theo category & search keyword
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
       const matchCategory = selectedCategory === "Tất cả" || product.CategoryName === selectedCategory;
@@ -54,12 +58,14 @@ const ProductOverviewComponent = () => {
     });
   }, [products, selectedCategory, searchKeyword]);
 
+  // ✔ Toggle checkbox chọn sản phẩm
   const handleCheckboxChange = useCallback((productId) => {
     setSelectedProducts((prev) =>
       prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]
     );
   }, []);
 
+  // ✏️ Thay đổi dữ liệu product khi chỉnh sửa
   const handleProductChange = useCallback((productId, field, value) => {
     setProducts((prev) =>
       prev.map((product) =>
@@ -68,12 +74,14 @@ const ProductOverviewComponent = () => {
     );
   }, []);
 
+  // 🔼 Mở category container
   const handleOpen = () => {
     setShowCloseButton(true);
     setContainerVisible(true);
-    setTimeout(() => setShowCategories(true), 50);
+    setTimeout(() => setShowCategories(true), 50); // animation delay
   };
 
+  // 🔽 Đóng category container
   const handleCloseCategories = () => {
     setShowCloseButton(false);
     setShowCategories(false);
@@ -83,6 +91,7 @@ const ProductOverviewComponent = () => {
     setTimeout(() => setContainerVisible(false), totalTime);
   };
 
+  // 🔧 Mở/Đóng filter sidebar
   const handleToggleFilter = () => {
     if (!filterOpen) {
       setFilterOpen(true);
@@ -93,8 +102,10 @@ const ProductOverviewComponent = () => {
     }
   };
 
+  // ✔ Toggle chế độ chọn nhiều sản phẩm
   const handleToggleSelectMode = () => {
     if (editMode) {
+      // Hủy chỉnh sửa, reset dữ liệu gốc cho các sản phẩm đã chọn
       setProducts((prev) =>
         prev.map((p) => {
           if (selectedProducts.includes(p.ProductID)) {
@@ -110,6 +121,7 @@ const ProductOverviewComponent = () => {
     setEditMode(false);
   };
 
+  // ✏️ Xử lý Chỉnh sửa / Lưu dữ liệu
   const handleEditOrSave = async () => {
     if (editMode) {
       const confirmSave = window.confirm("Bạn có chắc chắn muốn lưu thay đổi?");
@@ -126,6 +138,7 @@ const ProductOverviewComponent = () => {
         );
         alert("Đã lưu thành công!");
 
+        // 🔄 Cập nhật dữ liệu gốc
         setOriginalProducts((prev) =>
           prev.map((o) => {
             const updated = updatedProducts.find((u) => u.ProductID === o.ProductID);
@@ -153,10 +166,15 @@ const ProductOverviewComponent = () => {
     }
   };
 
+  // ================= UI =================
+
   return (
     <>
-      <ToolBar onSearchChange={setSearchKeyword} />
+      {/* 🔍 Toolbar tìm kiếm */}
+      <ToolBar title="Sản phẩm" onSearchChange={setSearchKeyword} />
+
       <div className="product-wrapper">
+        {/* 🏷 Topbar category */}
         <div className="product-topbar">
           {!containerVisible && (
             <button className="toggle-button" onClick={handleOpen}>
@@ -165,12 +183,14 @@ const ProductOverviewComponent = () => {
           )}
           {containerVisible && (
             <div className="category-buttons">
+              {/* Tất cả category */}
               <button
                 className={selectedCategory === "Tất cả" ? "active" : ""}
                 onClick={() => setSelectedCategory("Tất cả")}
               >
                 Tất cả
               </button>
+              {/* Category dynamic */}
               {categories.map((category, index) => {
                 const total = categories.length;
                 const delay = showCategories
@@ -192,6 +212,7 @@ const ProductOverviewComponent = () => {
                   </button>
                 );
               })}
+              {/* Close button */}
               {showCloseButton && (
                 <button
                   className="close-button"
@@ -210,7 +231,9 @@ const ProductOverviewComponent = () => {
           )}
         </div>
 
+        {/* 📦 Nội dung chính: thao tác & danh sách sản phẩm */}
         <div className={`product-content ${filterOpen ? "open" : ""}`}>
+          {/* 🛠 Sidebar thao tác & filter */}
           <div className="product-left">
             <button className="btn-select-mode" onClick={handleToggleSelectMode}>
               {selectMode ? "Huỷ chọn" : "Chọn sản phẩm"}
@@ -222,6 +245,7 @@ const ProductOverviewComponent = () => {
             <button className="btn-delete">Xóa</button>
             <button className="btn-export">Xuất Excel</button>
 
+            {/* 🔧 Toggle filter */}
             <div className="filter-toggle-header" onClick={handleToggleFilter}>
               {!filterOpen ? (
                 <>
@@ -244,9 +268,11 @@ const ProductOverviewComponent = () => {
             )}
           </div>
 
+          {/* 🛍 Danh sách sản phẩm */}
           <div className="product-right">
             <div className="content">
               <div className="product-data">
+                {/* Header table */}
                 <ul className="field-name list-unstyled">
                   <li className="field-col list-stt">STT</li>
                   <li className="field-col list-id">ID SP</li>
@@ -256,6 +282,8 @@ const ProductOverviewComponent = () => {
                   <li className="field-col list-category">Danh mục</li>
                   <li className="field-col list-stock">Tồn kho</li>
                 </ul>
+
+                {/* 🏷 Product list virtualized */}
                 <div className="data">
                   <List
                     height={600}
@@ -271,6 +299,7 @@ const ProductOverviewComponent = () => {
                           className={`list-unstyled row-data ${index % 2 === 0 ? "even" : "odd"}`}
                           style={style}
                         >
+                          {/* ✔ Checkbox chọn */}
                           <li className="list-stt">
                             {selectMode && (
                               <input
@@ -281,6 +310,8 @@ const ProductOverviewComponent = () => {
                             )}
                             {index + 1}
                           </li>
+
+                          {/* 🏷 Các trường product */}
                           <li className="list-id">{product.ProductID}</li>
                           <li className="list-name">
                             {editMode && selectedProducts.includes(product.ProductID) ? (
@@ -316,7 +347,7 @@ const ProductOverviewComponent = () => {
                             {product.StockQuantity}
                             <button
                               className="view-detail"
-                              onClick={() => navigate(`/admin/products/${product.ProductID}`)}
+                              onClick={() => navigate(`/admin/product/detail/${product.ProductID}`)}
                             >Xem chi tiết</button>
                           </li>
                         </ul>
@@ -333,4 +364,4 @@ const ProductOverviewComponent = () => {
   );
 };
 
-export const ProductOverview = React.memo(ProductOverviewComponent);
+export const ProductOverview = React.memo(ProductOverviewComponent); // 🧩 Memo để tránh re-render không cần thiết

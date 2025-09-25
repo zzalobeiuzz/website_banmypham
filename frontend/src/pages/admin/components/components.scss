@@ -1,10 +1,54 @@
 //========================TOOLBAR========================
 //=======================================================
-.tool-bar-style{
-    padding: 10px 20px;
-    box-shadow: 0 4px 6px -2px rgba(0, 0, 0, 0.1);
-    z-index: 50;
-    background-color: #FFFFFF;
+.tool-bar-style {
+  padding: 10px 20px;
+  box-shadow: 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+  z-index: 50;
+  background-color: #ffffff;
+  gap: 25%;
+  .btn-group {
+    .title {
+      font-size: 2rem;
+      font-weight: 600;
+      color: #212529;
+      margin-top: 10px;
+      display: inline-block;
+      position: relative;
+      padding-bottom: 6px; /* cách chữ với gạch */
+    }
+
+    // Gạch ngang dưới chữ với hiệu ứng gradient động
+    .title::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%); /* căn giữa */
+      bottom: 0;
+      width: 80px; /* độ dài gạch, bạn chỉnh nhỏ hơn chữ */
+      height: 4px;
+      border-radius: 2px;
+
+       /* Tạo màu gradient ngang: xanh nhạt (#6ec1ff) → xanh đậm (#0d6efd) → xanh nhạt */
+      background: linear-gradient(90deg, #6ec1ff, #0d6efd, #6ec1ff);
+
+      /* Phóng to gradient gấp 2 lần chiều rộng phần tử 
+         (để khi animate có không gian dịch chuyển mượt mà) */
+      background-size: 200% 100%;
+
+      /* Chạy animation "gradientMove" trong 3s, tuyến tính (linear), lặp vô hạn (infinite) */
+      animation: gradientMove 3s linear infinite;
+    }
+
+    /* Animation */
+    @keyframes gradientMove {
+      0% {
+        background-position: 0% 50%;
+      }
+      100% {
+        background-position: 200% 50%;
+      }
+    }
+  }
 }
 //====================BARCODE POPUP======================
 //=======================================================
@@ -176,8 +220,6 @@
   }
 }
 
-
-
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -188,8 +230,3 @@
     transform: translateY(0);
   }
 }
-
-
-
-  
-  
