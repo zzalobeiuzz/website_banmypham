@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Outlet } from "react-router-dom";
 import { FixedSizeList as List } from "react-window"; // 📜 Virtualized list để render danh sách dài
 import { API_BASE, UPLOAD_BASE } from "../../../../../constants"; // 🌐 API endpoint & path upload
 import useHttp from "../../../../../hooks/useHttp"; // ⚡ Custom hook request HTTP
@@ -169,7 +169,7 @@ const ProductOverviewComponent = () => {
   // ================= UI =================
 
   return (
-    <>
+    <div>
       {/* 🔍 Toolbar tìm kiếm */}
       <ToolBar title="Sản phẩm" onSearchChange={setSearchKeyword} />
 
@@ -360,7 +360,8 @@ const ProductOverviewComponent = () => {
           </div>
         </div>
       </div>
-    </>
+      <Outlet /> {/* Thêm dòng này để hiển thị component con như AddProduct, ProductDetail */}
+    </div>
   );
 };
 

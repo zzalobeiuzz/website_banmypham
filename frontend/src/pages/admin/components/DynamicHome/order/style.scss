@@ -29,7 +29,7 @@
   .order-list {
     background: #fff;
     border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     padding: 0 0 16px 0;
     margin-bottom: 24px;
 
@@ -47,13 +47,30 @@
           font-weight: 600;
           color: #1976d2;
           padding: 0 12px;
-          &.number { width: 60px; }
-          &.order-id { width: 140px; }
-          &.customer-name { flex: 1; min-width: 140px; }
-          &.order-date { width: 120px; }
-          &.total-amount { width: 120px; text-align: right; }
-          &.status { width: 120px; }
-          &.actions { width: 160px; text-align: center; }
+          &.number {
+            width: 60px;
+          }
+          &.order-id {
+            width: 140px;
+          }
+          &.customer-name {
+            flex: 1;
+            min-width: 140px;
+          }
+          &.order-date {
+            width: 120px;
+          }
+          &.total-amount {
+            width: 120px;
+            text-align: right;
+          }
+          &.status {
+            width: 120px;
+          }
+          &.actions {
+            width: 160px;
+            text-align: center;
+          }
         }
       }
     }
@@ -76,13 +93,30 @@
         .column {
           padding: 0 12px;
           font-size: 15px;
-          &.number { width: 60px; }
-          &.order-id { width: 140px; }
-          &.customer-name { flex: 1; min-width: 140px; }
-          &.order-date { width: 120px; }
-          &.total-amount { width: 120px; text-align: right; }
-          &.status { width: 120px; }
-          &.actions { width: 160px; text-align: center; }
+          &.number {
+            width: 60px;
+          }
+          &.order-id {
+            width: 140px;
+          }
+          &.customer-name {
+            flex: 1;
+            min-width: 140px;
+          }
+          &.order-date {
+            width: 120px;
+          }
+          &.total-amount {
+            width: 120px;
+            text-align: right;
+          }
+          &.status {
+            width: 120px;
+          }
+          &.actions {
+            width: 160px;
+            text-align: center;
+          }
 
           .btn-view,
           .btn-edit,
@@ -99,17 +133,23 @@
           .btn-view {
             background: #e3f2fd;
             color: #1976d2;
-            &:hover { background: #bbdefb; }
+            &:hover {
+              background: #bbdefb;
+            }
           }
           .btn-edit {
             background: #fffde7;
             color: #fbc02d;
-            &:hover { background: #fff9c4; }
+            &:hover {
+              background: #fff9c4;
+            }
           }
           .btn-delete {
             background: #ffebee;
             color: #d32f2f;
-            &:hover { background: #ffcdd2; }
+            &:hover {
+              background: #ffcdd2;
+            }
           }
         }
       }
@@ -120,4 +160,112 @@
     // Thêm style cho sidebar chi tiết đơn hàng nếu cần
     margin-top: 24px;
   }
+
+  .order-flex-container {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+  }
+
+  .order-list-section {
+    min-width: 0;
+    width: 100%;
+    /* Không cần flex ở đây, chỉ dùng max-width để transition */
+  }
+
+  .order-detail-section {
+    width: 370px;
+    min-width: 320px;
+    max-width: 400px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    padding: 24px 10px;
+    margin: 20px 0 0 0;
+    max-height: calc(100vh);
+    /* removed animation/transform - keep static with shadow only */
+  }
+
+  // Khi có chi tiết, co bảng lại một chút cho vừa
+  .order-flex-container.show-detail .order-list-section {
+    flex: 0 1 70%;
+    max-width: 70%;
+    transition: flex-basis 0.3s, max-width 0.3s;
+  }
+}
+
+/* Bảo đảm bảng dùng layout cố định và cột tên sản phẩm có thể wrap nhiều dòng */
+.order-products-table {
+  table-layout: fixed; /* đã có, giữ nguyên */
+  padding-top: 10px;
+  border-collapse: collapse; /* bắt các đường kẻ hoạt động */
+  border-left: 1px solid #e6e6e6;   /* viền trái */
+  border-right: 1px solid #e6e6e6;  /* viền phải */
+}
+
+/* đường dọc giữa các cột: áp dụng cho th/td đứng sau 1 ô */
+.order-products-table th + th,
+.order-products-table td + td {
+  border-left: 1px solid #e6e6e6;
+}
+
+/* Giữ nguyên style các ô, tránh border-bottom nếu không muốn đường ngang */
+.order-products-table th,
+.order-products-table td {
+  padding: 6px 8px;
+  vertical-align: top;
+  /* nếu không muốn đường ngang, comment dòng dưới */
+  border-bottom: 1px solid #f3f3f3;
+}
+
+/* Nếu muốn chỉ hiện 3 đường dọc cố định (ví dụ: left, giữa, right),
+   dùng selector theo col index thay vì + : */
+/*
+.order-products-table col:nth-child(1) { border-left: 1px solid #e6e6e6; }
+.order-products-table col:nth-child(2) { border-left: 1px solid #e6e6e6; }
+.order-products-table col:nth-child(3) { border-left: 1px solid #e6e6e6; }
+*/
+
+/* Tên sản phẩm: cho phép xuống dòng, ngắt từ, hiển thị nhiều dòng */
+.order-products-table .product-name-cell {
+  display: block;             /* giúp ô tôn trọng width và wrap nội dung */
+  white-space: normal;        /* cho phép xuống dòng */
+  overflow-wrap: anywhere;    /* ngắt từ khi quá dài (tốt cho URL, chuỗi dài) */
+  word-wrap: break-word;
+  word-break: break-word;     /* fallback */
+  hyphens: auto;              /* gạch nối khi cần */
+  line-height: 1.3;
+  max-height: none;
+  text-overflow: clip;        /* không dùng ellipsis, cho xuống dòng */
+  overflow: visible;
+}
+
+/* đảm bảo các ô khác không bị wrap (số lượng / giá) và căn chỉnh đúng */
+.order-products-table td:nth-child(2),
+.order-products-table td:nth-child(3),
+.order-products-table th:nth-child(2),
+.order-products-table th:nth-child(3) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* căn các ô theo trên để tránh chồng lấn khi có nhiều dòng */
+.order-products-table td,
+.order-products-table th {
+  vertical-align: top;
+  padding: 6px 8px;
+}
+
+/* ------------------ Elevation / shadow improvements ------------------ */
+
+/* Wrapper nâng nhẹ cho toàn bộ table, có padding để hiển thị shadow gọn */
+.order-products-table-wrapper {
+  background: transparent;
+  border-radius: 8px ;
+  margin: 10px 0 ;
+  max-height: 200px;
+  overflow-y: auto;
+  will-change: box-shadow;
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.10);
 }

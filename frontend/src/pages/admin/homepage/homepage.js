@@ -1,3 +1,6 @@
+// Đây là khung chung của trang admin với menu bên trái và nội dung bên phải
+// Homepage sẽ chứa Outlet để hiển thị các trang con như ProductOverview, OrderPage, v.v.
+// Menu bên trái có thể thu gọn, và có các mục như Quản lý sản phẩm, Đơn hàng, Khách hàng, Tài khoản, Sự kiện, Thống kê, v.v.
 import React, { useEffect, useRef, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { API_BASE, UPLOAD_BASE } from "../../../constants";

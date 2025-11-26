@@ -11,8 +11,7 @@ export const ROUTERS = {
       HOME: "admin",           // Trang chủ admin: /admin
   
       // Nhóm đường dẫn sản phẩm (Product)
-      PRODUCT: {
-        INDEX: "product",               // Danh sách sản phẩm: /admin/product
+      PRODUCT: {              // Danh sách sản phẩm: /admin/product
         ADD: "product/add",             // Thêm sản phẩm: /admin/product/add
         DETAIL: "product/detail/:id",   // Chi tiết sản phẩm: /admin/product/detail/123
         EDIT: "product/edit/:id",       // Sửa sản phẩm: /admin/product/edit/123
@@ -20,7 +19,7 @@ export const ROUTERS = {
   
       // Nhóm đường dẫn đơn hàng (Order)
       ORDER: {
-        INDEX: "order",                 // Danh sách đơn hàng: /admin/order
+        INDEX: "order",                 // Danh sách đơn hàng: /admin/order     // Chi tiết đơn hàng: /admin/order/detail/123
         ADD: "order/add",               // Thêm đơn hàng: /admin/order/add
         DETAIL: "order/detail/:id",     // Chi tiết đơn hàng: /admin/order/detail/123
       },
