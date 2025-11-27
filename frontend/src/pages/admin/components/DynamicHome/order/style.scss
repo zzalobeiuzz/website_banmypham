@@ -3,11 +3,13 @@
   background: #f9f9f9;
   min-height: 100vh;
 
+  /* 🔍 Thanh nút lọc trạng thái đơn hàng (Tất cả / Chờ xác nhận / ...) */
   .order-status-filters {
     display: flex;
     gap: 12px;
     margin-bottom: 20px;
 
+    /* 🔘 Nút filter trạng thái */
     .filter-button {
       padding: 8px 18px;
       border: none;
@@ -18,6 +20,7 @@
       cursor: pointer;
       transition: background 0.2s;
 
+      /* 🟦 Hover hoặc đang active (được chọn) */
       &:hover,
       &.active {
         background: #1976d2;
@@ -26,13 +29,28 @@
     }
   }
 
+  /* 📋 Khung danh sách đơn hàng (bảng bên trái) */
   .order-list {
     background: #fff;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-    padding: 0 0 16px 0;
-    margin-bottom: 24px;
+    padding: 0 0 2px 0;
+    // margin-bottom: 24px;
 
+    /* 📭 Trạng thái khi không có đơn nào hiển thị */
+    .no-orders {
+      padding: 24px 16px;
+      text-align: center;
+      font-size: 14px;
+      color: #3c3b3b;
+      font-style: italic;
+      border: 1px dashed #ddd;
+      border-radius: 8px;
+      margin: 12px 8px 0;
+      background: #fafafa;
+    }
+
+    /* 🧱 Hàng header của bảng (STT, Mã đơn, Tên KH, ...) */
     .header-row {
       border-bottom: 1px solid #e0e0e0;
       padding: 12px 0;
@@ -43,10 +61,12 @@
         margin: 0;
         padding: 0;
 
+        /* 🔠 Cột tiêu đề */
         .column {
           font-weight: 600;
           color: #1976d2;
           padding: 0 12px;
+
           &.number {
             width: 60px;
           }
@@ -75,6 +95,7 @@
       }
     }
 
+    /* 📦 Phần body: các dòng đơn hàng */
     .order-rows {
       .order-row {
         display: flex;
@@ -82,17 +103,20 @@
         list-style: none;
         margin: 0;
         padding: 12px 0;
-        border-bottom: 1px solid #f0f0f0;
+        border-bottom: 1px solid #bfbfbf;
         background: #fff;
         transition: background 0.2s;
 
+        /* ✨ Hover từng dòng đơn */
         &:hover {
-          background: #f5faff;
+          background: #e4effa;
         }
 
+        /* 🔡 Ô trong từng dòng */
         .column {
           padding: 0 12px;
           font-size: 15px;
+
           &.number {
             width: 60px;
           }
@@ -118,6 +142,7 @@
             text-align: center;
           }
 
+          /* 🔘 Nút hành động: Xem / Sửa / Xóa */
           .btn-view,
           .btn-edit,
           .btn-delete {
@@ -128,8 +153,10 @@
             font-size: 15px;
             cursor: pointer;
             transition: background 0.2s;
+            width: 75px;
           }
 
+          /* 👁 Nút Xem chi tiết */
           .btn-view {
             background: #e3f2fd;
             color: #1976d2;
@@ -137,6 +164,8 @@
               background: #bbdefb;
             }
           }
+
+          /* ✏️ Nút Sửa đơn */
           .btn-edit {
             background: #fffde7;
             color: #fbc02d;
@@ -144,6 +173,8 @@
               background: #fff9c4;
             }
           }
+
+          /* 🗑 Nút Xóa đơn */
           .btn-delete {
             background: #ffebee;
             color: #d32f2f;
@@ -154,25 +185,86 @@
         }
       }
     }
+
+    /* 🎨 MÀU CHO TỪNG TRẠNG THÁI ĐƠN HÀNG (pill màu sắc) */
+
+    /* Viên trạng thái chung: bo tròn, chữ in đậm */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 110px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      text-align: center;
+      background: #f5f5f5;
+    }
+
+    /* 🟠 Chờ xác nhận */
+    .status--cho-xac-nhan {
+      color: #b36b00;
+      background: #fff4e5;
+    }
+
+    /* 🔵 Đang xử lý */
+    .status--dang-xu-ly {
+      color: #0052cc;
+      background: #e6f0ff;
+    }
+
+    /* 🟢 Đang giao */
+    .status--dang-giao {
+      color: #007b55;
+      background: #e3f7ee;
+    }
+
+    /* ✅ Đã giao */
+    .status--da-giao {
+      color: #0f7b0f;
+      background: #e6f7e6;
+    }
+
+    /* 🟢 Hoàn thành */
+    .status--hoan-thanh {
+      color: #0b7d3b;
+      background: #e5f9f0;
+    }
+
+    /* ❌ Đã hủy */
+    .status--da-huy {
+      color: #d32f2f;
+      background: #ffebee;
+    }
+
+    /* 🔄 Trả hàng */
+    .status--tra-hang {
+      color: #6a1b9a;
+      background: #f5e6ff;
+    }
   }
 
+  /* 📎 Khu vực sidebar (nếu sau này dùng riêng) */
   .sidebar {
-    // Thêm style cho sidebar chi tiết đơn hàng nếu cần
     margin-top: 24px;
   }
 
+  /* 🔗 Layout 2 cột: danh sách đơn + panel chi tiết */
   .order-flex-container {
     display: flex;
     gap: 24px;
     align-items: flex-start;
   }
 
+  /* 📋 Cột danh sách đơn (trái) – co giãn theo panel chi tiết */
   .order-list-section {
     min-width: 0;
     width: 100%;
     /* Không cần flex ở đây, chỉ dùng max-width để transition */
   }
 
+  /* 📝 Panel chi tiết đơn hàng (bên phải) */
   .order-detail-section {
     width: 370px;
     min-width: 320px;
@@ -183,10 +275,10 @@
     padding: 24px 10px;
     margin: 20px 0 0 0;
     max-height: calc(100vh);
-    /* removed animation/transform - keep static with shadow only */
+    /* bỏ animation/transform, giữ panel tĩnh */
   }
 
-  // Khi có chi tiết, co bảng lại một chút cho vừa
+  /* ⬅️ Khi có chi tiết: thu nhỏ danh sách đơn lại cho đủ chỗ */
   .order-flex-container.show-detail .order-list-section {
     flex: 0 1 70%;
     max-width: 70%;
@@ -194,53 +286,44 @@
   }
 }
 
-/* Bảo đảm bảng dùng layout cố định và cột tên sản phẩm có thể wrap nhiều dòng */
+/* 📊 Bảng sản phẩm trong chi tiết đơn hàng */
 .order-products-table {
-  table-layout: fixed; /* đã có, giữ nguyên */
+  table-layout: fixed;          /* layout cố định để chia cột đều */
   padding-top: 10px;
-  border-collapse: collapse; /* bắt các đường kẻ hoạt động */
-  border-left: 1px solid #e6e6e6;   /* viền trái */
-  border-right: 1px solid #e6e6e6;  /* viền phải */
+  border-collapse: collapse;    /* gộp border cho gọn */
+  border-left: 1px solid #e6e6e6;
+  border-right: 1px solid #e6e6e6;
 }
 
-/* đường dọc giữa các cột: áp dụng cho th/td đứng sau 1 ô */
+/* 🚧 Đường kẻ dọc giữa các cột */
 .order-products-table th + th,
 .order-products-table td + td {
   border-left: 1px solid #e6e6e6;
 }
 
-/* Giữ nguyên style các ô, tránh border-bottom nếu không muốn đường ngang */
+/* 📏 Style chung cho ô trong bảng sản phẩm */
 .order-products-table th,
 .order-products-table td {
   padding: 6px 8px;
   vertical-align: top;
-  /* nếu không muốn đường ngang, comment dòng dưới */
   border-bottom: 1px solid #f3f3f3;
 }
 
-/* Nếu muốn chỉ hiện 3 đường dọc cố định (ví dụ: left, giữa, right),
-   dùng selector theo col index thay vì + : */
-/*
-.order-products-table col:nth-child(1) { border-left: 1px solid #e6e6e6; }
-.order-products-table col:nth-child(2) { border-left: 1px solid #e6e6e6; }
-.order-products-table col:nth-child(3) { border-left: 1px solid #e6e6e6; }
-*/
-
-/* Tên sản phẩm: cho phép xuống dòng, ngắt từ, hiển thị nhiều dòng */
+/* 🏷 Ô tên sản phẩm: cho phép xuống dòng, ngắt từ nếu dài */
 .order-products-table .product-name-cell {
-  display: block;             /* giúp ô tôn trọng width và wrap nội dung */
-  white-space: normal;        /* cho phép xuống dòng */
-  overflow-wrap: anywhere;    /* ngắt từ khi quá dài (tốt cho URL, chuỗi dài) */
+  display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
   word-wrap: break-word;
-  word-break: break-word;     /* fallback */
-  hyphens: auto;              /* gạch nối khi cần */
+  word-break: break-word;
+  hyphens: auto;
   line-height: 1.3;
   max-height: none;
-  text-overflow: clip;        /* không dùng ellipsis, cho xuống dòng */
+  text-overflow: clip;
   overflow: visible;
 }
 
-/* đảm bảo các ô khác không bị wrap (số lượng / giá) và căn chỉnh đúng */
+/* 🔢 Ô số lượng và giá: giữ trên 1 dòng, nếu dài thì ellipsis */
 .order-products-table td:nth-child(2),
 .order-products-table td:nth-child(3),
 .order-products-table th:nth-child(2),
@@ -250,22 +333,44 @@
   text-overflow: ellipsis;
 }
 
-/* căn các ô theo trên để tránh chồng lấn khi có nhiều dòng */
-.order-products-table td,
-.order-products-table th {
-  vertical-align: top;
-  padding: 6px 8px;
-}
-
-/* ------------------ Elevation / shadow improvements ------------------ */
-
-/* Wrapper nâng nhẹ cho toàn bộ table, có padding để hiển thị shadow gọn */
+/* 📦 Wrapper cho bảng sản phẩm (có shadow + scroll) */
 .order-products-table-wrapper {
   background: transparent;
-  border-radius: 8px ;
-  margin: 10px 0 ;
+  border-radius: 8px;
+  margin: 10px 0;
   max-height: 200px;
   overflow-y: auto;
   will-change: box-shadow;
-  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.10);
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.1);
+}
+
+/* 🧾 Header chi tiết đơn hàng: tiêu đề + nút đóng trên 1 dòng */
+.order-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.order-detail-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* ✖ Nút đóng panel chi tiết */
+.btn-close {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 2;
+  padding: 6px;
+  border-radius: 6px;
+  color: #fd1010;
+}
+
+.btn-close:hover {
+  background: rgba(0, 0, 0, 0.04);
 }

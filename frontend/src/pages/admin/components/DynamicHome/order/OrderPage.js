@@ -1,6 +1,7 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import ToolBar from "../../ToolBar";
 import "./style.scss";
+
 const ordersData = [
   {
     id: "DH001",
@@ -24,16 +25,55 @@ const ordersData = [
     details: [
       { name: "Toner", qty: 1, price: "350,000₫" },
       { name: "Serum", qty: 1, price: "500,000₫" },
-      { name: "Toner", qty: 1, price: "350,000₫" },
-      { name: "Serum", qty: 1, price: "500,000₫" },
-      { name: "Toner", qty: 1, price: "350,000₫" },
-      { name: "Serum", qty: 1, price: "500,000₫" },
-      { name: "Toner", qty: 1, price: "350,000₫" },
-      { name: "Serum", qty: 1, price: "500,000₫" },
-      
     ],
     address: "456 Đường B, Quận 3, TP.HCM",
     phone: "0912345678",
+  },
+  {
+    id: "DH003",
+    customer: "Lê Văn C",
+    date: "2025-09-26",
+    total: "2,300,000₫",
+    status: "Đang giao",
+    details: [
+      { name: "Kem dưỡng ẩm", qty: 2, price: "600,000₫" },
+      { name: "Mặt nạ", qty: 3, price: "350,000₫" },
+    ],
+    address: "789 Đường C, Quận 5, TP.HCM",
+    phone: "0923456789",
+  },
+  {
+    id: "DH004",
+    customer: "Phạm Thị D",
+    date: "2025-09-27",
+    total: "1,500,000₫",
+    status: "Chờ xác nhận",
+    details: [
+      { name: "Tẩy trang", qty: 1, price: "150,000₫" },
+      { name: "Kem chống nắng", qty: 2, price: "650,000₫" },
+    ],
+    address: "321 Đường D, Quận 7, TP.HCM",
+    phone: "0934567890",
+  },
+  {
+    id: "DH005",
+    customer: "Ngô Văn E",
+    date: "2025-09-28",
+    total: "900,000₫",
+    status: "Đã hủy",
+    details: [{ name: "Sữa tắm", qty: 3, price: "300,000₫" }],
+    address: "654 Đường E, Quận 2, TP.HCM",
+    phone: "0945678901",
+  },
+  {
+    id: "DH006",
+    customer: "Trần Văn F",
+    date: "2025-09-29",
+    total: "1,100,000₫",
+    status: "Trả hàng",
+    details: [{ name: "Serum dưỡng trắng", qty: 1, price: "1,100,000₫" }],
+    address: "987 Đường F, Quận 9, TP.HCM",
+    phone: "0956789012",
   },
 ];
 
@@ -47,14 +87,70 @@ const OrderPage = () => {
   const [pendingOrder, setPendingOrder] = useState(null); // Đơn hàng chờ hiển thị chi tiết
   const [isCollapsed, setIsCollapsed] = useState(false); // Trạng thái co bảng
 
-  // Khi ấn "Xem"
+  // 🔹 state filter theo trạng thái
+  const [filterStatus, setFilterStatus] = useState("Tất cả");
+
+  // Danh sách trạng thái dùng cho nút filter
+  const statusFilters = [
+    "Tất cả",
+    "Chờ xác nhận",
+    "Đang giao",
+    "Đã giao",
+    "Đã hủy",
+    "Trả hàng",
+    "Hoàn thành",
+    "Đang xử lý", // thêm trạng thái thực tế có trong ordersData
+  ];
+
+  
+  // ==========Chỉ cho phép sửa những đơn chưa giao, chưa hoàn thành, chưa trả hàng================== 
+  const canEdit = (status) => {
+    const blockedStatuses = ["Đang giao", "Hoàn thành", "Trả hàng"];
+    return !blockedStatuses.includes(status);
+  };
+
+
+  // ---------------- helper parse/format ----------------
+  const parsePrice = (p) => Number(String(p).replace(/[^\d]/g, "")) || 0;
+  const formatPrice = (v) => (Number(v) || 0).toLocaleString("vi-VN") + "₫";
+
+  //======================== Lọc theo search + trạng thái================== 
+  const filteredOrders = ordersData
+    .filter((order) => {
+      // Bước 1: lọc dữ liệu
+      // lọc theo keyword
+      const keyword = searchKeyword.trim().toLowerCase();
+      const matchKeyword =
+        !keyword ||
+        order.id.toLowerCase().includes(keyword) ||
+        order.customer.toLowerCase().includes(keyword);
+
+      // lọc theo trạng thái
+      const matchStatus =
+        filterStatus === "Tất cả" || order.status === filterStatus;
+
+      return matchKeyword && matchStatus;
+    })
+    // Bước 2: sắp xếp dữ liệu đã lọc
+    .sort((a, b) => new Date(b.date) - new Date(a.date)); // Ngày gần nhất lên đầu
+
+
+  //================== Tổng số món & tổng tiền (dùng cho detail)================== 
+  const totalItems = selectedOrder
+    ? selectedOrder.details.reduce((sum, it) => sum + (it.qty || 0), 0)
+    : 0;
+  const totalPrice = selectedOrder
+    ? selectedOrder.details.reduce(
+        (s, it) => s + parsePrice(it.price) * (it.qty || 0),
+        0
+      )
+    : 0;
+
+
+  //================== Khi ấn "Xem"================== 
   const handleViewDetail = (order) => {
-    // nếu đang trong transition chờ panel thu, không làm gì
     if (pendingOrder) return;
 
-    // nếu panel đã thu nhỏ (isCollapsed=true)
-    // - nếu đang hiển thị selectedOrder thì thay ngay bằng order mới
-    // - nếu chưa có selectedOrder (đang transit), đặt vào hàng chờ
     if (isCollapsed) {
       if (selectedOrder) {
         setSelectedOrder(order);
@@ -64,43 +160,28 @@ const OrderPage = () => {
       return;
     }
 
-    // nếu panel đang ở trạng thái mở, bắt đầu thu lại và lưu hàng chờ
     setPendingOrder(order);
     setIsCollapsed(true);
   };
 
-  // Khi bảng co xong (transitionEnd), mới hiện chi tiết
+
+  //==================  Khi bảng co xong (transitionEnd), mới hiện chi tiết================== 
   const handleTransitionEnd = (e) => {
-    // Chỉ xử lý khi đúng element và đúng trạng thái co
     if (isCollapsed && pendingOrder && e.propertyName === "max-width") {
       setSelectedOrder(pendingOrder);
       setPendingOrder(null);
     }
-    // Khi mở rộng xong (sau khi đóng chi tiết), reset state
-    if (!isCollapsed && !selectedOrder && e.propertyName === "max-width") {
-      // Đảm bảo không làm gì thêm
-    }
   };
 
-  // Khi đóng panel chi tiết
+
+  //================== Khi đóng panel chi tiết================== 
   const handleCloseDetail = () => {
-    setSelectedOrder(null); // Ẩn bảng detail trước
+    setSelectedOrder(null);
     setTimeout(() => {
-      setIsCollapsed(false); // Sau đó mở rộng lại bảng
-    }, 50); // Đợi detail biến mất rồi mới mở rộng
+      setIsCollapsed(false);
+    }, 50);
   };
 
-  // ---------------- helper parse/format (thêm vào trong component, trước return) ----------------
-  const parsePrice = (p) => Number(String(p).replace(/[^\d]/g, "")) || 0;
-  const formatPrice = (v) => (Number(v) || 0).toLocaleString("vi-VN") + "₫";
-
-  // Tổng số món & tổng tiền (tính ở mức component, dùng trong tbody và tfoot)
-  const totalItems = selectedOrder
-    ? selectedOrder.details.reduce((sum, it) => sum + (it.qty || 0), 0)
-    : 0;
-  const totalPrice = selectedOrder
-    ? selectedOrder.details.reduce((s, it) => s + parsePrice(it.price) * (it.qty || 0), 0)
-    : 0;
 
   return (
     <div className="order-page">
@@ -116,16 +197,25 @@ const OrderPage = () => {
           }}
           onTransitionEnd={handleTransitionEnd}
         >
-          {/* Bộ lọc trạng thái đơn hàng */}
+          {/* 🔹 Bộ lọc trạng thái đơn hàng */}
           <div className="order-status-filters">
-            <button className="filter-button">Tất cả</button>
-            <button className="filter-button">Chờ xác nhận</button>
-            <button className="filter-button">Đang giao</button>
-            <button className="filter-button">Đã giao</button>
-            <button className="filter-button">Đã hủy</button>
-            <button className="filter-button">Trả hàng</button>
-            <button className="filter-button">Hoàn thành</button>
+            {statusFilters.map((status) => (
+              // Một nút cho mỗi trạng thái trong mảng statusFilters
+              <button
+                key={status}
+                // thêm class "filter-button--active" nếu trạng thái đang chọn trùng với status
+                className={
+                  "filter-button" +
+                  (filterStatus === status ? " filter-button--active" : "")
+                }
+                // khi click: set state filterStatus -> sẽ làm filteredOrders cập nhật
+                onClick={() => setFilterStatus(status)}
+              >
+                {status /* hiển thị tên trạng thái trên nút */}
+              </button>
+            ))}
           </div>
+
           {/* Bảng danh sách đơn hàng */}
           <div className="order-list">
             <div className="header-row">
@@ -140,37 +230,76 @@ const OrderPage = () => {
               </ul>
             </div>
             <div className="order-rows">
-              {ordersData.map((order, idx) => (
-                <ul className="order-row" key={order.id}>
-                  <li className="column number">{idx + 1}</li>
-                  <li className="column order-id">{order.id}</li>
-                  <li className="column customer-name">{order.customer}</li>
-                  <li className="column order-date">{order.date}</li>
-                  <li className="column total-amount">{order.total}</li>
-                  <li className="column status">{order.status}</li>
-                  <li className="column actions">
-                    {/* Nút xem chi tiết */}
-                    <button
-                      className="btn-view"
-                      onClick={() => handleViewDetail(order)}
-                      disabled={!!pendingOrder}
+              {filteredOrders.length === 0 ? (
+                <div className="no-orders">Không có đơn hàng phù hợp</div>
+              ) : (
+                filteredOrders.map((order, idx) => (
+                  <ul className="order-row" key={order.id}>
+                    <li className="column number">{idx + 1}</li>
+                    <li className="column order-id">{order.id}</li>
+                    <li className="column customer-name">{order.customer}</li>
+                    <li className="column order-date">{order.date}</li>
+                    <li className="column total-amount">{order.total}</li>
+                    {/* 🔹 Hiển thị trạng thái với màu sắc khác nhau */}
+                    {/* Gán thêm class khác nhau thuận tiện css màu cho từng trạng thái */}
+                    <li
+                      className={
+                        "column status status-pill " +
+                        (order.status === "Hoàn thành"
+                          ? "status--hoan-thanh"
+                          : order.status === "Đang xử lý"
+                          ? "status--dang-xu-ly"
+                          : order.status === "Chờ xác nhận"
+                          ? "status--cho-xac-nhan"
+                          : order.status === "Đang giao"
+                          ? "status--dang-giao"
+                          : order.status === "Đã giao"
+                          ? "status--da-giao"
+                          : order.status === "Đã hủy"
+                          ? "status--da-huy"
+                          : order.status === "Trả hàng"
+                          ? "status--tra-hang"
+                          : "")
+                      }
                     >
-                      👁 Xem
-                    </button>
-                    <button className="btn-edit">✏️ Sửa</button>
-                    <button className="btn-delete">🗑 Xóa</button>
-                  </li>
-                </ul>
-              ))}
+                      {order.status}
+                    </li>
+
+                    <li className="column actions">
+                      <button
+                        className="btn-view"
+                        onClick={() => handleViewDetail(order)}
+                        disabled={!!pendingOrder}
+                      >
+                        👁 Xem
+                      </button>
+                      {canEdit(order.status) && (
+                        <button className="btn-edit">✏️ Sửa</button>
+                      )}
+
+                      <button className="btn-delete">🗑 Xóa</button>
+                    </li>
+                  </ul>
+                ))
+              )}
             </div>
           </div>
         </div>
 
-        {/* Chi tiết đơn hàng (hiển thị bên phải) */}
+        {/* Chi tiết đơn hàng (bên phải) */}
         {selectedOrder && (
           <div className="order-detail-section">
             <div className="order-detail">
-              <h3>📝 Chi tiết đơn hàng</h3>
+              <div className="order-detail-header">
+                <h3>📝 Chi tiết đơn hàng</h3>
+                <button
+                  className="btn-close"
+                  onClick={handleCloseDetail}
+                  aria-label="Đóng"
+                >
+                  ✖
+                </button>
+              </div>
               <p>
                 <strong>🆔 Mã đơn:</strong> {selectedOrder.id}
               </p>
@@ -192,12 +321,10 @@ const OrderPage = () => {
               <p>
                 <strong>💰 Tổng tiền:</strong> {selectedOrder.total}
               </p>
-              <strong>🛒 Sản phẩm:</strong>
 
-              {/* ---------------- thay phần <ul>... bằng table ---------------- */}
+              <strong>🛒 Sản phẩm:</strong>
               <div className="order-products-table-wrapper">
                 <table className="order-products-table">
-                  {/* đặt colgroup để ưu tiên width cho cột tên sản phẩm */}
                   <colgroup>
                     <col style={{ width: "60%" }} />
                     <col style={{ width: "12%" }} />
@@ -214,7 +341,6 @@ const OrderPage = () => {
                     {selectedOrder.details.map((item, i) => {
                       const itemPrice = parsePrice(item.price);
                       const itemTotal = itemPrice * (item.qty || 0);
-
                       return (
                         <tr key={i}>
                           <td title={item.name} className="product-name-cell">
@@ -229,15 +355,16 @@ const OrderPage = () => {
                     })}
                   </tbody>
                 </table>
-
-               
               </div>
-               {/* ---------------- totals moved OUTSIDE the table ---------------- */}
-                <div className="order-products-totals">
-                  <div style={{textAlign:"end"}}className="total-items">Tổng số món: <strong>{totalItems}</strong></div>
-                  <div style={{textAlign:"end"}}className="total-price">Tổng tiền: <strong>{formatPrice(totalPrice)}</strong></div>
+
+              <div className="order-products-totals">
+                <div style={{ textAlign: "end" }} className="total-items">
+                  Tổng số món: <strong>{totalItems}</strong>
                 </div>
-              <button onClick={handleCloseDetail}>⬅️ Đóng</button>
+                <div style={{ textAlign: "end" }} className="total-price">
+                  Tổng tiền: <strong>{formatPrice(totalPrice)}</strong>
+                </div>
+              </div>
             </div>
           </div>
         )}
