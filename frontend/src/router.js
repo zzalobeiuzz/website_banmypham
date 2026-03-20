@@ -13,7 +13,7 @@ import AddProduct from "./pages/admin/components/DynamicHome/product/AddProduct.
 import { ProductOverview } from "./pages/admin/components/DynamicHome/product/ProductOverview.js";
 import AdminHomepage from "./pages/admin/homepage/homepage.js";
 import AdminMasterLayout from "./pages/admin/theme/masterLayout.js";
-import ProductDetail from "./pages/admin/components/DynamicHome/product/DetailProduct.js";
+import ProductTable from "./pages/admin/components/DynamicHome/product/ProductTable.js";
 import OrderPage from "./pages/admin/components/DynamicHome/order/OrderPage.js";
 import AddOrder from "./pages/admin/components/DynamicHome/order/AddOrder.js";
 
@@ -37,7 +37,7 @@ const adminRoutes = [
       },
       {
         path: ROUTERS.ADMIN.PRODUCT.DETAIL.replace("product/", ""), // 🔍 Chi tiết sản phẩm (/admin/product/detail/:id)
-        element: <ProductDetail />,
+        element: <ProductTable />,
       },
     ],
   },

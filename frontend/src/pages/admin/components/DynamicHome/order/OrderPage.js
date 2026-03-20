@@ -80,12 +80,34 @@ const ordersData = [
 const COLLAPSED_WIDTH = "70%";
 const EXPANDED_WIDTH = "100%";
 const TRANSITION_TIME = 350; // ms
+const WEEK_DAYS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+const ORDER_STATUSES = [
+  "Chờ xác nhận",
+  "Đang xử lý",
+  "Đang giao",
+  "Đã giao",
+  "Hoàn thành",
+  "Đã hủy",
+  "Trả hàng",
+];
 
 const OrderPage = () => {
   const [searchKeyword, setSearchKeyword] = useState("");
+  const [orders, setOrders] = useState(ordersData);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [pendingOrder, setPendingOrder] = useState(null); // Đơn hàng chờ hiển thị chi tiết
   const [isCollapsed, setIsCollapsed] = useState(false); // Trạng thái co bảng
+  const [pendingStatusChange, setPendingStatusChange] = useState(null);
+  const [openStatusMenuOrderId, setOpenStatusMenuOrderId] = useState(null);
+
+  // sort state cho cột Ngày đặt: 'asc' | 'desc'
+  const [dateSort, setDateSort] = useState("desc"); // mặc định luôn hiển thị (giảm dần)
+  const [dateFilter, setDateFilter] = useState("");
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
 
   // 🔹 state filter theo trạng thái
   const [filterStatus, setFilterStatus] = useState("Tất cả");
@@ -102,20 +124,34 @@ const OrderPage = () => {
     "Đang xử lý", // thêm trạng thái thực tế có trong ordersData
   ];
 
-  
-  // ==========Chỉ cho phép sửa những đơn chưa giao, chưa hoàn thành, chưa trả hàng================== 
+  // ==========Chỉ cho phép sửa những đơn chưa giao, chưa hoàn thành, chưa trả hàng==================
   const canEdit = (status) => {
     const blockedStatuses = ["Đang giao", "Hoàn thành", "Trả hàng"];
     return !blockedStatuses.includes(status);
   };
 
+  // Trả về class màu tương ứng cho từng trạng thái để tái sử dụng ở nhiều chỗ.
+  const getStatusClass = (status) => {
+    if (status === "Hoàn thành") return "status--hoan-thanh";
+    if (status === "Đang xử lý") return "status--dang-xu-ly";
+    if (status === "Chờ xác nhận") return "status--cho-xac-nhan";
+    if (status === "Đang giao") return "status--dang-giao";
+    if (status === "Đã giao") return "status--da-giao";
+    if (status === "Đã hủy") return "status--da-huy";
+    if (status === "Trả hàng") return "status--tra-hang";
+    return "";
+  };
 
   // ---------------- helper parse/format ----------------
   const parsePrice = (p) => Number(String(p).replace(/[^\d]/g, "")) || 0;
   const formatPrice = (v) => (Number(v) || 0).toLocaleString("vi-VN") + "₫";
+  const originalStatusById = ordersData.reduce((acc, order) => {
+    acc[order.id] = order.status;
+    return acc;
+  }, {});
 
-  //======================== Lọc theo search + trạng thái================== 
-  const filteredOrders = ordersData
+  //======================== Lọc theo search + trạng thái==================
+  const filteredOrders = orders
     .filter((order) => {
       // Bước 1: lọc dữ liệu
       // lọc theo keyword
@@ -128,14 +164,122 @@ const OrderPage = () => {
       // lọc theo trạng thái
       const matchStatus =
         filterStatus === "Tất cả" || order.status === filterStatus;
+      const matchDate = !dateFilter || order.date === dateFilter;
 
-      return matchKeyword && matchStatus;
+      return matchKeyword && matchStatus && matchDate;
     })
-    // Bước 2: sắp xếp dữ liệu đã lọc
-    .sort((a, b) => new Date(b.date) - new Date(a.date)); // Ngày gần nhất lên đầu
+    // Bước 2: sắp xếp dữ liệu đã lọc theo dateSort (asc/desc)
+    .sort((a, b) => {
+      const ta = new Date(a.date).getTime();
+      const tb = new Date(b.date).getTime();
+      return dateSort === "asc" ? ta - tb : tb - ta;
+    }); // sắp xếp theo dateSort
 
+  const pad2 = (n) => String(n).padStart(2, "0");
 
-  //================== Tổng số món & tổng tiền (dùng cho detail)================== 
+  const toIsoDate = (dateObj) => {
+    return `${dateObj.getFullYear()}-${pad2(dateObj.getMonth() + 1)}-${pad2(
+      dateObj.getDate()
+    )}`;
+  };
+
+  const formatDateLabel = (isoDate) => {
+    if (!isoDate) return "Chọn ngày";
+    const [y, m, d] = isoDate.split("-");
+    if (!y || !m || !d) return "Chọn ngày";
+    return `${d}/${m}/${y}`;
+  };
+
+  const handleToggleCalendar = () => {
+    if (dateFilter) {
+      const [y, m] = dateFilter.split("-").map(Number);
+      if (y && m) {
+        setCalendarMonth(new Date(y, m - 1, 1));
+      }
+    }
+    setIsCalendarOpen((prev) => !prev);
+  };
+
+  const handleSelectDate = (day) => {
+    const pickedDate = new Date(
+      calendarMonth.getFullYear(),
+      calendarMonth.getMonth(),
+      day
+    );
+    setDateFilter(toIsoDate(pickedDate));
+    setIsCalendarOpen(false);
+  };
+
+  const changeMonth = (step) => {
+    setCalendarMonth(
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() + step, 1)
+    );
+  };
+
+  const daysInMonth = new Date(
+    calendarMonth.getFullYear(),
+    calendarMonth.getMonth() + 1,
+    0
+  ).getDate();
+  const firstDayOffset = new Date(
+    calendarMonth.getFullYear(),
+    calendarMonth.getMonth(),
+    1
+  ).getDay();
+
+  const applyStatusChange = (orderId, nextStatus) => {
+    setOrders((prev) =>
+      prev.map((order) =>
+        order.id === orderId ? { ...order, status: nextStatus } : order
+      )
+    );
+
+    setSelectedOrder((prev) =>
+      prev && prev.id === orderId ? { ...prev, status: nextStatus } : prev
+    );
+  };
+
+  // Mở/tắt menu dropdown trạng thái của từng đơn hàng.
+  const handleStatusClick = (event, orderId) => {
+    event.stopPropagation();
+    setOpenStatusMenuOrderId((prev) => (prev === orderId ? null : orderId));
+  };
+
+  // Người dùng chọn một trạng thái cụ thể từ dropdown, không dùng cơ chế vòng lặp.
+  const handleChooseStatus = (event, order, nextStatus) => {
+    event.stopPropagation();
+    setOpenStatusMenuOrderId(null);
+
+    if (nextStatus === order.status) return;
+
+    const originalStatus = originalStatusById[order.id];
+
+    if (nextStatus !== originalStatus) {
+      setPendingStatusChange({
+        orderId: order.id,
+        fromStatus: order.status,
+        nextStatus,
+      });
+      return;
+    }
+
+    applyStatusChange(order.id, nextStatus);
+  };
+
+  const handleConfirmStatusChange = () => {
+    if (!pendingStatusChange) return;
+    applyStatusChange(
+      pendingStatusChange.orderId,
+      pendingStatusChange.nextStatus
+    );
+    setPendingStatusChange(null);
+  };
+
+  const handleCancelStatusChange = () => {
+    setPendingStatusChange(null);
+  };
+
+  //================== Tổng số món & tổng tiền (dùng cho detail)==================
   const totalItems = selectedOrder
     ? selectedOrder.details.reduce((sum, it) => sum + (it.qty || 0), 0)
     : 0;
@@ -146,10 +290,11 @@ const OrderPage = () => {
       )
     : 0;
 
-
-  //================== Khi ấn "Xem"================== 
+  //================== Khi ấn "Xem"==================
   const handleViewDetail = (order) => {
     if (pendingOrder) return;
+    setIsCalendarOpen(false);
+    setOpenStatusMenuOrderId(null);
 
     if (isCollapsed) {
       if (selectedOrder) {
@@ -164,8 +309,7 @@ const OrderPage = () => {
     setIsCollapsed(true);
   };
 
-
-  //==================  Khi bảng co xong (transitionEnd), mới hiện chi tiết================== 
+  //==================  Khi bảng co xong (transitionEnd), mới hiện chi tiết==================
   const handleTransitionEnd = (e) => {
     if (isCollapsed && pendingOrder && e.propertyName === "max-width") {
       setSelectedOrder(pendingOrder);
@@ -173,8 +317,7 @@ const OrderPage = () => {
     }
   };
 
-
-  //================== Khi đóng panel chi tiết================== 
+  //================== Khi đóng panel chi tiết==================
   const handleCloseDetail = () => {
     setSelectedOrder(null);
     setTimeout(() => {
@@ -182,12 +325,11 @@ const OrderPage = () => {
     }, 50);
   };
 
-
   return (
     <div className="order-page">
       <ToolBar title="Đơn hàng" onSearchChange={setSearchKeyword} />
 
-      <div className="order-flex-container">
+      <div className={`order-flex-container ${selectedOrder ? "show-detail" : ""}`}>
         {/* Danh sách đơn hàng */}
         <div
           className="order-list-section"
@@ -223,7 +365,110 @@ const OrderPage = () => {
                 <li className="column number">STT</li>
                 <li className="column order-id">Mã đơn hàng</li>
                 <li className="column customer-name">Tên khách hàng</li>
-                <li className="column order-date">Ngày đặt</li>
+                <li className="column order-date">
+                  <div className="date-sort">
+                    <span className="date-label">Ngày đặt</span>
+                    <span
+                      className={
+                        "sort-icon asc" +
+                        (dateSort === "asc" ? " active" : "")
+                      }
+                      onClick={() => setDateSort("asc")}
+                      title="Sắp xếp theo ngày xa nhất"
+                    >
+                      ▲
+                    </span>
+                    <span
+                      className={
+                        "sort-icon desc" +
+                        (dateSort === "desc" ? " active" : "")
+                      }
+                      onClick={() => setDateSort("desc")}
+                      title="Sắp xếp theo ngày gần nhất"
+                    >
+                      ▼
+                    </span>
+                  </div>
+                  {!selectedOrder && (
+                    <>
+                      <button
+                        type="button"
+                        className="btn-date-picker"
+                        onClick={handleToggleCalendar}
+                      >
+                        <span className="calendar-icon" aria-hidden="true">📅</span>
+                        <span>{formatDateLabel(dateFilter)}</span>
+                      </button>
+                      {dateFilter && (
+                        <button
+                          type="button"
+                          className="btn-clear-date"
+                          onClick={() => setDateFilter("")}
+                          title="Bỏ lọc ngày"
+                        >
+                          X
+                        </button>
+                      )}
+                    </>
+                  )}
+
+    
+                  {!selectedOrder && isCalendarOpen && (
+                    <div className="calendar-popover" role="dialog" aria-label="Chọn ngày">
+                      <div className="calendar-header">
+                        <button type="button" onClick={() => changeMonth(-1)}>
+                          ‹
+                        </button>
+                        <span>
+                          {calendarMonth.toLocaleString("vi-VN", {
+                            month: "long",
+                            year: "numeric",
+                          })}
+                        </span>
+                        <button type="button" onClick={() => changeMonth(1)}>
+                          ›
+                        </button>
+                      </div>
+
+                      <div className="calendar-grid calendar-weekdays">
+                        {WEEK_DAYS.map((wd) => (
+                          <span key={wd}>{wd}</span>
+                        ))}
+                      </div>
+
+                      <div className="calendar-grid calendar-days">
+                        {Array.from({ length: firstDayOffset }).map((_, i) => (
+                          <span key={`empty-${i}`} className="empty" />
+                        ))}
+
+                        {Array.from({ length: daysInMonth }).map((_, i) => {
+                          const day = i + 1;
+                          const dateIso = toIsoDate(
+                            new Date(
+                              calendarMonth.getFullYear(),
+                              calendarMonth.getMonth(),
+                              day
+                            )
+                          );
+                          const isSelected = dateFilter === dateIso;
+
+                          return (
+                            <button
+                              type="button"
+                              key={dateIso}
+                              className={isSelected ? "selected" : ""}
+                              onClick={() => handleSelectDate(day)}
+                            >
+                              {day}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  
+                </li>
                 <li className="column total-amount">Tổng tiền</li>
                 <li className="column status">Trạng thái</li>
                 <li className="column actions">Hành động</li>
@@ -234,7 +479,11 @@ const OrderPage = () => {
                 <div className="no-orders">Không có đơn hàng phù hợp</div>
               ) : (
                 filteredOrders.map((order, idx) => (
-                  <ul className="order-row" key={order.id}>
+                  <ul
+                    className={`order-row ${selectedOrder?.id === order.id ? "is-active" : ""}`}
+                    key={order.id}
+                    onClick={() => handleViewDetail(order)}
+                  >
                     <li className="column number">{idx + 1}</li>
                     <li className="column order-id">{order.id}</li>
                     <li className="column customer-name">{order.customer}</li>
@@ -242,42 +491,42 @@ const OrderPage = () => {
                     <li className="column total-amount">{order.total}</li>
                     {/* 🔹 Hiển thị trạng thái với màu sắc khác nhau */}
                     {/* Gán thêm class khác nhau thuận tiện css màu cho từng trạng thái */}
-                    <li
-                      className={
-                        "column status status-pill " +
-                        (order.status === "Hoàn thành"
-                          ? "status--hoan-thanh"
-                          : order.status === "Đang xử lý"
-                          ? "status--dang-xu-ly"
-                          : order.status === "Chờ xác nhận"
-                          ? "status--cho-xac-nhan"
-                          : order.status === "Đang giao"
-                          ? "status--dang-giao"
-                          : order.status === "Đã giao"
-                          ? "status--da-giao"
-                          : order.status === "Đã hủy"
-                          ? "status--da-huy"
-                          : order.status === "Trả hàng"
-                          ? "status--tra-hang"
-                          : "")
-                      }
-                    >
-                      {order.status}
+                    <li className="column status status-cell" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        className={`status-pill status-clickable ${getStatusClass(order.status)}`}
+                        onClick={(e) => handleStatusClick(e, order.id)}
+                        title="Bấm để chọn trạng thái"
+                      >
+                        {order.status}
+                      </button>
+
+                      {openStatusMenuOrderId === order.id && (
+                        <div className="status-dropdown" role="menu" aria-label="Chọn trạng thái">
+                          {ORDER_STATUSES.map((status) => (
+                            <button
+                              type="button"
+                              key={status}
+                              className={`status-option ${status === order.status ? "active" : ""}`}
+                              onClick={(e) => handleChooseStatus(e, order, status)}
+                            >
+                              <span className={`status-pill ${getStatusClass(status)}`}>{status}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </li>
 
                     <li className="column actions">
-                      <button
-                        className="btn-view"
-                        onClick={() => handleViewDetail(order)}
-                        disabled={!!pendingOrder}
-                      >
-                        👁 Xem
-                      </button>
                       {canEdit(order.status) && (
-                        <button className="btn-edit">✏️ Sửa</button>
+                        <button className="btn-edit" onClick={(e) => e.stopPropagation()}>
+                          ✏️ Sửa
+                        </button>
                       )}
 
-                      <button className="btn-delete">🗑 Xóa</button>
+                      <button className="btn-delete" onClick={(e) => e.stopPropagation()}>
+                        🗑 Xóa
+                      </button>
                     </li>
                   </ul>
                 ))
@@ -291,7 +540,7 @@ const OrderPage = () => {
           <div className="order-detail-section">
             <div className="order-detail">
               <div className="order-detail-header">
-                <h3>📝 Chi tiết đơn hàng</h3>
+                {/* <h3>📝 Chi tiết đơn hàng</h3> */}
                 <button
                   className="btn-close"
                   onClick={handleCloseDetail}
@@ -358,17 +607,50 @@ const OrderPage = () => {
               </div>
 
               <div className="order-products-totals">
-                <div style={{ textAlign: "end" }} className="total-items">
+                <div style={{ textAlign: "center" }} className="total-items">
                   Tổng số món: <strong>{totalItems}</strong>
                 </div>
-                <div style={{ textAlign: "end" }} className="total-price">
+                <div style={{ textAlign: "center" }} className="total-price">
                   Tổng tiền: <strong>{formatPrice(totalPrice)}</strong>
                 </div>
+
+                {/* Nút in — xử lý in sẽ được implement ở chỗ khác */}
+                <button
+                  type="button"
+                  className="btn-print"
+                  data-order-id={selectedOrder.id}
+                  onClick={() => {
+                    /* placeholder: in hóa đơn sẽ xử lý ở nơi khác */
+                  }}
+                >
+                  🖨 In
+                </button>
               </div>
             </div>
           </div>
         )}
       </div>
+
+      {pendingStatusChange && (
+        <div className="status-confirm-overlay" role="dialog" aria-modal="true">
+          <div className="status-confirm-modal">
+            <h4>Xác nhận đổi trạng thái</h4>
+            <p>Bạn có muốn thay đổi trạng thái đơn hàng?</p>
+            <p>
+              <strong>{pendingStatusChange.fromStatus}</strong> {"->"}{" "}
+              <strong>{pendingStatusChange.nextStatus}</strong>
+            </p>
+            <div className="status-confirm-actions">
+              <button type="button" onClick={handleCancelStatusChange}>
+                Không
+              </button>
+              <button type="button" onClick={handleConfirmStatusChange}>
+                Có, thay đổi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

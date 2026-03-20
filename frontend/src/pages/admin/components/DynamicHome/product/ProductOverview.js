@@ -18,7 +18,6 @@ const ProductOverviewComponent = () => {
   const [showCategories, setShowCategories] = useState(true); // 👀 Hiển thị category buttons
   const [containerVisible, setContainerVisible] = useState(true); // 🖼 Hiển thị container category
   const [showCloseButton, setShowCloseButton] = useState(true); // ❌ Hiển thị nút đóng category
-  const [selectMode, setSelectMode] = useState(false); // ✔ Chọn nhiều sản phẩm
   const [selectedProducts, setSelectedProducts] = useState([]); // 🗂 Danh sách sản phẩm được chọn
   const [editMode, setEditMode] = useState(false); // ✏️ Chế độ chỉnh sửa
   const [searchKeyword, setSearchKeyword] = useState(""); // 🔍 Keyword search
@@ -60,10 +59,29 @@ const ProductOverviewComponent = () => {
 
   // ✔ Toggle checkbox chọn sản phẩm
   const handleCheckboxChange = useCallback((productId) => {
-    setSelectedProducts((prev) =>
-      prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]
-    );
-  }, []);
+    setSelectedProducts((prev) => {
+      const isSelected = prev.includes(productId);
+
+      // Nếu bỏ tích khi đang edit: hoàn tác dữ liệu sản phẩm này về bản gốc.
+      if (isSelected) {
+        if (editMode) {
+          setProducts((prevProducts) =>
+            prevProducts.map((product) => {
+              if (product.ProductID !== productId) return product;
+
+              // Tìm dữ liệu gốc của sản phẩm này để khôi phục
+              const original = originalProducts.find((o) => o.ProductID === productId);
+              return original ? { ...original } : product;
+            })
+          );
+        }
+        return prev.filter((id) => id !== productId);
+      }
+
+      // Nếu tích mới: thêm product vào danh sách được chọn để cho phép chỉnh sửa.
+      return [...prev, productId];
+    });
+  }, [editMode, originalProducts]);
 
   // ✏️ Thay đổi dữ liệu product khi chỉnh sửa
   const handleProductChange = useCallback((productId, field, value) => {
@@ -71,6 +89,155 @@ const ProductOverviewComponent = () => {
       prev.map((product) =>
         product.ProductID === productId ? { ...product, [field]: value } : product
       )
+    );
+  }, []);
+
+  // 💰 Chuẩn hóa giá về số và format theo VND có dấu chấm ngăn cách nghìn.
+  const parsePriceInput = useCallback((rawValue) => {
+    const digitsOnly = String(rawValue ?? "").replace(/\D/g, "");
+    return digitsOnly ? Number(digitsOnly) : 0;
+  }, []);
+
+  // 💰 Format giá hiển thị theo VND có dấu chấm ngăn cách nghìn và đuôi "đ"
+  const formatPriceInput = useCallback((priceValue) => {
+    const safePrice = Number(priceValue) || 0;
+    return `${safePrice.toLocaleString("vi-VN")}đ`;
+  }, []);
+
+  // 🔄 Nhận giá trị người dùng nhập -> chuẩn hóa -> cập nhật về state dạng số.
+  const handlePriceChange = useCallback((productId, rawValue) => {
+    const normalizedPrice = parsePriceInput(rawValue);
+    handleProductChange(productId, "Price", normalizedPrice);
+  }, [handleProductChange, parsePriceInput]);
+
+  // 🎯 Giữ con trỏ luôn đứng ngay trước ký tự "đ" trong ô giá.
+  const keepCaretBeforeCurrency = useCallback((event) => {
+    const input = event.target;
+    const displayValue = String(input.value ?? "");
+    const currencyIndex = displayValue.lastIndexOf("đ");
+    const nextCaretPos = currencyIndex >= 0 ? currencyIndex : displayValue.length;
+
+    requestAnimationFrame(() => {
+      if (document.activeElement !== input) return;
+      input.setSelectionRange(nextCaretPos, nextCaretPos);
+    });
+  }, []);
+  //
+  // 📦 Gom props cần thiết để truyền cho mỗi row của react-window.
+  const listData = useMemo(
+    () => ({
+      filteredProducts,
+      editMode,
+      selectedProducts,
+      handleCheckboxChange,
+      handleProductChange,
+      handlePriceChange,
+      keepCaretBeforeCurrency,
+      formatPriceInput,
+      navigate,
+    }),
+    [
+      filteredProducts,
+      editMode,
+      selectedProducts,
+      handleCheckboxChange,
+      handleProductChange,
+      handlePriceChange,
+      keepCaretBeforeCurrency,
+      formatPriceInput,
+      navigate,
+    ]
+  );
+
+  // ✅ Render mỗi dòng sản phẩm trong danh sách (dùng cho react-window)
+  const renderProductRow = useCallback(({ index, style, data }) => {
+    const {
+      filteredProducts: rowProducts,
+      editMode: isEditMode,
+      selectedProducts: rowSelectedProducts,
+      handleCheckboxChange: onCheckboxChange,
+      handleProductChange: onProductChange,
+      handlePriceChange: onPriceChange,
+      keepCaretBeforeCurrency: keepCaret,
+      formatPriceInput: formatPrice,
+      navigate: goTo,
+    } = data;
+
+    const product = rowProducts[index];
+    if (!product) return null;
+
+    return (
+      <ul
+        key={product.ProductID}
+        className={`list-unstyled row-data ${index % 2 === 0 ? "even" : "odd"}`}
+        style={style}
+      >
+        {/* ✔ Checkbox chọn */}
+        <li className="list-stt">
+          <input
+            type="checkbox"
+            checked={rowSelectedProducts.includes(product.ProductID)}
+            onChange={() => onCheckboxChange(product.ProductID)}
+          />
+
+          {index + 1}
+        </li>
+
+        {/* 🏷 Các trường product */}
+        <li className="list-id">{product.ProductID}</li>
+        <li className="list-name">
+          {isEditMode && rowSelectedProducts.includes(product.ProductID) ? (
+            <textarea
+              className="input-name"
+              value={product.ProductName}
+              onChange={(e) => onProductChange(product.ProductID, "ProductName", e.target.value)}
+              style={{
+                color: "#111",
+                caretColor: "#111",
+                WebkitTextFillColor: "#111",
+                backgroundColor: "#fff",
+              }}
+            />
+          ) : (
+            product.ProductName
+          )}
+        </li>
+        <li className="list-image">
+          <img
+            src={`${UPLOAD_BASE}/pictures/${product.Image}`}
+            alt={product.ProductName}
+            width="70"
+          />
+        </li>
+        <li className="list-price">
+          {isEditMode && rowSelectedProducts.includes(product.ProductID) ? (
+            <input
+              className="input-price"
+              inputMode="numeric"
+              value={formatPrice(product.Price)}
+              onFocus={keepCaret}
+              onClick={keepCaret}
+              onKeyUp={keepCaret}
+              onChange={(e) => {
+                onPriceChange(product.ProductID, e.target.value);
+                keepCaret(e);
+              }}
+            />
+          ) : (
+            `${product.Price.toLocaleString("vi-VN")}đ`
+          )}
+        </li>
+        <li className="list-category">{product.CategoryName}</li>
+        <li className="list-stock">
+          {product.StockQuantity}
+          <button
+            className="view-detail"
+            onClick={() => goTo(`/admin/product/detail/${product.ProductID}`)}
+          >
+            Xem chi tiết
+          </button>
+        </li>
+      </ul>
     );
   }, []);
 
@@ -102,30 +269,28 @@ const ProductOverviewComponent = () => {
     }
   };
 
-  // ✔ Toggle chế độ chọn nhiều sản phẩm
-  const handleToggleSelectMode = () => {
-    if (editMode) {
-      // Hủy chỉnh sửa, reset dữ liệu gốc cho các sản phẩm đã chọn
-      setProducts((prev) =>
-        prev.map((p) => {
-          if (selectedProducts.includes(p.ProductID)) {
-            const original = originalProducts.find((o) => o.ProductID === p.ProductID);
-            return original ? { ...original } : p;
-          }
-          return p;
-        })
-      );
-    }
-    setSelectMode(!selectMode);
-    setSelectedProducts([]);
-    setEditMode(false);
-  };
+  // ↩ Khôi phục dữ liệu gốc cho các sản phẩm đã chọn
+  const restoreSelectedProducts = useCallback(() => {
+    setProducts((prev) =>
+      prev.map((product) => {
+        if (!selectedProducts.includes(product.ProductID)) return product;
+        const original = originalProducts.find((o) => o.ProductID === product.ProductID);
+        return original ? { ...original } : product;
+      })
+    );
+  }, [originalProducts, selectedProducts]);
 
   // ✏️ Xử lý Chỉnh sửa / Lưu dữ liệu
   const handleEditOrSave = async () => {
+    //Khi chế độ chỉnh sửa đang bật thì khi ấn vào sẽ lưu nếu không lưu trả lại giá trị ban đầu
     if (editMode) {
       const confirmSave = window.confirm("Bạn có chắc chắn muốn lưu thay đổi?");
-      if (!confirmSave) return;
+      if (!confirmSave) {
+        restoreSelectedProducts();
+        setEditMode(false);
+        setSelectedProducts([]);
+        return;
+      }
 
       const updatedProducts = products.filter((p) => selectedProducts.includes(p.ProductID));
 
@@ -151,17 +316,16 @@ const ProductOverviewComponent = () => {
       }
 
       setEditMode(false);
-      setSelectMode(false);
       setSelectedProducts([]);
-    } else {
-      if (!selectMode) {
-        setSelectMode(true);
-        return;
-      }
+    } 
+    
+    //Nếu chuyển chế độ chỉnh sửa đang tắt thì kiểm tra xem đã chọn sản phẩm nào chưa, nếu chưa thì cảnh báo, nếu có thì bật chế độ chỉnh sửa
+    else {
       if (selectedProducts.length === 0) {
         alert("Vui lòng chọn ít nhất một sản phẩm trước khi chỉnh sửa.");
         return;
       }
+      //đổi trạng thái chế độ sửa thành bật
       setEditMode(true);
     }
   };
@@ -235,12 +399,9 @@ const ProductOverviewComponent = () => {
         <div className={`product-content ${filterOpen ? "open" : ""}`}>
           {/* 🛠 Sidebar thao tác & filter */}
           <div className="product-left">
-            <button className="btn-select-mode" onClick={handleToggleSelectMode}>
-              {selectMode ? "Huỷ chọn" : "Chọn sản phẩm"}
-            </button>
-            <button className="btn-add" onClick={handleAddProduct}>Thêm SP</button>
+            <button className="btn-add" onClick={handleAddProduct}>Tạo mới</button>
             <button className="btn-edit-save" onClick={handleEditOrSave}>
-              {editMode ? "Lưu" : "Chỉnh sửa"}
+              {editMode ? "Lưu" : "Sửa"}
             </button>
             <button className="btn-delete">Xóa</button>
             <button className="btn-export">Xuất Excel</button>
@@ -290,69 +451,10 @@ const ProductOverviewComponent = () => {
                     itemCount={filteredProducts.length}
                     itemSize={100}
                     width="100%"
+                    itemData={listData}
+                    itemKey={(index, data) => data.filteredProducts[index]?.ProductID ?? index}
                   >
-                    {({ index, style }) => {
-                      const product = filteredProducts[index];
-                      return (
-                        <ul
-                          key={product.ProductID}
-                          className={`list-unstyled row-data ${index % 2 === 0 ? "even" : "odd"}`}
-                          style={style}
-                        >
-                          {/* ✔ Checkbox chọn */}
-                          <li className="list-stt">
-                            {selectMode && (
-                              <input
-                                type="checkbox"
-                                checked={selectedProducts.includes(product.ProductID)}
-                                onChange={() => handleCheckboxChange(product.ProductID)}
-                              />
-                            )}
-                            {index + 1}
-                          </li>
-
-                          {/* 🏷 Các trường product */}
-                          <li className="list-id">{product.ProductID}</li>
-                          <li className="list-name">
-                            {editMode && selectedProducts.includes(product.ProductID) ? (
-                              <textarea
-                                className="input-name"
-                                value={product.ProductName}
-                                onChange={(e) => handleProductChange(product.ProductID, "ProductName", e.target.value)}
-                              />
-                            ) : (
-                              product.ProductName
-                            )}
-                          </li>
-                          <li className="list-image">
-                            <img
-                              src={`${UPLOAD_BASE}/pictures/${product.Image}`}
-                              alt={product.ProductName}
-                              width="70"
-                            />
-                          </li>
-                          <li className="list-price">
-                            {editMode && selectedProducts.includes(product.ProductID) ? (
-                              <input
-                                className="input-price"
-                                value={product.Price}
-                                onChange={(e) => handleProductChange(product.ProductID, "Price", Number(e.target.value))}
-                              />
-                            ) : (
-                              `${product.Price.toLocaleString("vi-VN")}đ`
-                            )}
-                          </li>
-                          <li className="list-category">{product.CategoryName}</li>
-                          <li className="list-stock">
-                            {product.StockQuantity}
-                            <button
-                              className="view-detail"
-                              onClick={() => navigate(`/admin/product/detail/${product.ProductID}`)}
-                            >Xem chi tiết</button>
-                          </li>
-                        </ul>
-                      );
-                    }}
+                    {renderProductRow}
                   </List>
                 </div>
               </div>

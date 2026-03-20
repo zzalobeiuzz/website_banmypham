@@ -1,3 +1,5 @@
+/*===============comment============== TRANG DON HANG */
+/*===============comment============== Style trang quan ly don hang: danh sach + panel chi tiet */
 .order-page {
   padding: 24px;
   background: #f9f9f9;
@@ -50,7 +52,7 @@
       background: #fafafa;
     }
 
-    /* 🧱 Hàng header của bảng (STT, Mã đơn, Tên KH, ...) */
+/*===============comment============== HEADER BANG DON HANG */
     .header-row {
       border-bottom: 1px solid #e0e0e0;
       padding: 12px 0;
@@ -60,6 +62,8 @@
         list-style: none;
         margin: 0;
         padding: 0;
+        align-items: center;
+        justify-content: space-between;
 
         /* 🔠 Cột tiêu đề */
         .column {
@@ -71,14 +75,133 @@
             width: 60px;
           }
           &.order-id {
-            width: 140px;
+            width: 120px;
           }
           &.customer-name {
             flex: 1;
-            min-width: 140px;
+            max-width: 260px;
+            min-width: 180px;
           }
           &.order-date {
-            width: 120px;
+            width: 340px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 4px;
+            position: relative;
+
+            .btn-date-picker {
+              display: inline-flex;
+              align-items: center;
+              gap: 6px;
+              padding: 4px 10px;
+              border: 1px solid #b7d0f5;
+              border-radius: 999px;
+              background: linear-gradient(180deg, #f8fbff 0%, #edf4ff 100%);
+              color: #1f4c8f;
+              font-size: 12px;
+              font-weight: 600;
+              cursor: pointer;
+
+              .calendar-icon {
+                font-size: 13px;
+                line-height: 1;
+              }
+            }
+
+            .btn-clear-date {
+              border: 1px solid #f1b9b9;
+              background: #fff6f6;
+              color: #b73a3a;
+              width: 22px;
+              height: 22px;
+              border-radius: 50%;
+              font-size: 11px;
+              line-height: 1;
+              cursor: pointer;
+              padding: 0;
+            }
+
+            .calendar-popover {
+              position: absolute;
+              top: calc(100% + 8px);
+              right: 0;
+              width: 260px;
+              background: #fff;
+              border: 1px solid #d8e6fb;
+              border-radius: 12px;
+              box-shadow: 0 14px 36px rgba(20, 45, 90, 0.18);
+              padding: 10px;
+              z-index: 50;
+            }
+
+            .calendar-header {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              margin-bottom: 8px;
+
+              button {
+                border: 1px solid #d4def0;
+                background: #f7faff;
+                border-radius: 8px;
+                width: 28px;
+                height: 28px;
+                cursor: pointer;
+                color: #20437a;
+              }
+
+              span {
+                font-size: 13px;
+                font-weight: 600;
+                color: #244b82;
+                text-transform: capitalize;
+              }
+            }
+
+            .calendar-grid {
+              display: grid;
+              grid-template-columns: repeat(7, 1fr);
+              gap: 4px;
+            }
+
+            .calendar-weekdays span {
+              text-align: center;
+              font-size: 11px;
+              color: #6d7f9a;
+              font-weight: 600;
+              padding: 3px 0;
+            }
+
+            .calendar-days {
+              button,
+              .empty {
+                height: 30px;
+              }
+
+              .empty {
+                display: inline-block;
+              }
+
+              button {
+                border: none;
+                border-radius: 8px;
+                background: transparent;
+                cursor: pointer;
+                color: #1f2937;
+                font-size: 12px;
+
+                &:hover {
+                  background: #eef4ff;
+                }
+
+                &.selected {
+                  background: #2f67d8;
+                  color: #fff;
+                  font-weight: 700;
+                }
+              }
+            }
           }
           &.total-amount {
             width: 120px;
@@ -86,26 +209,35 @@
           }
           &.status {
             width: 120px;
+            text-align: center;
+            position: relative;
           }
           &.actions {
-            width: 160px;
+            width: 140px;
             text-align: center;
           }
         }
       }
     }
 
-    /* 📦 Phần body: các dòng đơn hàng */
+/*===============comment============== DANH SACH DONG DON HANG */
     .order-rows {
       .order-row {
         display: flex;
         align-items: center;
+        justify-content: space-between;
         list-style: none;
         margin: 0;
         padding: 12px 0;
         border-bottom: 1px solid #bfbfbf;
         background: #fff;
+        cursor: pointer;
         transition: background 0.2s;
+
+        &.is-active {
+          background: #e8f8ee;
+          border-left: 3px solid #2e7d32;
+        }
 
         /* ✨ Hover từng dòng đơn */
         &:hover {
@@ -119,16 +251,19 @@
 
           &.number {
             width: 60px;
+            text-align: center;
           }
           &.order-id {
-            width: 140px;
+            width: 120px;
+            text-align: center;
           }
           &.customer-name {
             flex: 1;
-            min-width: 140px;
+            max-width: 260px;
+            
           }
           &.order-date {
-            width: 120px;
+            width: 340px;
           }
           &.total-amount {
             width: 120px;
@@ -136,9 +271,10 @@
           }
           &.status {
             width: 120px;
+            text-align: center;
           }
           &.actions {
-            width: 160px;
+            width: 140px;
             text-align: center;
           }
 
@@ -186,7 +322,7 @@
       }
     }
 
-    /* 🎨 MÀU CHO TỪNG TRẠNG THÁI ĐƠN HÀNG (pill màu sắc) */
+/*===============comment============== MAU TRANG THAI DON HANG */
 
     /* Viên trạng thái chung: bo tròn, chữ in đậm */
     .status-pill {
@@ -195,11 +331,59 @@
       justify-content: center;
       min-width: 110px;
       padding: 4px 10px;
-      border-radius: 999px;
+      border-radius: 10px;
       font-size: 12px;
       font-weight: 600;
       text-align: center;
       background: #f5f5f5;
+    }
+
+    .status-clickable {
+      cursor: pointer;
+      transition: transform 0.12s ease, box-shadow 0.2s ease;
+
+      &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+      }
+    }
+
+    .status-cell {
+      position: relative;
+
+      .status-dropdown {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 50%;
+        transform: translateX(-50%);
+        width: 170px;
+        background: #fff;
+        border: 1px solid #dbe3ef;
+        border-radius: 10px;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+        padding: 6px;
+        z-index: 40;
+      }
+
+      .status-option {
+        width: 100%;
+        background: transparent;
+        border: none;
+        padding: 4px;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        justify-content: center;
+
+        &:hover,
+        &.active {
+          background: #f3f7ff;
+        }
+
+        .status-pill {
+          min-width: 120px;
+        }
+      }
     }
 
     /* 🟠 Chờ xác nhận */
@@ -245,12 +429,12 @@
     }
   }
 
-  /* 📎 Khu vực sidebar (nếu sau này dùng riêng) */
+/*===============comment============== SIDEBAR DU PHONG */
   .sidebar {
     margin-top: 24px;
   }
 
-  /* 🔗 Layout 2 cột: danh sách đơn + panel chi tiết */
+/*===============comment============== LAYOUT 2 COT */
   .order-flex-container {
     display: flex;
     gap: 24px;
@@ -272,7 +456,7 @@
     background: #fff;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    padding: 24px 10px;
+    padding: 10px 10px 24px 10px;
     margin: 20px 0 0 0;
     max-height: calc(100vh);
     /* bỏ animation/transform, giữ panel tĩnh */
@@ -284,9 +468,113 @@
     max-width: 70%;
     transition: flex-basis 0.3s, max-width 0.3s;
   }
+
+/*===============comment============== CO COT KHI MO CHI TIET */
+  .order-flex-container.show-detail {
+    .order-list {
+     
+      .header-row .header-columns .column,
+      .order-rows .order-row .column {
+        transition: width 0.25s ease, max-width 0.25s ease, min-width 0.25s ease,
+          padding 0.25s ease;
+          
+      }
+
+      .header-row .header-columns .column.number,
+      .order-rows .order-row .column.number {
+        width: 46px;
+      }
+
+      .header-row .header-columns .column.order-id,
+      .order-rows .order-row .column.order-id {
+        width: 95px;
+      }
+
+      .header-row .header-columns .column.customer-name,
+      .order-rows .order-row .column.customer-name {
+        max-width: 170px;
+        min-width: 120px;
+      }
+
+      .header-row .header-columns .column.order-date,
+      .order-rows .order-row .column.order-date {
+        width: 120px;
+      }
+
+      .header-row .header-columns .column.total-amount,
+      .order-rows .order-row .column.total-amount {
+        width: 95px;
+      }
+
+      .header-row .header-columns .column.status,
+      .order-rows .order-row .column.status {
+        width: 95px;
+      }
+
+      .header-row .header-columns .column.actions,
+      .order-rows .order-row .column.actions {
+        width: 110px;
+      }
+    }
+  }
+
+  .status-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.38);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1200;
+  }
+
+  .status-confirm-modal {
+    width: min(92vw, 420px);
+    background: #fff;
+    border-radius: 12px;
+    padding: 18px 20px;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.25);
+
+    h4 {
+      margin: 0 0 10px;
+      color: #1f2937;
+      font-size: 18px;
+    }
+
+    p {
+      margin: 0 0 8px;
+      color: #374151;
+      font-size: 14px;
+    }
+  }
+
+  .status-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 14px;
+
+    button {
+      border: none;
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-weight: 600;
+
+      &:first-child {
+        background: #edf2f7;
+        color: #334155;
+      }
+
+      &:last-child {
+        background: #2563eb;
+        color: #fff;
+      }
+    }
+  }
 }
 
-/* 📊 Bảng sản phẩm trong chi tiết đơn hàng */
+/*===============comment============== BANG SAN PHAM TRONG CHI TIET */
 .order-products-table {
   table-layout: fixed;          /* layout cố định để chia cột đều */
   padding-top: 10px;
@@ -295,13 +583,13 @@
   border-right: 1px solid #e6e6e6;
 }
 
-/* 🚧 Đường kẻ dọc giữa các cột */
+/*===============comment============== DUONG KE DOC GIUA CAC COT */
 .order-products-table th + th,
 .order-products-table td + td {
   border-left: 1px solid #e6e6e6;
 }
 
-/* 📏 Style chung cho ô trong bảng sản phẩm */
+/*===============comment============== STYLE CHUNG O BANG SAN PHAM */
 .order-products-table th,
 .order-products-table td {
   padding: 6px 8px;
@@ -309,7 +597,7 @@
   border-bottom: 1px solid #f3f3f3;
 }
 
-/* 🏷 Ô tên sản phẩm: cho phép xuống dòng, ngắt từ nếu dài */
+/*===============comment============== O TEN SAN PHAM TU DONG XUONG DONG */
 .order-products-table .product-name-cell {
   display: block;
   white-space: normal;
@@ -323,7 +611,7 @@
   overflow: visible;
 }
 
-/* 🔢 Ô số lượng và giá: giữ trên 1 dòng, nếu dài thì ellipsis */
+/*===============comment============== O SO LUONG VA GIA GIU 1 DONG */
 .order-products-table td:nth-child(2),
 .order-products-table td:nth-child(3),
 .order-products-table th:nth-child(2),
@@ -333,7 +621,7 @@
   text-overflow: ellipsis;
 }
 
-/* 📦 Wrapper cho bảng sản phẩm (có shadow + scroll) */
+/*===============comment============== WRAPPER BANG SAN PHAM */
 .order-products-table-wrapper {
   background: transparent;
   border-radius: 8px;
@@ -344,11 +632,11 @@
   box-shadow: 0 12px 36px rgba(15, 23, 42, 0.1);
 }
 
-/* 🧾 Header chi tiết đơn hàng: tiêu đề + nút đóng trên 1 dòng */
+/*===============comment============== HEADER CHI TIET DON HANG */
 .order-detail-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: right;
   gap: 12px;
   margin-bottom: 10px;
 }
@@ -359,18 +647,104 @@
   font-weight: 600;
 }
 
-/* ✖ Nút đóng panel chi tiết */
+/*===============comment============== NUT DONG PANEL CHI TIET */
 .btn-close {
   border: none;
   background: transparent;
   cursor: pointer;
-  font-size: 16px;
-  line-height: 2;
-  padding: 6px;
-  border-radius: 6px;
+  font-size: 20px;
   color: #fd1010;
 }
 
 .btn-close:hover {
   background: rgba(0, 0, 0, 0.04);
+}
+
+/*===============comment============== ICON SAP XEP COT NGAY DAT */
+.date-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.date-sort .date-label {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.sort-icon {
+  cursor: pointer;
+  font-size: 11px;
+  color: #9aa0a6;
+  line-height: 1;
+  user-select: none;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.sort-icon.active {
+  color: #1f2937; /* màu nổi bật khi active */
+  background: rgba(31,41,55,0.06);
+  font-weight: 700;
+}
+
+/*===============comment============== KHOI TONG KET NGOAI BANG */
+.order-products-totals {
+  display: flex;
+  justify-content: flex-end; /* luôn nằm sát phải */
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  margin-top: 12px;
+  box-sizing: border-box;
+}
+
+/*===============comment============== HIENTHI TONG SO MON VA TONG TIEN */
+.order-products-totals .total-items,
+.order-products-totals .total-price {
+  background: #fff;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.06);
+  color: #222;
+  font-size: 13px;
+  box-shadow: 0 2px 8px rgba(15,23,42,0.04);
+}
+
+/*===============comment============== NUT IN HOA DON */
+.order-products-totals .btn-print {
+  background: #1976d2;
+  color: #fff;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(25,118,210,0.18);
+  transition: box-shadow 160ms, transform 120ms;
+}
+
+/*===============comment============== HIEU UNG NHAN NUT IN */
+.order-products-totals .btn-print:active {
+  transform: translateY(1px);
+  box-shadow: 0 6px 18px rgba(25,118,210,0.12);
+}
+
+/*===============comment============== RESPONSIVE MAN HINH NHO */
+@media (max-width: 520px) {
+  .date-sort { gap: 4px; }
+  .sort-icon { font-size: 10px; padding: 1px 3px; }
+
+  .order-products-totals {
+    justify-content: flex-start;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .order-products-totals .btn-print {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
 }
