@@ -1,7 +1,8 @@
 // ==================== 🧠 IMPORT CÁC THƯ VIỆN VÀ COMPONENT ====================
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import ReactQuill, { Quill } from "react-quill"; // 📝 Trình soạn thảo văn bản
 import "react-quill/dist/quill.snow.css";
+import JsBarcode from "jsbarcode";
 import { useNavigate } from "react-router-dom"; // 🔙 Điều hướng khi người dùng bấm Quay lại
 import { API_BASE } from "../../../../../constants"; // 🌍 Địa chỉ API gốc
 import useHttp from "../../../../../hooks/useHttp"; // 🌐 Custom hook gọi API
@@ -45,10 +46,12 @@ const scrollToTop = () => {
 const AddProduct = () => {
   const navigate = useNavigate();
   const { request } = useHttp(); // 🌐 Gọi API
+  const barcodeSvgRef = useRef(null);
 
   // 🧾 STATE: Dữ liệu sản phẩm đang được nhập
   const [productData, setProductData] = useState({
     productCode: "",       // 🔢 Mã sản phẩm
+    barcode: "",           // 📶 Barcode sản phẩm
     name: "",              // 🏷️ Tên sản phẩm
     price: "",             // 💰 Giá
     type: "",              // 📦 Loại sản phẩm (thường để trống nếu không cần)
@@ -102,6 +105,32 @@ const AddProduct = () => {
     setNotify({ visible: true, message, type });
   };
 
+  // ==================== 🧾 RENDER MÃ VẠCH ====================
+  useEffect(() => {
+    const barcodeValue = (productData.barcode || "").trim();
+    if (!barcodeSvgRef.current) return;
+
+    if (!barcodeValue) {
+      barcodeSvgRef.current.innerHTML = "";
+      return;
+    }
+
+    try {
+      JsBarcode(barcodeSvgRef.current, barcodeValue, {
+        format: "CODE128",
+        displayValue: false,
+        width: 1.6,
+        height: 58,
+        margin: 0,
+        background: "#f8fbff",
+        lineColor: "#111",
+      });
+    } catch (err) {
+      console.warn("Khong the tao barcode:", err.message);
+      barcodeSvgRef.current.innerHTML = "";
+    }
+  }, [productData.barcode]);
+
   // ==================== ✍️ CẬP NHẬT STATE SẢN PHẨM ====================
   const handleChange = (key, value) => {
     setProductData((prev) => ({ ...prev, [key]: value }));
@@ -136,6 +165,7 @@ const AddProduct = () => {
     try {
       const formData = new FormData();
       formData.append("ProductID", productData.productCode);
+      formData.append("Barcode", productData.barcode);
       formData.append("ProductName", productData.name);
       formData.append("Price", productData.price);
       formData.append("Type", productData.type);
@@ -164,6 +194,7 @@ const AddProduct = () => {
         // 🔄 Reset lại toàn bộ form khi thêm sản phẩm thành công
         setProductData({
           productCode: "",
+          barcode: "",
           name: "",
           price: "",
           type: "",
@@ -245,11 +276,12 @@ const AddProduct = () => {
   // ==================== 📦 KẾT QUẢ TỪ QUÉT MÃ ====================
   const handleBarcodeResult = async (barcode) => {
     try {
-      const data = await request("GET", `${API_BASE}/api/admin/products/checkProductExistence?code=${barcode}`);
+      const data = await request("GET", `${API_BASE}/api/admin/products/checkProductExistence?barcode=${barcode}`);
       if (data.exists && data.product) {
         alert("⚠️ Sản phẩm đã tồn tại!");
         setProductData({
           productCode: data.product.id || "",
+          barcode: data.product.barcode || barcode,
           name: data.product.name || "",
           price: data.product.price || "",
           type: data.product.type || "",
@@ -265,12 +297,29 @@ const AddProduct = () => {
         });
         
         setSelectedCategoryID(data.product.categoryId || "");
-        setSelectedSubCategoryID(data.product.subCategoryId || "");
+        setSelectedSubCategoryID(data.product.subcategoryId || "");
 
         const category = categories.find((c) => c.CategoryID === data.product.categoryId);
         setSubCategories(category?.SubCategories || []);
       } else {
-        handleChange("productCode", barcode);
+        setProductData({
+          productCode: "",
+          barcode,
+          name: "",
+          price: "",
+          type: "",
+          stockQuantity: "",
+          supplierID: "",
+          isHot: false,
+          intro: "",
+          usage: "",
+          ingredients: "",
+          instructions: "",
+        });
+        setSelectedCategoryID("");
+        setSelectedSubCategoryID("");
+        setSubCategories([]);
+        alert("✅ Barcode chưa tồn tại. Bạn có thể tạo mới sản phẩm.");
       }
     } catch (err) {
       alert(err.message || "Lỗi kiểm tra sản phẩm!");
@@ -348,6 +397,16 @@ const AddProduct = () => {
           {/* Hiển thị tên file nếu có */}
           {fileName && <div className="file-name">{fileName}</div>}
         </div>
+
+        <div className="barcode-display" aria-live="polite">
+          <div className="barcode-label">Barcode</div>
+          <div className={`barcode-graphic ${productData.barcode ? "has-value" : ""}`}>
+            <svg ref={barcodeSvgRef} aria-label="Barcode graphic" />
+          </div>
+          <div className="barcode-value">
+            {productData.barcode || "Chua co barcode"}
+          </div>
+        </div>
       </div>
 
       {/* ==================== 📝 Cột phải: Form nhập thông tin sản phẩm ==================== */}
@@ -367,6 +426,15 @@ const AddProduct = () => {
                 type="text"
                 value={productData.productCode}
                 onChange={(e) => handleChange("productCode", e.target.value)}
+                required
+              />
+            </div>
+            <div className="input-id w-25">
+              <label>Barcode</label>
+              <input
+                type="text"
+                value={productData.barcode}
+                onChange={(e) => handleChange("barcode", e.target.value)}
                 required
               />
             </div>

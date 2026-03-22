@@ -73,6 +73,60 @@ exports.checkProductExists = async (productId) => {
   }
 };
 
+// =========================KIỂM TRA SẢN PHẨM THEO BARCODE====================
+/**
+ * Hàm kiểm tra sản phẩm theo barcode
+ * @param {string} barcode - Mã vạch sản phẩm
+ * @returns {Promise<object|null>} - Thông tin sản phẩm nếu tồn tại
+ */
+exports.checkProductExistsByBarcode = async (barcode) => {
+  try {
+    const pool = await connectDB();
+    const result = await pool.request()
+      .input("Barcode", sql.VarChar(100), barcode)
+      .query(`
+            SELECT 
+            P.*,                          -- Lấy toàn bộ cột của bảng PRODUCT
+            C.CategoryName,               -- Tên danh mục chính
+            SC.SubCategoryName,           -- Tên danh mục phụ
+            D.Usage,                      -- Công dụng
+            D.Ingredient,                 -- Thành phần
+            D.ProductDescription,         -- Mô tả sản phẩm
+            D.HowToUse                    -- Hướng dẫn sử dụng
+          FROM PRODUCT P
+          LEFT JOIN Category C ON P.CategoryID = C.CategoryID
+          LEFT JOIN Sub_Category SC ON P.SubCategoryID = SC.SubCategoryID
+          LEFT JOIN Product_Detail D ON P.DetailID = D.IDDetail
+          WHERE P.Barcode = @Barcode
+      `);
+
+    if (result.recordset.length === 0) return null;
+
+    const {
+      CategoryName,
+      SubCategoryName,
+      Usage,
+      Ingredient,
+      ProductDescription,
+      HowToUse,
+      ...productInfo
+    } = result.recordset[0];
+
+    return {
+      ...productInfo,
+      CategoryName,
+      SubCategoryName,
+      Usage,
+      Ingredient,
+      ProductDescription,
+      HowToUse,
+    };
+  } catch (error) {
+    console.error("❌ Lỗi khi truy vấn sản phẩm theo barcode:", error.message);
+    throw new Error("Đã xảy ra lỗi khi kiểm tra sản phẩm theo barcode");
+  }
+};
+
 // =========================UPDATE THÔNG TIN SẢN PHẨM====================
 /**
  * Hàm cập nhật thông tin sản phẩm
@@ -87,6 +141,7 @@ exports.updateProduct = async (product) => {
   const {
     ProductID,
     ProductName,
+    Barcode,
     Description,
     IsHot,
     Type,
@@ -96,12 +151,14 @@ exports.updateProduct = async (product) => {
     UpdatedAt,
     SupplierID,
     Image,
+    
   } = product;
 
   // Tạo mảng chứa các trường cần update (chỉ thêm nếu trường đó có giá trị)
   const updateFields = [];
 
   if (ProductName !== undefined) updateFields.push(`ProductName = @ProductName`);
+  if (Barcode !== undefined) updateFields.push(`Barcode = @Barcode`);
   if (Description !== undefined) updateFields.push(`Description = @Description`);
   if (IsHot !== undefined) updateFields.push(`IsHot = @IsHot`);
   if (Type !== undefined) updateFields.push(`Type = @Type`);
@@ -121,6 +178,7 @@ exports.updateProduct = async (product) => {
   await pool.request()
     .input("ProductID", sql.VarChar(50), ProductID)
     .input("ProductName", sql.NVarChar(sql.MAX), ProductName ?? null)
+    .input("Barcode", sql.VarChar(100), Barcode ?? null)
     .input("Description", sql.NVarChar(sql.MAX), Description ?? null)
     .input("IsHot", sql.TinyInt, IsHot ?? null)
     .input("Type", sql.NVarChar(sql.MAX), Type ?? null)
@@ -164,7 +222,7 @@ exports.addProductDB = async (product) => {
     const {
       ProductID, ProductName, Price, Type, CategoryID, SubCategoryID,
       StockQuantity, SupplierID, IsHot, IsHidden, ProductDescription, Usage, Ingredients,
-      Instructions, Image, DetailID, SubCategoryName, CreatedAt, UpdatedAt
+      Instructions, Image, DetailID, SubCategoryName, CreatedAt, UpdatedAt, Barcode
     } = product;
 
     // 🟩 2. Insert PRODUCT
@@ -172,6 +230,7 @@ exports.addProductDB = async (product) => {
     await productRequest
       .input("ProductID", sql.VarChar(50), ProductID)
       .input("ProductName", sql.NVarChar(sql.MAX), ProductName)
+      .input("Barcode", sql.VarChar(100), Barcode ?? null)
       .input("DetailID", sql.NVarChar(50), DetailID)
       .input("IsHot", sql.TinyInt, IsHot ?? 0)
       .input("Type", sql.NVarChar(100), Type ?? null)
@@ -186,9 +245,9 @@ exports.addProductDB = async (product) => {
       .input("UpdatedAt", sql.DateTime, UpdatedAt ?? new Date())
       .query(`
         INSERT INTO PRODUCT
-        (ProductID, ProductName, Price, Type, CategoryID, StockQuantity, SupplierID, SubCategoryID, IsHot, IsHidden, Image, DetailID, CreatedAt, UpdatedAt)
+        (ProductID, ProductName, Barcode, Price, Type, CategoryID, StockQuantity, SupplierID, SubCategoryID, IsHot, IsHidden, Image, DetailID, CreatedAt, UpdatedAt)
         VALUES
-        (@ProductID, @ProductName, @Price, @Type, @CategoryID, @StockQuantity, @SupplierID, @SubCategoryID, @IsHot, @IsHidden, @Image, @DetailID, @CreatedAt, @UpdatedAt)
+        (@ProductID, @ProductName, @Barcode, @Price, @Type, @CategoryID, @StockQuantity, @SupplierID, @SubCategoryID, @IsHot, @IsHidden, @Image, @DetailID, @CreatedAt, @UpdatedAt)
       `);
 
     // 🟩 3. Insert PRODUCT_DETAIL

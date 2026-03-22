@@ -31,16 +31,16 @@ exports.update = async (req, res) => {
 
 // ===================== KIỂM TRA SẢN PHẨM TỒN TẠI =====================
 exports.checkExisProduct = async (req, res) => {
-  const { code } = req.query;
+  const barcode = req.query.barcode || req.query.code;
 
   // Kiểm tra thiếu mã
-  if (!code) {
-    return res.status(400).json({ message: "Thiếu ID sản phẩm" });
+  if (!barcode) {
+    return res.status(400).json({ message: "Thiếu barcode sản phẩm" });
   }
 
   try {
     // Gọi service kiểm tra sản phẩm
-    const result = await productService.checkProductExistence(code);
+    const result = await productService.checkProductExistence(barcode);
     return res.json(result); // Trả kết quả
   } catch (error) {
     console.error("Controller Error:", error);

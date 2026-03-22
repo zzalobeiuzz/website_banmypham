@@ -280,11 +280,12 @@ const ProductOverviewComponent = () => {
     );
   }, [originalProducts, selectedProducts]);
 
-  // ✏️ Xử lý Chỉnh sửa / Lưu dữ liệu
+  // ====================✏️ Xử lý Chỉnh sửa / Lưu dữ liệu ====================
   const handleEditOrSave = async () => {
     //Khi chế độ chỉnh sửa đang bật thì khi ấn vào sẽ lưu nếu không lưu trả lại giá trị ban đầu
     if (editMode) {
       const confirmSave = window.confirm("Bạn có chắc chắn muốn lưu thay đổi?");
+      // Nếu người dùng chọn không lưu, khôi phục dữ liệu gốc và tắt chế độ chỉnh sửa
       if (!confirmSave) {
         restoreSelectedProducts();
         setEditMode(false);
@@ -318,15 +319,40 @@ const ProductOverviewComponent = () => {
       setEditMode(false);
       setSelectedProducts([]);
     } 
-    
-    //Nếu chuyển chế độ chỉnh sửa đang tắt thì kiểm tra xem đã chọn sản phẩm nào chưa, nếu chưa thì cảnh báo, nếu có thì bật chế độ chỉnh sửa
-    else {
+    else 
+    {
+      
       if (selectedProducts.length === 0) {
+        
         alert("Vui lòng chọn ít nhất một sản phẩm trước khi chỉnh sửa.");
         return;
       }
       //đổi trạng thái chế độ sửa thành bật
       setEditMode(true);
+    }
+  };
+  // ====================🗑 Xử lý Xóa sản phẩm ===================
+  const handleDelete = async () => {
+    if (selectedProducts.length === 0) {
+      alert("Vui lòng chọn ít nhất một sản phẩm trước khi xóa.");
+      return;
+    }
+    const confirmDelete = window.confirm("Bạn có chắc chắn muốn xóa các sản phẩm đã chọn?");
+    if (!confirmDelete) return;
+    try {
+      await request(
+        "DELETE",
+        `${API_BASE}/api/admin/products/deleteProducts`,
+          selectedProducts,
+        "Xóa sản phẩm"
+      );
+      alert("Đã xóa thành công!");
+      // Cập nhật lại danh sách sản phẩm sau khi xóa
+      setProducts((prev) => prev.filter((p) => !selectedProducts.includes(p.ProductID)));
+      setSelectedProducts([]);
+    } catch (error) {
+      console.error("Lỗi khi xóa:", error);
+      alert("Có lỗi xảy ra khi xóa dữ liệu!");
     }
   };
 
@@ -403,7 +429,7 @@ const ProductOverviewComponent = () => {
             <button className="btn-edit-save" onClick={handleEditOrSave}>
               {editMode ? "Lưu" : "Sửa"}
             </button>
-            <button className="btn-delete">Xóa</button>
+            <button className="btn-delete" onClick={handleDelete}>Xóa</button>
             <button className="btn-export">Xuất Excel</button>
 
             {/* 🔧 Toggle filter */}

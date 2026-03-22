@@ -17,7 +17,7 @@ exports.updateProduct = async (product) => {
 //=========================CHECK SẢN PHẨM TỒN TẠI====================
 exports.checkProductExistence = async (barcode) => {
   try {
-    const product = await productModel.checkProductExists(barcode);
+    const product = await productModel.checkProductExistsByBarcode(barcode);
 
     if (!product) {
       return { exists: false };
@@ -27,6 +27,7 @@ exports.checkProductExistence = async (barcode) => {
       exists: true,
       product: {
         id: product.ProductID,
+        barcode: product.Barcode,
         name: product.ProductName,
         detailid: product.DetailID,
         isHot: product.IsHot,
@@ -43,11 +44,10 @@ exports.checkProductExistence = async (barcode) => {
         // ✅ Thông tin chi tiết nếu có
         detail: product.DetailID ? {
           detailId: product.DetailID,
-          intro: product.Intro || "",
+          intro: product.ProductDescription || "",
           usage: product.Usage || "",
-          ingredients: product.Ingredients || "",
-          instructions: product.Instructions || "",
-          otherInfo: product.OtherInfo || "",
+          ingredients: product.Ingredient || "",
+          instructions: product.HowToUse || "",
         } : null,
 
         // ✅ Thông tin danh mục phụ nếu có
