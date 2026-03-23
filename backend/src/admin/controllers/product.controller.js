@@ -15,9 +15,26 @@ exports.update = async (req, res) => {
       return res.status(400).json({ message: "Dữ liệu phải là một mảng sản phẩm" });
     }
 
-    // Cập nhật từng sản phẩm bằng service
+    // 🧠 1. Pre-validation: kiểm tra tất cả sản phẩm trước khi update
+    const validationErrors = [];
+    for (let i = 0; i < products.length; i++) {
+      const product = products[i];
+      if (!product.ProductID || (typeof product.ProductID === 'string' && !product.ProductID.trim())) {
+        validationErrors.push(`Sản phẩm thứ ${i + 1} thiếu ProductID`);
+      }
+    }
+
+    // Nếu có lỗi validation, dừng ngay không update cái nào
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Có sản phẩm không hợp lệ, không thể cập nhật",
+        errors: validationErrors,
+      });
+    }
+
+    // ✅ 2. Nếu tất cả hợp lệ, mới cập nhật từng sản phẩm
     for (const product of products) {
-      console.log("👉 Updating product:", product.ProductID);
       await productService.updateProduct(product);
     }
 
@@ -25,22 +42,23 @@ exports.update = async (req, res) => {
     res.status(200).json({ success: true, message: "Cập nhật tất cả sản phẩm thành công!" });
   } catch (error) {
     console.error("❌ Lỗi update:", error.message);
-    res.status(500).json({ message: "Có lỗi xảy ra khi cập nhật sản phẩm" });
+    res.status(500).json({ success: false, message: "Có lỗi xảy ra khi cập nhật sản phẩm" });
   }
 };
 
 // ===================== KIỂM TRA SẢN PHẨM TỒN TẠI =====================
 exports.checkExisProduct = async (req, res) => {
-  const barcode = req.query.barcode || req.query.code;
+  const barcode = (req.query.barcode || req.query.code || "").trim();
+  const productId = (req.query.productId || "").trim();
 
-  // Kiểm tra thiếu mã
-  if (!barcode) {
-    return res.status(400).json({ message: "Thiếu barcode sản phẩm" });
+  // Kiểm tra thiếu cả 2 mã
+  if (!barcode && !productId) {
+    return res.status(400).json({ message: "Thiếu barcode hoặc mã sản phẩm" });
   }
 
   try {
     // Gọi service kiểm tra sản phẩm
-    const result = await productService.checkProductExistence(barcode);
+    const result = await productService.checkProductExistence({ barcode, productId });
     return res.json(result); // Trả kết quả
   } catch (error) {
     console.error("Controller Error:", error);
@@ -60,7 +78,7 @@ exports.addProduct = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Thêm sản phẩm thành công",
+      message: result.message || "Lưu sản phẩm thành công",
     });
   } catch (err) {
     console.error("❌ Lỗi addProduct:", err);
@@ -73,7 +91,6 @@ exports.handleProductDetail = async (req, res) => {
   try {
 
     const { code } = req.query;
-
     // 🟢 Bước 1: Lấy thông tin sản phẩm chính
     const result = await productService.getProductDetail(code);
     // ⚠️ Nếu không tồn tại hoặc không có product

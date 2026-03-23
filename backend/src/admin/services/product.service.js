@@ -5,26 +5,55 @@ const {processHtmlWithPrefix} = require("../utils/processHtmlWithPrefix");
 const { downloadImage } = require("../utils/imageDownloader");
 //=========================UPDATE THÔNG TIN SẢN PHẨM====================
 exports.updateProduct = async (product) => {
-  console.log("productID:", product.ProductID)
+  console.log("productID:", product.ProductID);
   const exists = await productModel.checkProductExists(product.ProductID);
 
   if (!exists) {
-    return { success: false, message: `Sản phẩm ID ${product.ProductID} không tồn tại` };
+    throw new Error(`Sản phẩm ID ${product.ProductID} không tồn tại`);
   }
 
   return await productModel.updateProduct(product);
 };
 //=========================CHECK SẢN PHẨM TỒN TẠI====================
-exports.checkProductExistence = async (barcode) => {
+exports.checkProductExistence = async (payload) => {
   try {
-    const product = await productModel.checkProductExistsByBarcode(barcode);
+    const barcode = typeof payload === "string" ? payload.trim() : (payload?.barcode || "").trim();
+    const productId = typeof payload === "object" ? (payload?.productId || "").trim() : "";
+
+    let product = null;
+
+    // Ưu tiên barcode nếu có, fallback sang productId
+    if (barcode) {
+      product = await productModel.checkProductExistsByBarcode(barcode);
+    }
+
+    if (!product && productId) {
+      product = await productModel.checkProductExists(productId);
+    }
 
     if (!product) {
       return { exists: false };
     }
 
+    let reactivated = false;
+    const isHidden = product.IsHidden === true || product.IsHidden === 1;
+
+    // Nếu sản phẩm đang ẩn thì tự động hiện lại trước khi trả dữ liệu
+    if (isHidden) {
+      reactivated = barcode
+        ? await productModel.unhideProductByBarcode(barcode)
+        : await productModel.unhideProductByProductID(product.ProductID);
+
+      if (reactivated) {
+        product = barcode
+          ? await productModel.checkProductExistsByBarcode(barcode)
+          : await productModel.checkProductExists(product.ProductID);
+      }
+    }
+
     return {
       exists: true,
+      reactivated,
       product: {
         id: product.ProductID,
         barcode: product.Barcode,
@@ -67,6 +96,8 @@ exports.checkProductExistence = async (barcode) => {
 //========================= THÊM SẢN PHẨM ====================
 exports.addProduct = async (req) => {
   try {
+    const isUpdateAfterScan = req.body.IsUpdateAfterScan === "1" || req.body.IsUpdateAfterScan === 1;
+
     // ===== Chuẩn hoá dữ liệu =====
     req.body.DetailID = req.body.DetailID || `DTL_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     req.body.Price = parseInt(req.body.Price) || 0;
@@ -108,10 +139,18 @@ exports.addProduct = async (req) => {
         path: savePath,
         filename,
       };
+    } else if (
+      req.body.Image === "null" ||
+      req.body.Image === "undefined" ||
+      req.body.Image === ""
+    ) {
+      delete req.body.Image;
     }
 
-    // ===== Gọi DB thêm sản phẩm =====
-    const result = await productModel.addProductDB(req.body);
+    // ===== Gọi DB: nếu quét trúng sản phẩm cũ thì update, ngược lại thêm mới =====
+    const result = isUpdateAfterScan
+      ? await productModel.updateProductFromAddFormDB(req.body)
+      : await productModel.addProductDB(req.body);
     // ===== Nếu thêm thành công mới lưu ảnh =====
     if (result.success) {
       // ✅ Lưu ảnh chính
@@ -162,6 +201,7 @@ exports.addProduct = async (req) => {
 //=========================LẤY CHI TIẾT SẢN PHẨM THEO ID====================
 exports.getProductDetail = async (detailID) => {
   try {
+    console.log("🔍 Tìm chi tiết sản phẩm với DetailID:", detailID);
     if(!detailID){
       console.log(`Không thấy mã mô tả sản phẩm`)
       return{

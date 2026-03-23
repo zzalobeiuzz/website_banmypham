@@ -127,6 +127,91 @@ exports.checkProductExistsByBarcode = async (barcode) => {
   }
 };
 
+// =========================HIỆN LẠI SẢN PHẨM THEO BARCODE====================
+/**
+ * Bỏ ẩn sản phẩm theo barcode (IsHidden: true -> false)
+ * @param {string} barcode - Mã vạch sản phẩm
+ * @returns {Promise<boolean>} - true nếu có sản phẩm được cập nhật
+ */
+exports.unhideProductByBarcode = async (barcode) => {
+  try {
+    const pool = await connectDB();
+    const result = await pool.request()
+      .input("Barcode", sql.VarChar(100), barcode)
+      .query(`
+        UPDATE PRODUCT
+        SET IsHidden = 0,
+            UpdatedAt = GETDATE()
+        WHERE Barcode = @Barcode
+          AND IsHidden = 1
+      `);
+
+    return (result.rowsAffected?.[0] || 0) > 0;
+  } catch (error) {
+    console.error("❌ Lỗi khi hiện lại sản phẩm theo barcode:", error.message);
+    throw new Error("Đã xảy ra lỗi khi cập nhật trạng thái hiển thị sản phẩm");
+  }
+};
+
+// =========================HIỆN LẠI SẢN PHẨM THEO PRODUCT ID====================
+/**
+ * Bỏ ẩn sản phẩm theo ProductID (IsHidden: true -> false)
+ * @param {string} productId - Mã sản phẩm
+ * @returns {Promise<boolean>} - true nếu có sản phẩm được cập nhật
+ */
+exports.unhideProductByProductID = async (productId) => {
+  try {
+    const pool = await connectDB();
+    const result = await pool.request()
+      .input("ProductID", sql.VarChar(50), productId)
+      .query(`
+        UPDATE PRODUCT
+        SET IsHidden = 0,
+            UpdatedAt = GETDATE()
+        WHERE ProductID = @ProductID
+          AND IsHidden = 1
+      `);
+
+    return (result.rowsAffected?.[0] || 0) > 0;
+  } catch (error) {
+    console.error("❌ Lỗi khi hiện lại sản phẩm theo ProductID:", error.message);
+    throw new Error("Đã xảy ra lỗi khi cập nhật trạng thái hiển thị sản phẩm");
+  }
+};
+
+// =========================KIỂM TRA TRÙNG KHI THÊM MỚI (IsHidden = 0 / false)====================
+/**
+ * Kiểm tra trùng ProductID/Barcode trong nhóm sản phẩm có IsHidden = 0 (false)
+ * @param {string} productId - Mã sản phẩm
+ * @param {string} barcode - Mã vạch sản phẩm
+ * @returns {Promise<{isDuplicateProductID:boolean, isDuplicateBarcode:boolean}>}
+ */
+exports.checkHiddenProductConflictForAdd = async (productId, barcode) => {
+  try {
+    const pool = await connectDB();
+    const result = await pool.request()
+      .input("ProductID", sql.VarChar(50), productId)
+      .input("Barcode", sql.VarChar(100), barcode)
+      .query(`
+        SELECT
+          MAX(CASE WHEN ProductID = @ProductID THEN 1 ELSE 0 END) AS IsDuplicateProductID,
+          MAX(CASE WHEN Barcode = @Barcode THEN 1 ELSE 0 END) AS IsDuplicateBarcode
+        FROM PRODUCT
+        WHERE IsHidden = 0
+          AND (ProductID = @ProductID OR Barcode = @Barcode)
+      `);
+
+    const row = result.recordset?.[0] || {};
+    return {
+      isDuplicateProductID: row.IsDuplicateProductID === 1,
+      isDuplicateBarcode: row.IsDuplicateBarcode === 1,
+    };
+  } catch (error) {
+    console.error("❌ Lỗi khi kiểm tra trùng ProductID/Barcode (IsHidden=0):", error.message);
+    throw new Error("Đã xảy ra lỗi khi kiểm tra trùng sản phẩm trước khi thêm mới");
+  }
+};
+
 // =========================UPDATE THÔNG TIN SẢN PHẨM====================
 /**
  * Hàm cập nhật thông tin sản phẩm
@@ -197,8 +282,113 @@ exports.updateProduct = async (product) => {
   return { success: true, message: `Cập nhật sản phẩm ID ${ProductID} thành công` };
 };
 
+// =========================CẬP NHẬT ĐẦY ĐỦ SẢN PHẨM TỪ MÀN THÊM MỚI====================
+/**
+ * Cập nhật đầy đủ thông tin PRODUCT và PRODUCT_DETAIL theo ProductID
+ * @param {object} product - Thông tin sản phẩm từ form thêm/sửa
+ * @returns {Promise<object>} - Kết quả cập nhật
+ */
+exports.updateProductFromAddFormDB = async (product) => {
+  const pool = await connectDB();
+  const transaction = new sql.Transaction(pool);
+
+  try {
+    await transaction.begin();
+
+    const {
+      ProductID,
+      ProductName,
+      Barcode,
+      Price,
+      Type,
+      CategoryID,
+      SubCategoryID,
+      StockQuantity,
+      SupplierID,
+      IsHot,
+      Image,
+      DetailID,
+      ProductDescription,
+      Ingredients,
+      Usage,
+      Instructions,
+      UpdatedAt,
+    } = product;
+
+    const normalizedImage =
+      Image && Image !== "null" && Image !== "undefined" ? Image : null;
+
+    const productRequest = new sql.Request(transaction);
+    await productRequest
+      .input("ProductID", sql.VarChar(50), ProductID)
+      .input("ProductName", sql.NVarChar(sql.MAX), ProductName ?? null)
+      .input("Barcode", sql.VarChar(100), Barcode ?? null)
+      .input("Price", sql.Int, Price ?? 0)
+      .input("Type", sql.NVarChar(100), Type ?? null)
+      .input("CategoryID", sql.NVarChar(100), CategoryID ?? null)
+      .input("SubCategoryID", sql.NVarChar(50), SubCategoryID ?? null)
+      .input("StockQuantity", sql.Int, StockQuantity ?? 0)
+      .input("SupplierID", sql.NVarChar(100), SupplierID ?? null)
+      .input("IsHot", sql.TinyInt, IsHot ?? 0)
+      .input("Image", sql.NVarChar(sql.MAX), normalizedImage)
+      .input("UpdatedAt", sql.DateTime, UpdatedAt ?? new Date())
+      .query(`
+        UPDATE PRODUCT
+        SET
+          ProductName = @ProductName,
+          Barcode = @Barcode,
+          Price = @Price,
+          Type = @Type,
+          CategoryID = @CategoryID,
+          SubCategoryID = @SubCategoryID,
+          StockQuantity = @StockQuantity,
+          SupplierID = @SupplierID,
+          IsHot = @IsHot,
+          Image = COALESCE(@Image, Image),
+          IsHidden = 0,
+          UpdatedAt = @UpdatedAt
+        WHERE ProductID = @ProductID
+      `);
+
+    const detailRequest = new sql.Request(transaction);
+    await detailRequest
+      .input("IDDetail", sql.NVarChar(50), DetailID)
+      .input("ProductDescription", sql.NVarChar(sql.MAX), ProductDescription ?? null)
+      .input("Ingredient", sql.NVarChar(sql.MAX), Ingredients ?? null)
+      .input("Usage", sql.NVarChar(sql.MAX), Usage ?? null)
+      .input("HowToUse", sql.NVarChar(sql.MAX), Instructions ?? null)
+      .query(`
+        UPDATE PRODUCT_DETAIL
+        SET
+          ProductDescription = @ProductDescription,
+          Ingredient = @Ingredient,
+          Usage = @Usage,
+          HowToUse = @HowToUse
+        WHERE IDDetail = @IDDetail
+      `);
+
+    await transaction.commit();
+    return { success: true, message: `Cập nhật sản phẩm ${ProductID} thành công` };
+  } catch (err) {
+    if (transaction._aborted !== true) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackErr) {
+        console.error("❌ Rollback thất bại khi update từ form thêm:", rollbackErr);
+      }
+    }
+
+    console.error("❌ Lỗi updateProductFromAddFormDB:", err);
+    return {
+      success: false,
+      message: "Lỗi khi cập nhật sản phẩm từ form thêm",
+      error: err.message,
+    };
+  }
+};
 
 
+// =========================================================================================
 // =========================THÊM MỚI SẢN PHẨM====================
 /**
  * Hàm thêm sản phẩm mới
@@ -207,15 +397,44 @@ exports.updateProduct = async (product) => {
  */
 
 exports.addProductDB = async (product) => {
+  
   const pool = await connectDB();
   const transaction = new sql.Transaction(pool);
 
   try {
-    // 🧠 1. Kiểm tra trùng ProductID trước khi bắt đầu transaction
-    const existingProduct = await exports.checkProductExists(product.ProductID);
-    if (existingProduct) {
-      return { success: false, message: `Sản phẩm với ID ${product.ProductID} đã tồn tại` };
+    const productId = (product.ProductID || "").trim();
+    const barcode = (product.Barcode || "").trim();
+
+    if (!productId) {
+      return { success: false, message: "Thiếu mã sản phẩm" };
     }
+
+    if (!barcode) {
+      return { success: false, message: "Thiếu Barcode sản phẩm" };
+    }
+
+    // 🧠 1. Kiểm tra trùng ProductID và Barcode trong nhóm IsHidden = 0 (false)
+    const conflict = await exports.checkHiddenProductConflictForAdd(productId, barcode);
+    if (conflict.isDuplicateProductID || conflict.isDuplicateBarcode) {
+      let duplicateMessage = "";
+      if (conflict.isDuplicateProductID && conflict.isDuplicateBarcode) {
+        duplicateMessage = `Trùng ID ${productId} và Barcode ${barcode}`;
+      } else if (conflict.isDuplicateProductID) {
+        duplicateMessage = `ID sản phẩm đã tồn tại`;
+      } else {
+        duplicateMessage = `Barcode này đã tồn tại trên một sản phẩm khác`;
+      }
+
+      return {
+        success: false,
+        message: duplicateMessage,
+      };
+    }
+
+    // Chuẩn hóa dữ liệu sau khi kiểm tra
+    product.ProductID = productId;
+    product.Barcode = barcode;
+
     // ✅ Bắt đầu transaction
     await transaction.begin();
 

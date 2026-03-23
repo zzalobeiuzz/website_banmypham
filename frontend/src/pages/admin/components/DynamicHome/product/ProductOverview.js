@@ -49,46 +49,56 @@ const ProductOverviewComponent = () => {
   // 🔎 Filter products theo category & search keyword
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
-      const matchCategory = selectedCategory === "Tất cả" || product.CategoryName === selectedCategory;
+      const matchCategory =
+        selectedCategory === "Tất cả" ||
+        product.CategoryName === selectedCategory;
       const matchKeyword =
-        product.ProductName.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-        product.ProductID.toString().includes(searchKeyword.toLowerCase());
+        product.ProductName.toLowerCase().includes(
+          searchKeyword.toLowerCase(),
+        ) || product.ProductID.toString().includes(searchKeyword.toLowerCase());
       return matchCategory && matchKeyword;
     });
   }, [products, selectedCategory, searchKeyword]);
 
   // ✔ Toggle checkbox chọn sản phẩm
-  const handleCheckboxChange = useCallback((productId) => {
-    setSelectedProducts((prev) => {
-      const isSelected = prev.includes(productId);
+  const handleCheckboxChange = useCallback(
+    (productId) => {
+      setSelectedProducts((prev) => {
+        const isSelected = prev.includes(productId);
 
-      // Nếu bỏ tích khi đang edit: hoàn tác dữ liệu sản phẩm này về bản gốc.
-      if (isSelected) {
-        if (editMode) {
-          setProducts((prevProducts) =>
-            prevProducts.map((product) => {
-              if (product.ProductID !== productId) return product;
+        // Nếu bỏ tích khi đang edit: hoàn tác dữ liệu sản phẩm này về bản gốc.
+        if (isSelected) {
+          if (editMode) {
+            setProducts((prevProducts) =>
+              prevProducts.map((product) => {
+                if (product.ProductID !== productId) return product;
 
-              // Tìm dữ liệu gốc của sản phẩm này để khôi phục
-              const original = originalProducts.find((o) => o.ProductID === productId);
-              return original ? { ...original } : product;
-            })
-          );
+                // Tìm dữ liệu gốc của sản phẩm này để khôi phục
+                const original = originalProducts.find(
+                  (o) => o.ProductID === productId,
+                );
+                return original ? { ...original } : product;
+              }),
+            );
+          }
+          return prev.filter((id) => id !== productId);
         }
-        return prev.filter((id) => id !== productId);
-      }
 
-      // Nếu tích mới: thêm product vào danh sách được chọn để cho phép chỉnh sửa.
-      return [...prev, productId];
-    });
-  }, [editMode, originalProducts]);
+        // Nếu tích mới: thêm product vào danh sách được chọn để cho phép chỉnh sửa.
+        return [...prev, productId];
+      });
+    },
+    [editMode, originalProducts],
+  );
 
   // ✏️ Thay đổi dữ liệu product khi chỉnh sửa
   const handleProductChange = useCallback((productId, field, value) => {
     setProducts((prev) =>
       prev.map((product) =>
-        product.ProductID === productId ? { ...product, [field]: value } : product
-      )
+        product.ProductID === productId
+          ? { ...product, [field]: value }
+          : product,
+      ),
     );
   }, []);
 
@@ -105,17 +115,21 @@ const ProductOverviewComponent = () => {
   }, []);
 
   // 🔄 Nhận giá trị người dùng nhập -> chuẩn hóa -> cập nhật về state dạng số.
-  const handlePriceChange = useCallback((productId, rawValue) => {
-    const normalizedPrice = parsePriceInput(rawValue);
-    handleProductChange(productId, "Price", normalizedPrice);
-  }, [handleProductChange, parsePriceInput]);
+  const handlePriceChange = useCallback(
+    (productId, rawValue) => {
+      const normalizedPrice = parsePriceInput(rawValue);
+      handleProductChange(productId, "Price", normalizedPrice);
+    },
+    [handleProductChange, parsePriceInput],
+  );
 
   // 🎯 Giữ con trỏ luôn đứng ngay trước ký tự "đ" trong ô giá.
   const keepCaretBeforeCurrency = useCallback((event) => {
     const input = event.target;
     const displayValue = String(input.value ?? "");
     const currencyIndex = displayValue.lastIndexOf("đ");
-    const nextCaretPos = currencyIndex >= 0 ? currencyIndex : displayValue.length;
+    const nextCaretPos =
+      currencyIndex >= 0 ? currencyIndex : displayValue.length;
 
     requestAnimationFrame(() => {
       if (document.activeElement !== input) return;
@@ -146,7 +160,7 @@ const ProductOverviewComponent = () => {
       keepCaretBeforeCurrency,
       formatPriceInput,
       navigate,
-    ]
+    ],
   );
 
   // ✅ Render mỗi dòng sản phẩm trong danh sách (dùng cho react-window)
@@ -190,7 +204,13 @@ const ProductOverviewComponent = () => {
             <textarea
               className="input-name"
               value={product.ProductName}
-              onChange={(e) => onProductChange(product.ProductID, "ProductName", e.target.value)}
+              onChange={(e) =>
+                onProductChange(
+                  product.ProductID,
+                  "ProductName",
+                  e.target.value,
+                )
+              }
               style={{
                 color: "#111",
                 caretColor: "#111",
@@ -232,7 +252,13 @@ const ProductOverviewComponent = () => {
           {product.StockQuantity}
           <button
             className="view-detail"
-            onClick={() => goTo(`/admin/product/detail/${product.ProductID}`)}
+            onClick={() => {
+              if (!product.ProductID) {
+                alert("Sản phẩm chưa có ID, không thể xem chi tiết!");
+                return;
+              }
+              goTo(`/admin/product/detail/${product.ProductID}`);
+            }}
           >
             Xem chi tiết
           </button>
@@ -274,9 +300,11 @@ const ProductOverviewComponent = () => {
     setProducts((prev) =>
       prev.map((product) => {
         if (!selectedProducts.includes(product.ProductID)) return product;
-        const original = originalProducts.find((o) => o.ProductID === product.ProductID);
+        const original = originalProducts.find(
+          (o) => o.ProductID === product.ProductID,
+        );
         return original ? { ...original } : product;
-      })
+      }),
     );
   }, [originalProducts, selectedProducts]);
 
@@ -293,37 +321,43 @@ const ProductOverviewComponent = () => {
         return;
       }
 
-      const updatedProducts = products.filter((p) => selectedProducts.includes(p.ProductID));
+      const updatedProducts = products.filter((p) =>
+        selectedProducts.includes(p.ProductID),
+      );
 
+      // Gọi API để cập nhật sản phẩm
       try {
-        await request(
+        const res = await request(
           "PUT",
           `${API_BASE}/api/admin/products/updateProducts`,
           updatedProducts,
-          "Cập nhật sản phẩm"
+          "Cập nhật sản phẩm",
         );
-        alert("Đã lưu thành công!");
+        alert(res.message || "Đã lưu thay đổi thành công!");
 
         // 🔄 Cập nhật dữ liệu gốc
         setOriginalProducts((prev) =>
           prev.map((o) => {
-            const updated = updatedProducts.find((u) => u.ProductID === o.ProductID);
+            const updated = updatedProducts.find(
+              (u) => u.ProductID === o.ProductID,
+            );
             return updated ? { ...updated } : o;
-          })
+          }),
         );
       } catch (error) {
         console.error("Lỗi khi lưu:", error);
-        alert("Có lỗi xảy ra khi lưu dữ liệu!");
+        alert(error.message || "Có lỗi xảy ra khi lưu dữ liệu!");
+        // 🔄 Khôi phục dữ liệu ban đầu khi có lỗi
+        restoreSelectedProducts();
+        setEditMode(false);
+        setSelectedProducts([]);
+        return;
       }
 
       setEditMode(false);
       setSelectedProducts([]);
-    } 
-    else 
-    {
-      
+    } else {
       if (selectedProducts.length === 0) {
-        
         alert("Vui lòng chọn ít nhất một sản phẩm trước khi chỉnh sửa.");
         return;
       }
@@ -331,24 +365,30 @@ const ProductOverviewComponent = () => {
       setEditMode(true);
     }
   };
+
+
   // ====================🗑 Xử lý Xóa sản phẩm ===================
   const handleDelete = async () => {
     if (selectedProducts.length === 0) {
       alert("Vui lòng chọn ít nhất một sản phẩm trước khi xóa.");
       return;
     }
-    const confirmDelete = window.confirm("Bạn có chắc chắn muốn xóa các sản phẩm đã chọn?");
+    const confirmDelete = window.confirm(
+      "Bạn có chắc chắn muốn xóa các sản phẩm đã chọn?",
+    );
     if (!confirmDelete) return;
     try {
       await request(
         "DELETE",
         `${API_BASE}/api/admin/products/deleteProducts`,
-          selectedProducts,
-        "Xóa sản phẩm"
+        selectedProducts,
+        "Xóa sản phẩm",
       );
       alert("Đã xóa thành công!");
       // Cập nhật lại danh sách sản phẩm sau khi xóa
-      setProducts((prev) => prev.filter((p) => !selectedProducts.includes(p.ProductID)));
+      setProducts((prev) =>
+        prev.filter((p) => !selectedProducts.includes(p.ProductID)),
+      );
       setSelectedProducts([]);
     } catch (error) {
       console.error("Lỗi khi xóa:", error);
@@ -362,7 +402,6 @@ const ProductOverviewComponent = () => {
     <div>
       {/* 🔍 Toolbar tìm kiếm */}
       <ToolBar title="Sản phẩm" onSearchChange={setSearchKeyword} />
-
       <div className="product-wrapper">
         {/* 🏷 Topbar category */}
         <div className="product-topbar">
@@ -389,12 +428,16 @@ const ProductOverviewComponent = () => {
                 return (
                   <button
                     key={category.CategoryID}
-                    className={selectedCategory === category.CategoryName ? "active" : ""}
+                    className={
+                      selectedCategory === category.CategoryName ? "active" : ""
+                    }
                     onClick={() => setSelectedCategory(category.CategoryName)}
                     style={{
                       transition: "opacity 0.4s ease, transform 0.4s ease",
                       transitionDelay: delay,
-                      transform: showCategories ? "translateX(0)" : "translateX(-20px)",
+                      transform: showCategories
+                        ? "translateX(0)"
+                        : "translateX(-20px)",
                       opacity: showCategories ? 1 : 0,
                     }}
                   >
@@ -410,7 +453,9 @@ const ProductOverviewComponent = () => {
                   style={{
                     transition: "opacity 0.4s ease, transform 0.4s ease",
                     transitionDelay: `${categories.length * 0.1 + 0.1}s`,
-                    transform: showCategories ? "translateX(0)" : "translateX(-20px)",
+                    transform: showCategories
+                      ? "translateX(0)"
+                      : "translateX(-20px)",
                     opacity: showCategories ? 1 : 0,
                   }}
                 >
@@ -425,11 +470,15 @@ const ProductOverviewComponent = () => {
         <div className={`product-content ${filterOpen ? "open" : ""}`}>
           {/* 🛠 Sidebar thao tác & filter */}
           <div className="product-left">
-            <button className="btn-add" onClick={handleAddProduct}>Tạo mới</button>
+            <button className="btn-add" onClick={handleAddProduct}>
+              Tạo mới
+            </button>
             <button className="btn-edit-save" onClick={handleEditOrSave}>
               {editMode ? "Lưu" : "Sửa"}
             </button>
-            <button className="btn-delete" onClick={handleDelete}>Xóa</button>
+            <button className="btn-delete" onClick={handleDelete}>
+              Xóa
+            </button>
             <button className="btn-export">Xuất Excel</button>
 
             {/* 🔧 Toggle filter */}
@@ -478,7 +527,9 @@ const ProductOverviewComponent = () => {
                     itemSize={100}
                     width="100%"
                     itemData={listData}
-                    itemKey={(index, data) => data.filteredProducts[index]?.ProductID ?? index}
+                    itemKey={(index, data) =>
+                      data.filteredProducts[index]?.ProductID ?? index
+                    }
                   >
                     {renderProductRow}
                   </List>
@@ -488,7 +539,8 @@ const ProductOverviewComponent = () => {
           </div>
         </div>
       </div>
-      <Outlet /> {/* Thêm dòng này để hiển thị component con như AddProduct, ProductDetail */}
+      <Outlet />{" "}
+      {/* Thêm dòng này để hiển thị component con như AddProduct, ProductDetail */}
     </div>
   );
 };

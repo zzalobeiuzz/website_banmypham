@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import "./components.scss";
 
 const ToolBar = ({ onSearchChange, title }) => {
-  console.log("ToolBar title:", title); // Thêm dòng này để kiểm tra
   const [searchKeyword, setSearchKeyword] = useState("");
 
   const handleSubmit = (e) => {

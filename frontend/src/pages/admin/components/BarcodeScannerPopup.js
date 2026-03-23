@@ -6,6 +6,8 @@ const BarcodeScannerPopup = ({ onClose, onScanSuccess }) => {
   const videoRef = useRef(null);
   const codeReaderRef = useRef(null);
   const controlsRef = useRef(null);
+  const lastScannedValueRef = useRef("");
+  const lastScannedAtRef = useRef(0);
 
   const [cameras, setCameras] = useState([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
@@ -14,8 +16,11 @@ const BarcodeScannerPopup = ({ onClose, onScanSuccess }) => {
     try {
       if (controlsRef.current) {
         await controlsRef.current.stop();
-        console.log("✅ Đã dừng scanner");
+        controlsRef.current = null;
       }
+      codeReaderRef.current = null;
+
+      console.log("✅ Đã dừng scanner");
     } catch (error) {
       console.warn("⚠️ Không thể dừng scanner:", error);
     }
@@ -25,6 +30,8 @@ const BarcodeScannerPopup = ({ onClose, onScanSuccess }) => {
     async (deviceId) => {
       try {
         await stopScanner();
+        lastScannedValueRef.current = "";
+        lastScannedAtRef.current = 0;
 
         const codeReader = new BrowserMultiFormatReader();
         codeReaderRef.current = codeReader;
@@ -34,8 +41,24 @@ const BarcodeScannerPopup = ({ onClose, onScanSuccess }) => {
           videoRef.current,
           (result, err) => {
             if (result) {
-              console.log("✅ Scan thành công:", result.getText());
-              onScanSuccess(result.getText());
+              const scannedValue = String(result.getText() || "").trim();
+              if (!scannedValue) return;
+
+              // Chặn callback lặp do camera đọc cùng mã trong nhiều frame liên tiếp.
+              const now = Date.now();
+              const isDuplicateBurst =
+                scannedValue === lastScannedValueRef.current &&
+                now - lastScannedAtRef.current < 1500;
+
+              if (isDuplicateBurst) {
+                return;
+              }
+
+              lastScannedValueRef.current = scannedValue;
+              lastScannedAtRef.current = now;
+
+              console.log("✅ Scan thành công:", scannedValue);
+              onScanSuccess(scannedValue);
               stopScanner();
             }
           }
@@ -99,8 +122,8 @@ const BarcodeScannerPopup = ({ onClose, onScanSuccess }) => {
 
         <button
           className="close-btn"
-          onClick={() => {
-            stopScanner();
+          onClick={async () => {
+            await stopScanner();
             onClose();
           }}
         >

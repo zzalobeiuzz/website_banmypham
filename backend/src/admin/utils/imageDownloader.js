@@ -4,7 +4,6 @@ const path = require("path");
 
 exports.downloadImage = async (oldSrc, newSrc) => {
   try {
-
     const relativePath = newSrc.replace("http://localhost:5000", "");
     const fullPath = path.join(__dirname, "../../../", relativePath);
     console.log("*FullPath: "+fullPath +"\n");
