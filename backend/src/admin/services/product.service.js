@@ -231,3 +231,16 @@ exports.getProductDetail = async (detailID) => {
     };
   }
 };
+
+//========================= ẨN SẢN PHẨM (XÓA MỀM) ====================
+exports.hideProducts = async (productIds) => {
+  const validIds = (Array.isArray(productIds) ? productIds : [])
+    .map((id) => String(id || "").trim())
+    .filter(Boolean);
+
+  if (validIds.length === 0) {
+    return { success: false, message: "Không có sản phẩm hợp lệ để ẩn" };
+  }
+
+  return await productModel.hideProductsByIds(validIds);
+};

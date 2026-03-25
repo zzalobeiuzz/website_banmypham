@@ -470,7 +470,7 @@ const AddProduct = () => {
     skipBlurLookupRef.current = false;
   };
 
-  const handleIdentityBlur = async (event) => {
+  const handleIdentityBlur = async (field, event) => {
     if (skipBlurLookupRef.current || showScanner) {
       return;
     }
@@ -480,9 +480,13 @@ const AddProduct = () => {
       return;
     }
 
+    const identityPayload =
+      field === "barcode"
+        ? { barcode: productData.barcode, productCode: "" }
+        : { barcode: "", productCode: productData.productCode };
+
     await checkExistingByIdentity({
-      barcode: productData.barcode,
-      productCode: productData.productCode,
+      ...identityPayload,
       showNotFoundMessage: false,
       source: "blur",
     });
@@ -607,7 +611,7 @@ const AddProduct = () => {
                 type="text"
                 value={productData.productCode}
                 onChange={(e) => handleChange("productCode", e.target.value)}
-                onBlur={handleIdentityBlur}
+                onBlur={(e) => handleIdentityBlur("productCode", e)}
                 required
               />
             </div>
@@ -617,7 +621,7 @@ const AddProduct = () => {
                 type="text"
                 value={productData.barcode}
                 onChange={(e) => handleChange("barcode", e.target.value)}
-                onBlur={handleIdentityBlur}
+                onBlur={(e) => handleIdentityBlur("barcode", e)}
                 required
               />
             </div>

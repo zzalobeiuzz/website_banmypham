@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, Outlet } from "react-router-dom";
 import { FixedSizeList as List } from "react-window"; // 📜 Virtualized list để render danh sách dài
+import ExcelJS from "exceljs"; // 📊 Excel formatting & styling
 import { API_BASE, UPLOAD_BASE } from "../../../../../constants"; // 🌐 API endpoint & path upload
 import useHttp from "../../../../../hooks/useHttp"; // ⚡ Custom hook request HTTP
 import ToolBar from "../../ToolBar"; // 🔍 Toolbar search/filter
@@ -396,6 +397,294 @@ const ProductOverviewComponent = () => {
     }
   };
 
+  // 📄 Xuất toàn bộ thông tin sản phẩm ra file Excel .xlsx có định dạng, bỏ trường ảnh.
+  const handleExportExcel = useCallback(async () => {
+    // Bước 1: Chặn export khi không có dữ liệu.
+    if (!products.length) {
+      alert("Không có dữ liệu sản phẩm để xuất.");
+      return;
+    }
+
+    // Bước 2: Chuẩn hóa dữ liệu đầu vào cho file export.
+    // - Thêm cột STT.
+    // - Loại toàn bộ trường liên quan đến ảnh (key chứa "image").
+    const exportRows = products.map((product, index) => {
+      const cleanedProduct = Object.entries(product).reduce(
+        (acc, [key, value]) => {
+          if (key.toLowerCase().includes("image")) return acc;
+          acc[key] = value;
+          return acc;
+        },
+        {},
+      );
+
+      return {
+        STT: index + 1,
+        ...cleanedProduct,
+      };
+    });
+
+    // Bước 3: Khai báo thứ tự cột ưu tiên trong file Excel.
+    const preferredColumnsOrder = [
+      "STT",
+      "ProductID",
+      "Barcode",
+      "ProductName",
+      "Type",
+      "CategoryName",
+      "SubCategoryName",
+      "Price",
+      "sale_price",
+      "StockQuantity",
+      "SupplierID",
+      "isHot",
+      "IsHidden",
+      "start_date",
+      "end_date",
+      "discountPercent",
+      "discountTimeLeft",
+    ];
+
+    // Bước 4: Mapping key dữ liệu -> tên cột hiển thị tiếng Việt.
+    const columnLabels = {
+      STT: "STT",
+      ProductID: "Mã sản phẩm",
+      Barcode: "Mã vạch",
+      ProductName: "Tên sản phẩm",
+      Type: "Loại sản phẩm",
+      CategoryName: "Danh mục",
+      SubCategoryName: "Danh mục con",
+      Price: "Giá",
+      sale_price: "Giá khuyến mãi",
+      StockQuantity: "Số lượng tồn kho",
+      SupplierID: "Nhà cung cấp",
+      isHot: "Sản phẩm hot",
+      IsHidden: "Ẩn hiện",
+      start_date: "Ngày bắt đầu sale",
+      end_date: "Ngày kết thúc sale",
+      discountPercent: "Phần trăm giảm giá",
+      discountTimeLeft: "Thời gian còn lại",
+    };
+
+    // Bước 5: Tạo danh sách cột thực tế theo:
+    // - Chỉ lấy các cột nghiệp vụ đã định nghĩa để tránh lộ cột kỹ thuật (vd: CategoryID).
+    const existingKeys = Object.keys(exportRows[0] || {});
+    const orderedKeys = [
+      ...preferredColumnsOrder.filter((key) => existingKeys.includes(key)),
+    ];
+
+    // Bước 6: Sinh metadata của file export.
+    const today = new Date().toISOString().slice(0, 10);
+    const reportDate = new Date().toLocaleString("vi-VN");
+
+    // Bước 7: Khởi tạo workbook và worksheet.
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Sản phẩm");
+    
+    const lastColumnLetter =
+      worksheet.getColumn(Math.max(orderedKeys.length, 1)).letter || "A";
+
+    // Bước 7.1: Dòng tiêu đề báo cáo (title).
+    const titleRow = worksheet.addRow(["DANH SÁCH SẢN PHẨM"]);
+    titleRow.font = {
+      bold: true,
+      size: 20,
+      color: { argb: "FF1F2937" },
+      name: "Calibri",
+    };
+    titleRow.alignment = { horizontal: "center", vertical: "middle" };
+    worksheet.mergeCells(`A1:Q1`);
+    worksheet.getRow(1).height = 30;
+
+    // Bước 7.2: Metadata báo cáo (ngày xuất + tổng sản phẩm).
+    const metaRow1 = worksheet.addRow([`Ngày xuất: ${reportDate}`]);
+    metaRow1.font = { size: 11, color: { argb: "FF6B7280" } };
+    worksheet.mergeCells("A2:C2");
+    worksheet.getRow(2).height = 18;
+
+    const metaRow2 = worksheet.addRow([`Tổng số sản phẩm: ${exportRows.length}`]);
+    metaRow2.font = { size: 11, color: { argb: "FF6B7280" } };
+    worksheet.mergeCells("A3:C3");
+    worksheet.getRow(3).height = 18;
+
+    // Bước 7.3: Chèn một dòng đệm để tách metadata và bảng dữ liệu.
+    worksheet.addRow([]);
+
+    // Bước 7.4: Tạo header cho bảng dữ liệu (dòng 5).
+    const columnHeaders = orderedKeys.map((key) => columnLabels[key] || key);
+    const headerRow = worksheet.addRow(columnHeaders);
+
+    // Bước 7.5: Style header: nền đậm, chữ trắng, căn giữa, có border.
+    headerRow.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 12 };
+    headerRow.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF374151" },
+    };
+    headerRow.alignment = {
+      horizontal: "center",
+      vertical: "middle",
+      wrapText: false,
+    };
+    headerRow.eachCell((cell) => {
+      cell.border = {
+        top: { style: "thin", color: { argb: "FFD1D5DB" } },
+        left: { style: "thin", color: { argb: "FFD1D5DB" } },
+        bottom: { style: "thin", color: { argb: "FFD1D5DB" } },
+        right: { style: "thin", color: { argb: "FFD1D5DB" } },
+      };
+    });
+    worksheet.getRow(5).height = 25;
+
+    // Bước 7.6: Ghi dữ liệu sản phẩm từ dòng 6 và format theo từng kiểu dữ liệu.
+    exportRows.forEach((exportRow, rowIndex) => {
+      const rowData = orderedKeys.map((key) => {
+        const value = exportRow[key];
+
+        // Format giá tiền về chuỗi VND.
+        if (key === "Price" || key === "sale_price") {
+          const numValue = Number(value) || 0;
+          return numValue > 0 ? `${numValue.toLocaleString("vi-VN")}đ` : "";
+        }
+
+        // Format boolean về Có/Không.
+        if (key === "isHot" || key === "IsHidden") {
+          return Number(value) === 1 || value === true ? "Có" : "Không";
+        }
+
+        // Format ngày về chuẩn hiển thị Việt Nam.
+        if (key === "start_date" || key === "end_date") {
+          if (!value) return "";
+          const dateVal = new Date(value);
+          return Number.isNaN(dateVal.getTime())
+            ? String(value)
+            : dateVal.toLocaleDateString("vi-VN");
+        }
+
+        return value ?? "";
+      });
+
+      const dataRow = worksheet.addRow(rowData);
+
+      // Zebra row: cứ cách 1 dòng sẽ đổi màu nền để dễ đọc.
+      const bgColor = rowIndex % 2 === 0 ? "FFFFFFFF" : "FFF3F4F6";
+      dataRow.eachCell((cell, colNum) => {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: bgColor },
+        };
+        cell.border = {
+          top: { style: "thin", color: { argb: "FFE5E7EB" } },
+          left: { style: "thin", color: { argb: "FFE5E7EB" } },
+          bottom: { style: "thin", color: { argb: "FFE5E7EB" } },
+          right: { style: "thin", color: { argb: "FFE5E7EB" } },
+        };
+        cell.alignment = { vertical: "center", wrapText: true };
+
+        // Các cột căn phải 
+        const colKey = orderedKeys[colNum - 1];
+        if (
+          colKey === "ProductName" ||
+          colKey === "Price" ||
+          colKey === "sale_price" 
+        ) {
+          cell.alignment = { horizontal: "right", vertical: "middle" };
+        }
+        // Các cột căn giữa
+        else if (
+          colKey === "STT" ||
+          colKey === "isHot" ||
+          colKey === "IsHidden" ||
+          colKey === "StockQuantity"||
+          colKey === "CategoryName"||
+          colKey === "SubCategoryName"||
+          colKey === "Type"||
+          colKey === "SupplierID"
+        ) {
+          cell.alignment = { horizontal: "center", vertical: "middle" };
+        }
+      });
+      dataRow.height = 20;
+    });
+
+    // Bước 7.7: Auto-fit cột theo dữ liệu bảng (bỏ qua title/metadata để tránh bị giãn quá).
+    const maxWidthByKey = {
+      STT: 8,
+      ProductID: 14,
+      Barcode: 22,
+      ProductName: 85,
+      Type: 18,
+      CategoryName: 20,
+      SubCategoryName: 24,
+      Price: 16,
+      sale_price: 18,
+      StockQuantity: 19,
+      SupplierID: 16,
+      isHot: 16,
+      IsHidden: 12,
+      start_date: 21,
+      end_date: 21,
+      discountPercent: 20,
+      discountTimeLeft: 22,
+    };
+
+    orderedKeys.forEach((key, index) => {
+      const headerText = String(columnLabels[key] || key);
+      let maxLength = headerText.length;
+
+      exportRows.forEach((row) => {
+        const value = row[key];
+        let displayText = "";
+
+        if (key === "Price" || key === "sale_price") {
+          const numValue = Number(value) || 0;
+          displayText = numValue > 0 ? `${numValue.toLocaleString("vi-VN")}đ` : "";
+        } else if (key === "isHot" || key === "IsHidden") {
+          displayText =
+            Number(value) === 1 || value === true ? "Có" : "Không";
+        } else if (key === "start_date" || key === "end_date") {
+          if (!value) {
+            displayText = "";
+          } else {
+            const dateVal = new Date(value);
+            displayText = Number.isNaN(dateVal.getTime())
+              ? String(value)
+              : dateVal.toLocaleDateString("vi-VN");
+          }
+        } else {
+          displayText = String(value ?? "");
+        }
+
+        if (displayText.length > maxLength) maxLength = displayText.length;
+      });
+
+      const column = worksheet.getColumn(index + 1);
+      const maxAllowed = maxWidthByKey[key] || 24;
+      // Min width bám theo độ dài tiêu đề để cột luôn vừa header.
+      const minByHeader = headerText.length + 2;
+      const minWidthByKey = {
+        SubCategoryName: 18,
+      };
+      const minAllowed = Math.max(minByHeader, minWidthByKey[key] || 0);
+      column.width = Math.min(Math.max(maxLength + 2, minAllowed), maxAllowed);
+    });
+
+    // Bước 8: Xuất workbook thành file .xlsx và tải xuống trình duyệt.
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `danh-sach-san-pham-${today}.xlsx`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [products]);
+
   // ================= UI =================
 
   return (
@@ -479,7 +768,9 @@ const ProductOverviewComponent = () => {
             <button className="btn-delete" onClick={handleDelete}>
               Xóa
             </button>
-            <button className="btn-export">Xuất Excel</button>
+            <button className="btn-export" onClick={handleExportExcel}>
+              Xuất Excel
+            </button>
 
             {/* 🔧 Toggle filter */}
             <div className="filter-toggle-header" onClick={handleToggleFilter}>

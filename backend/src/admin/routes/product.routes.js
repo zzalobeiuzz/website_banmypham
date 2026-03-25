@@ -5,7 +5,8 @@ const {
   update,
   checkExisProduct,
   addProduct,
-  handleProductDetail
+  handleProductDetail,
+  deleteProducts,
 } = require("../controllers/product.controller");
 
 const upload = require("../middlewares/upload.middleware");
@@ -19,6 +20,8 @@ router.get("/checkProductExistence", checkExisProduct);
 router.get("/productDetail", handleProductDetail);
 // POST: thêm sản phẩm mới (có upload hình ảnh)
 router.post("/add", upload.single("Image"), addProduct);
+// DELETE: xóa mềm sản phẩm (set IsHidden = 1)
+router.delete("/deleteProducts", deleteProducts);
 
 
 module.exports = router;

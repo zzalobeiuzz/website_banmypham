@@ -108,3 +108,37 @@ exports.handleProductDetail = async (req, res) => {
     return res.status(500).json({ success: false, message: "Lỗi server" });
   }
 };
+
+// ===================== ẨN SẢN PHẨM (XÓA MỀM) =====================
+exports.deleteProducts = async (req, res) => {
+  try {
+    const productIds = req.body;
+
+    if (!Array.isArray(productIds) || productIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Danh sách sản phẩm cần xóa không hợp lệ",
+      });
+    }
+
+    const result = await productService.hideProducts(productIds);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        message: result.message || "Không thể ẩn sản phẩm",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Đã ẩn ${result.affectedRows || 0} sản phẩm`,
+    });
+  } catch (error) {
+    console.error("❌ Lỗi deleteProducts:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server khi xóa mềm sản phẩm",
+    });
+  }
+};

@@ -1,8 +1,10 @@
 {
     "editor.bracketPairColorization.enabled": true,
     "editor.guides.bracketPairs": "active",
+    "cSpell.enabled": false,
     "cSpell.words": [
         "CSDL",
+        "exceljs",
         "Hoàn",
         "QLMP",
         "Topbar",

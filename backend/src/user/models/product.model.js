@@ -72,21 +72,26 @@ exports.findAllProducts = async () => {
     const result = await pool.request().query(`
           SELECT 
           P.ProductID,
+          P.Barcode,
           P.ProductName,
+          P.Type,
           P.SupplierID,
           P.Price,
           P.Image,
           P.isHot,
           P.StockQuantity,
           P.CategoryID,
+          P.SubCategoryID,
           P.IsHidden,
-          C.CategoryName,      
+          C.CategoryName,
+          SC.SubCategoryName,
           PS.sale_price,
           PS.start_date,
           PS.end_date
       FROM PRODUCT P
       LEFT JOIN PRODUCT_SALE PS ON P.ProductID = PS.product_id
       LEFT JOIN CATEGORY C ON P.CategoryID = C.CategoryID
+      LEFT JOIN SUB_CATEGORY SC ON P.SubCategoryID = SC.SubCategoryID
       WHERE P.IsHidden = 0
     `);
 

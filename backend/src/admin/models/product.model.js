@@ -519,3 +519,47 @@ exports.addProductDB = async (product) => {
     };
   }
 };
+
+// =========================ẨN SẢN PHẨM (SOFT DELETE)====================
+/**
+ * Ẩn danh sách sản phẩm bằng cách set IsHidden = 1
+ * @param {string[]} productIds - Danh sách ProductID cần ẩn
+ * @returns {Promise<object>} - Kết quả cập nhật
+ */
+exports.hideProductsByIds = async (productIds) => {
+  try {
+    if (!Array.isArray(productIds) || productIds.length === 0) {
+      return { success: false, message: "Danh sách sản phẩm cần ẩn không hợp lệ" };
+    }
+
+    const pool = await connectDB();
+    const request = pool.request();
+
+    const placeholders = productIds.map((id, index) => {
+      const key = `ProductID_${index}`;
+      request.input(key, sql.VarChar(50), id);
+      return `@${key}`;
+    });
+
+    const result = await request.query(`
+      UPDATE PRODUCT
+      SET IsHidden = 1,
+          UpdatedAt = GETDATE()
+      WHERE ProductID IN (${placeholders.join(", ")})
+        AND IsHidden = 0
+    `);
+
+    return {
+      success: true,
+      affectedRows: result.rowsAffected?.[0] || 0,
+      message: "Ẩn sản phẩm thành công",
+    };
+  } catch (error) {
+    console.error("❌ Lỗi khi ẩn sản phẩm:", error.message);
+    return {
+      success: false,
+      message: "Lỗi khi ẩn sản phẩm",
+      error: error.message,
+    };
+  }
+};
