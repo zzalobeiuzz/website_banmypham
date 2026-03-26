@@ -136,9 +136,11 @@
   }
 
   .product-content {
+    --content-gap: 1%;
+    --left-panel-width: 64px;
     display: flex;
     width: 100%;
-    gap: 1%;
+    gap: var(--content-gap);
     text-align: center;
     padding: 0 10px;
     transition: all 0.5s ease;
@@ -150,50 +152,176 @@
     .product-left {
       display: flex;
       flex-direction: column;
-      gap: 20px;
-      flex-basis: 12%;
+      align-items: center;
+      gap: 12px;
+      width: var(--left-panel-width);
+      flex-basis: var(--left-panel-width);
+      min-width: var(--left-panel-width);
+      max-width: var(--left-panel-width);
       flex-shrink: 0;
-      padding: 20px 5px;
-      background-color: #fafafa;
-      border-radius: 10px;
-      transition: flex-basis 0.5s ease, padding 0.5s ease,
-        background-color 0.5s ease;
+      padding: 10px 6px;
+      background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+      border: 1px solid #dbe3ef;
+      border-radius: 12px;
+      transition: flex-basis 0.45s ease, width 0.45s ease,
+        min-width 0.45s ease, max-width 0.45s ease, padding 0.45s ease,
+        background-color 0.45s ease;
       // ✅ Xoá height cố định
       height: auto;
 
-      .filter-toggle-header {
+      .btn-add,
+      .btn-edit-save,
+      .btn-delete,
+      .btn-export {
+        width: 46px;
+        min-height: 46px;
+        padding: 0;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: 0.1px;
         cursor: pointer;
-        margin: 0;
-        text-align: left;
         display: flex;
         align-items: center;
-        gap: 8px;
-        font-weight: bold;
-        justify-content: space-around;
-        transition: opacity 0.5s ease;
+        justify-content: center;
+        transition: transform 0.16s ease, box-shadow 0.16s ease,
+          background-color 0.18s ease, border-color 0.18s ease;
+
+        &:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
+        }
+
+        &:active {
+          transform: translateY(0);
+          box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
+        }
+      }
+
+      .btn-add {
+        background: #1d4ed8;
+        color: #fff;
+      }
+
+      .btn-edit-save {
+        background: #0f766e;
+        color: #fff;
+      }
+
+      .btn-delete {
+        background: #b91c1c;
+        color: #fff;
+      }
+
+      .btn-export {
+        background: #ffffff;
+        color: #0f172a;
+        border-color: #cbd5e1;
+      }
+
+      .filter-toggle-header {
+        cursor: pointer;
+        margin-top: 2px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 46px;
+        min-height: 46px;
+        padding: 0;
+        border-radius: 10px;
+        background: #fff;
+        border: 1px dashed #c3d1e4;
+        color: #334155;
+        font-size: 18px;
+        transition: opacity 0.5s ease, background-color 0.2s ease,
+          border-color 0.2s ease;
+
+        &:hover {
+          background-color: #f8fafc;
+          border-color: #94a3b8;
+        }
       }
 
       .filter-body {
         transition: opacity 0.5s ease;
         opacity: 1;
+        padding: 0 4px;
+        text-align: center;
+        color: #475569;
+        font-size: 13px;
+      }
+
+      .left-toggle-header {
+        cursor: pointer;
+        margin-top: 2px;
+        width: 46px;
+        min-height: 46px;
+        border-radius: 10px;
+        border: 1px dashed #c3d1e4;
+        background: #fff;
+        color: #334155;
+        font-size: 16px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 0.2s ease, border-color 0.2s ease;
+
+        &:hover {
+          background-color: #f8fafc;
+          border-color: #94a3b8;
+        }
+      }
+      
+      .overview-card {
+        width: 100%;
+        margin-top: 6px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: stretch;
+        text-align: left;
+      }
+
+      .overview-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #fff;
+        border: 1px solid #e6eef8;
+        padding: 8px;
+        border-radius: 8px;
+        min-width: 0;
+
+        .label {
+          color: #475569;
+          font-size: 12px;
+        }
+
+        .value {
+          font-weight: 700;
+          color: #0f172a;
+        }
       }
     }
 
     .product-right {
-      flex-grow: 1;
-      flex-shrink: 1;
+      width: calc(100% - var(--left-panel-width) - var(--content-gap));
+      flex: 0 0 calc(100% - var(--left-panel-width) - var(--content-gap));
       min-width: 0;
       background-color: #fefefe;
       padding: 10px 0 0 0;
       box-shadow: 0 0 15px rgba(0, 0, 0, 0.15);
+      transition: flex-basis 0.45s ease, width 0.45s ease;
       // ✅ Xoá height cố định và align-self để cao tự nhiên
       align-self: auto;
+      border-radius: 20px;
 
       .content {
         width: 100%;
         padding: 0 !important;
         margin: 0 !important;
-        border-top: 1px solid #000;
         border-bottom: 1px solid #000;
         overflow-x: auto;
 
@@ -202,6 +330,7 @@
             background-color: #000;
             color: white;
             padding-right: 16px !important;
+            border-radius: 5px;
 
             .field-col {
               padding: 0 2px;
@@ -320,14 +449,9 @@
     }
 
     &.open {
+      --left-panel-width: 18%;
+
       .product-left {
-        flex-basis: 18%;
-
-        .filter-toggle-header {
-          margin-bottom: 10px;
-          align-items: start;
-        }
-
         .filter-body {
           display: flex;
           flex-direction: column;

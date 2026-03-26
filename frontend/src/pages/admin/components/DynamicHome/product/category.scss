@@ -1,0 +1,48 @@
+.category-page {
+  padding: 16px;
+
+  h2 {
+    margin-bottom: 12px;
+    font-size: 20px;
+    color: #111;
+  }
+
+  .category-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+  }
+
+  .category-card {
+    padding: 12px;
+    border-radius: 8px;
+    background: #fff;
+    border: 1px solid #e6eef8;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    .category-name {
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .category-count {
+      color: #475569;
+      font-size: 13px;
+    }
+
+    .category-actions {
+      margin-top: auto;
+
+      button {
+        padding: 8px 12px;
+        background: #1d4ed8;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+    }
+  }
+}
