@@ -255,7 +255,7 @@ const ProductDetail = () => {
                   style={{ cursor: isEdit ? "pointer" : "default" }}
                   onError={(e) => {
                     e.target.onerror = null;
-                    e.target.src = "/images/placeholder.png";
+                    e.target.src = `${UPLOAD_BASE}/pictures/no_image.jpg`;
                   }}
                 />
 

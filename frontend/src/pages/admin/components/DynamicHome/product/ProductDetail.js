@@ -102,7 +102,7 @@ export const ProductDetail = () => {
                       alt={product?.ProductName || "Không có tên"}
                       onError={(e) => {
                         e.target.onerror = null;
-                        e.target.src = "/images/placeholder.png";
+                        e.target.src = `${UPLOAD_BASE}/pictures/no_image.jpg`;
                       }} />
                   </div>
 

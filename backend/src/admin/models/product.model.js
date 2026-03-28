@@ -232,6 +232,7 @@ exports.updateProduct = async (product) => {
     Type,
     Price,
     CategoryID,
+    SubCategoryID,
     StockQuantity,
     UpdatedAt,
     SupplierID,
@@ -249,6 +250,7 @@ exports.updateProduct = async (product) => {
   if (Type !== undefined) updateFields.push(`Type = @Type`);
   if (Price !== undefined) updateFields.push(`Price = @Price`);
   if (CategoryID !== undefined) updateFields.push(`CategoryID = @CategoryID`);
+  if (SubCategoryID !== undefined) updateFields.push(`SubCategoryID = @SubCategoryID`);
   if (StockQuantity !== undefined) updateFields.push(`StockQuantity = @StockQuantity`);
   if (UpdatedAt !== undefined) updateFields.push(`UpdatedAt = @UpdatedAt`);
   if (SupplierID !== undefined) updateFields.push(`SupplierID = @SupplierID`);
@@ -269,6 +271,7 @@ exports.updateProduct = async (product) => {
     .input("Type", sql.NVarChar(sql.MAX), Type ?? null)
     .input("Price", sql.Int, Price ?? null)
     .input("CategoryID", sql.NVarChar(100), CategoryID ?? null)
+    .input("SubCategoryID", sql.NVarChar(100), SubCategoryID ?? null)
     .input("StockQuantity", sql.Int, StockQuantity ?? null)
     .input("UpdatedAt", sql.Date, UpdatedAt ?? new Date()) // Mặc định lấy ngày hiện tại nếu không truyền vào
     .input("SupplierID", sql.NVarChar(100), SupplierID ?? null)

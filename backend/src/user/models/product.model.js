@@ -41,13 +41,19 @@ exports.findCategories = async () => {
   try {
     const pool = await connectDB();
 
-    // Lấy tất cả category
-    const categoryResult = await pool.request().query("SELECT * FROM Category");
+    // Lấy tất cả category chưa bị ẩn
+    const categoryResult = await pool.request().query(`
+      SELECT * FROM Category
+      WHERE IsHidden = 0 OR IsHidden IS NULL
+    `);
 
-    // Lấy tất cả sub-category
+    // Lấy tất cả sub-category chưa bị ẩn
     const subCategoryResult = await pool
       .request()
-      .query("SELECT * FROM SUB_CATEGORY");
+      .query(`
+        SELECT * FROM SUB_CATEGORY
+        WHERE IsHidden = 0 OR IsHidden IS NULL
+      `);
 
     const categories = categoryResult.recordset.map((category) => {
       const subCategories = subCategoryResult.recordset.filter(
@@ -92,7 +98,9 @@ exports.findAllProducts = async () => {
       LEFT JOIN PRODUCT_SALE PS ON P.ProductID = PS.product_id
       LEFT JOIN CATEGORY C ON P.CategoryID = C.CategoryID
       LEFT JOIN SUB_CATEGORY SC ON P.SubCategoryID = SC.SubCategoryID
-      WHERE P.IsHidden = 0
+      WHERE P.IsHidden = 0 OR P.IsHidden IS NULL
+        AND (C.IsHidden = 0 OR C.IsHidden IS NULL)
+        AND (SC.IsHidden = 0 OR SC.IsHidden IS NULL)
     `);
 
     return result.recordset;

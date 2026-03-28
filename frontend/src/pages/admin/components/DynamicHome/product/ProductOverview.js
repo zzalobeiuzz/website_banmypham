@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, Outlet } from "react-router-dom";
 import { FixedSizeList as List } from "react-window"; // 📜 Virtualized list để render danh sách dài
 import {
@@ -30,7 +30,24 @@ const ProductOverviewComponent = () => {
   const [selectedProducts, setSelectedProducts] = useState([]); // 🗂 Danh sách sản phẩm được chọn
   const [editMode, setEditMode] = useState(false); // ✏️ Chế độ chỉnh sửa
   const [searchKeyword, setSearchKeyword] = useState(""); // 🔍 Keyword search
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const categoryButtonsRef = useRef(null);
+  const dragStateRef = useRef({
+    isDragging: false,
+    startX: 0,
+    scrollLeft: 0,
+  });
   const navigate = useNavigate(); // 🔀 Navigate giữa route
+
+  const updateCategoryScrollState = useCallback(() => {
+    const el = categoryButtonsRef.current;
+    if (!el) return;
+
+    const maxScrollLeft = el.scrollWidth - el.clientWidth;
+    setCanScrollLeft(el.scrollLeft > 0);
+    setCanScrollRight(el.scrollLeft < maxScrollLeft - 1);
+  }, []);
 
   // 🌐 Lấy dữ liệu categories & products từ API khi component mount
   useEffect(() => {
@@ -49,6 +66,71 @@ const ProductOverviewComponent = () => {
     };
     fetchData();
   }, [request]);
+
+  useEffect(() => {
+    updateCategoryScrollState();
+  }, [categories, containerVisible, updateCategoryScrollState]);
+
+  useEffect(() => {
+    const onResize = () => updateCategoryScrollState();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [updateCategoryScrollState]);
+
+  const scrollCategoryStrip = (direction) => {
+    const el = categoryButtonsRef.current;
+    if (!el) return;
+
+    el.scrollBy({
+      left: direction * 220,
+      behavior: "smooth",
+    });
+  };
+
+  const handleCategoryMouseDown = (event) => {
+    const el = categoryButtonsRef.current;
+    if (!el) return;
+
+    dragStateRef.current = {
+      isDragging: true,
+      startX: event.pageX - el.offsetLeft,
+      scrollLeft: el.scrollLeft,
+    };
+  };
+
+  const handleCategoryMouseMove = (event) => {
+    const el = categoryButtonsRef.current;
+    if (!el || !dragStateRef.current.isDragging) return;
+
+    event.preventDefault();
+    const x = event.pageX - el.offsetLeft;
+    const walk = (x - dragStateRef.current.startX) * 1.2;
+    el.scrollLeft = dragStateRef.current.scrollLeft - walk;
+  };
+
+  const stopCategoryDragging = () => {
+    dragStateRef.current.isDragging = false;
+  };
+
+  const handleCategoryTouchStart = (event) => {
+    const el = categoryButtonsRef.current;
+    if (!el) return;
+
+    dragStateRef.current = {
+      isDragging: true,
+      startX: event.touches[0].pageX - el.offsetLeft,
+      scrollLeft: el.scrollLeft,
+    };
+  };
+
+  const handleCategoryTouchMove = (event) => {
+    const el = categoryButtonsRef.current;
+    if (!el || !dragStateRef.current.isDragging) return;
+
+    const x = event.touches[0].pageX - el.offsetLeft;
+    const walk = (x - dragStateRef.current.startX) * 1.1;
+    el.scrollLeft = dragStateRef.current.scrollLeft - walk;
+  };
 
   // ➕ Navigate đến trang thêm sản phẩm
   const handleAddProduct = () => {
@@ -260,6 +342,10 @@ const ProductOverviewComponent = () => {
             src={`${UPLOAD_BASE}/pictures/${product.Image}`}
             alt={product.ProductName}
             width="70"
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = `${UPLOAD_BASE}/pictures/no_image.jpg`;
+            }}
           />
         </li>
         <li className="list-price">
@@ -435,57 +521,90 @@ const ProductOverviewComponent = () => {
             </button>
           )}
           {containerVisible && (
-            <div className="category-buttons">
-              {/* Tất cả category */}
+            <div className="category-nav">
               <button
-                className={selectedCategory === "Tất cả" ? "active" : ""}
-                onClick={() => setSelectedCategory("Tất cả")}
+                type="button"
+                className="category-nav-arrow"
+                onClick={() => scrollCategoryStrip(-1)}
+                disabled={!canScrollLeft}
+                title="Danh mục trước"
               >
-                Tất cả
+                ◀
               </button>
-              {/* Category dynamic */}
-              {categories.map((category, index) => {
-                const total = categories.length;
-                const delay = showCategories
-                  ? `${index * 0.1}s`
-                  : `${(total - 1 - index) * 0.1}s`;
-                return (
+
+              <div
+                className="category-buttons"
+                ref={categoryButtonsRef}
+                onScroll={updateCategoryScrollState}
+                onMouseDown={handleCategoryMouseDown}
+                onMouseMove={handleCategoryMouseMove}
+                onMouseUp={stopCategoryDragging}
+                onMouseLeave={stopCategoryDragging}
+                onTouchStart={handleCategoryTouchStart}
+                onTouchMove={handleCategoryTouchMove}
+                onTouchEnd={stopCategoryDragging}
+              >
+                {/* Tất cả category */}
+                <button
+                  className={selectedCategory === "Tất cả" ? "active" : ""}
+                  onClick={() => setSelectedCategory("Tất cả")}
+                >
+                  Tất cả
+                </button>
+                {/* Category dynamic */}
+                {categories.map((category, index) => {
+                  const total = categories.length;
+                  const delay = showCategories
+                    ? `${index * 0.1}s`
+                    : `${(total - 1 - index) * 0.1}s`;
+                  return (
+                    <button
+                      key={category.CategoryID}
+                      className={
+                        selectedCategory === category.CategoryName ? "active" : ""
+                      }
+                      onClick={() => setSelectedCategory(category.CategoryName)}
+                      style={{
+                        transition: "opacity 0.4s ease, transform 0.4s ease",
+                        transitionDelay: delay,
+                        transform: showCategories
+                          ? "translateX(0)"
+                          : "translateX(-20px)",
+                        opacity: showCategories ? 1 : 0,
+                      }}
+                    >
+                      {category.CategoryName}
+                    </button>
+                  );
+                })}
+                {/* Close button */}
+                {showCloseButton && (
                   <button
-                    key={category.CategoryID}
-                    className={
-                      selectedCategory === category.CategoryName ? "active" : ""
-                    }
-                    onClick={() => setSelectedCategory(category.CategoryName)}
+                    className="close-button"
+                    onClick={handleCloseCategories}
                     style={{
                       transition: "opacity 0.4s ease, transform 0.4s ease",
-                      transitionDelay: delay,
+                      transitionDelay: `${categories.length * 0.1 + 0.1}s`,
                       transform: showCategories
                         ? "translateX(0)"
                         : "translateX(-20px)",
                       opacity: showCategories ? 1 : 0,
                     }}
                   >
-                    {category.CategoryName}
+                    ✖ Đóng
                   </button>
-                );
-              })}
-              {/* Close button */}
-              {showCloseButton && (
-                <button
-                  className="close-button"
-                  onClick={handleCloseCategories}
-                  style={{
-                    transition: "opacity 0.4s ease, transform 0.4s ease",
-                    transitionDelay: `${categories.length * 0.1 + 0.1}s`,
-                    transform: showCategories
-                      ? "translateX(0)"
-                      : "translateX(-20px)",
-                    opacity: showCategories ? 1 : 0,
-                  }}
-                >
-                  ✖ Đóng
-                </button>
-              )}
+                )}
+              </div>
+
+              <button
+                type="button"
+                className="category-nav-arrow"
+                onClick={() => scrollCategoryStrip(1)}
+                disabled={!canScrollRight}
+                title="Danh mục tiếp"
+              >
+                ▶
+              </button>
             </div>
           )}
         </div>

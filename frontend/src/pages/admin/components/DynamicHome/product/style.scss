@@ -6,7 +6,6 @@
   justify-content: space-between;
   margin: 0 !important;
   // border-bottom: 1px solid black;
-  
 
   .list-stt {
     flex: 0.5;
@@ -70,14 +69,15 @@
     display: flex;
     align-items: center;
     width: 100%;
-    height: 70px;
-    padding: 0 10px;
+    min-height: 70px;
+    height: auto;
+    padding: 6px 10px;
     background-color: #fff;
     border-bottom: 1px solid #ddd;
     font-weight: bold;
     font-size: 15px;
     color: #333;
-    overflow: hidden;
+    overflow: visible;
     margin-bottom: 10px;
 
     .toggle-button {
@@ -100,22 +100,44 @@
     .category-buttons {
       display: flex;
       flex-wrap: nowrap;
-      gap: 6px;
-      overflow: hidden;
-      flex: 1;
+      gap: 8px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      flex: 1 1 auto;
+      min-width: 0;
+      scrollbar-width: none;
+      scroll-behavior: smooth;
+      scroll-snap-type: x proximity;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      padding: 2px 0;
+      box-shadow: none;
+      cursor: grab;
+
+      &:active {
+        cursor: grabbing;
+      }
+
+      &::-webkit-scrollbar {
+        display: none;
+      }
 
       button {
         flex: none;
         min-width: 100px;
+        scroll-snap-align: start;
         padding: 8px;
-        margin: 10px 0;
+        margin: 2px 0;
         border-radius: 20px;
         border: 1px solid #000;
         background-color: #000;
         color: #fff;
         white-space: nowrap;
         cursor: pointer;
-        transition: background-color 0.1s, color 0.1s;
+        transition:
+          background-color 0.1s,
+          color 0.1s;
 
         &:hover {
           background-color: #f0f0f0;
@@ -131,6 +153,38 @@
           background-color: #000;
           color: #72cae8;
         }
+      }
+    }
+
+    .category-nav {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      width: 100%;
+      min-width: 0;
+    }
+
+    .category-nav-arrow {
+      min-width: 20px;
+      height: 20px;
+      padding: 0;
+      font-size: 11px;
+      border-radius: 999px;
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #1e293b;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover:not(:disabled) {
+        background: #0f172a;
+        color: #fff;
+        border-color: #0f172a;
+      }
+
+      &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
       }
     }
   }
@@ -163,8 +217,12 @@
       background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
       border: 1px solid #dbe3ef;
       border-radius: 12px;
-      transition: flex-basis 0.45s ease, width 0.45s ease,
-        min-width 0.45s ease, max-width 0.45s ease, padding 0.45s ease,
+      transition:
+        flex-basis 0.45s ease,
+        width 0.45s ease,
+        min-width 0.45s ease,
+        max-width 0.45s ease,
+        padding 0.45s ease,
         background-color 0.45s ease;
       // ✅ Xoá height cố định
       height: auto;
@@ -185,8 +243,11 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: transform 0.16s ease, box-shadow 0.16s ease,
-          background-color 0.18s ease, border-color 0.18s ease;
+        transition:
+          transform 0.16s ease,
+          box-shadow 0.16s ease,
+          background-color 0.18s ease,
+          border-color 0.18s ease;
 
         &:hover {
           transform: translateY(-1px);
@@ -234,7 +295,9 @@
         border: 1px dashed #c3d1e4;
         color: #334155;
         font-size: 18px;
-        transition: opacity 0.5s ease, background-color 0.2s ease,
+        transition:
+          opacity 0.5s ease,
+          background-color 0.2s ease,
           border-color 0.2s ease;
 
         &:hover {
@@ -266,14 +329,16 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: background-color 0.2s ease, border-color 0.2s ease;
+        transition:
+          background-color 0.2s ease,
+          border-color 0.2s ease;
 
         &:hover {
           background-color: #f8fafc;
           border-color: #94a3b8;
         }
       }
-      
+
       .overview-card {
         width: 100%;
         margin-top: 6px;
@@ -313,7 +378,9 @@
       background-color: #fefefe;
       padding: 10px 0 0 0;
       box-shadow: 0 0 15px rgba(0, 0, 0, 0.15);
-      transition: flex-basis 0.45s ease, width 0.45s ease;
+      transition:
+        flex-basis 0.45s ease,
+        width 0.45s ease;
       // ✅ Xoá height cố định và align-self để cao tự nhiên
       align-self: auto;
       border-radius: 20px;
@@ -343,7 +410,7 @@
           }
         }
 
-        .data { 
+        .data {
           min-height: 100px;
 
           .row-data {
@@ -380,7 +447,9 @@
               background-color: #fcfdff;
               color: #111;
               box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
-              transition: border-color 0.18s ease, box-shadow 0.18s ease,
+              transition:
+                border-color 0.18s ease,
+                box-shadow 0.18s ease,
                 background-color 0.18s ease;
 
               &:hover {
@@ -416,7 +485,9 @@
                 caret-color: #000000 !important;
                 background-color: #fcfdff;
                 box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
-                transition: border-color 0.18s ease, box-shadow 0.18s ease,
+                transition:
+                  border-color 0.18s ease,
+                  box-shadow 0.18s ease,
                   background-color 0.18s ease;
 
                 &:hover {

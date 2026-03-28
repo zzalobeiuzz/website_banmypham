@@ -12,6 +12,7 @@ import MasterLayout from "./pages/user/theme/masterLayout/masterLayout.js";
 import AddProduct from "./pages/admin/components/DynamicHome/product/AddProduct.js";
 import { ProductOverview } from "./pages/admin/components/DynamicHome/product/ProductOverview.js";
 import CategoryPage from "./pages/admin/components/DynamicHome/product/CategoryPage.js";
+import CategoryProductsPage from "./pages/admin/components/DynamicHome/product/CategoryProductsPage.js";
 import AdminHomepage from "./pages/admin/homepage/homepage.js";
 import AdminMasterLayout from "./pages/admin/theme/masterLayout.js";
 import ProductTable from "./pages/admin/components/DynamicHome/product/ProductTable.js";
@@ -36,10 +37,14 @@ const adminRoutes = [
         path: ROUTERS.ADMIN.PRODUCT.ADD.replace("product/", ""), // ➕ Thêm sản phẩm (/admin/product/add)
         element: <AddProduct />,
       },
-        {
-          path: "product/categories",
-          element: <CategoryPage />,
-        },
+      {
+        path: ROUTERS.ADMIN.CATEGORY.INDEX.replace("product/", ""), // 📂 Danh mục sản phẩm (/admin/product/categories)
+        element: <CategoryPage />,
+      },
+      {
+        path: ROUTERS.ADMIN.CATEGORY.PRODUCTS.replace("product/", ""), // 📦 Sản phẩm theo danh mục (/admin/product/categories/:categoryId/products)
+        element: <CategoryProductsPage />,
+      },
       {
         path: ROUTERS.ADMIN.PRODUCT.DETAIL.replace("product/", ""), // 🔍 Chi tiết sản phẩm (/admin/product/detail/:id)
         element: <ProductTable />,

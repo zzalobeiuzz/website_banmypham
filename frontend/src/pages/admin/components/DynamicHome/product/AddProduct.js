@@ -216,8 +216,8 @@ const AddProduct = () => {
 
   const resetFormForNewInput = ({ productCode = "", barcode = "" }) => {
     setProductData({
-      productCode,
-      barcode,
+      productCode: productCode || productData.productCode, // Giữ lại nếu không truyền mới
+      barcode: barcode || productData.barcode,             // Giữ lại nếu không truyền mới
       detailID: "",
       name: "",
       price: "",
@@ -478,6 +478,13 @@ const AddProduct = () => {
     const nextFocusedElement = event?.relatedTarget;
     if (nextFocusedElement?.closest?.(".barcode-actions")) {
       return;
+    }
+
+    // Chỉ kiểm tra field mà user vừa blur, không reset field khác
+    const fieldValue = field === "barcode" ? productData.barcode : productData.productCode;
+    
+    if (!fieldValue || !String(fieldValue).trim()) {
+      return; // Nếu field này rỗng thì bỏ qua kiểm tra
     }
 
     const identityPayload =

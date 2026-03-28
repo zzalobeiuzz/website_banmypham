@@ -12,16 +12,23 @@ export const ROUTERS = {
   
       // Nhóm đường dẫn sản phẩm (Product)
       PRODUCT: {              // Danh sách sản phẩm: /admin/product
+        INDEX: "product",               // Danh sách sản phẩm: /admin/product
         ADD: "product/add",             // Thêm sản phẩm: /admin/product/add
         DETAIL: "product/detail/:id",   // Chi tiết sản phẩm: /admin/product/detail/123
         EDIT: "product/edit/:id",       // Sửa sản phẩm: /admin/product/edit/123
       },
   
+      // Nhóm đường dẫn danh mục (Category)
+      CATEGORY: {
+        INDEX: "product/categories",    // Danh sách danh mục: /admin/product/categories
+        PRODUCTS: "product/categories/:categoryId/products", // Sản phẩm theo danh mục: /admin/product/categories/:categoryId/products
+      },
+  
       // Nhóm đường dẫn đơn hàng (Order)
       ORDER: {
-        INDEX: "order",                 // Danh sách đơn hàng: /admin/order     // Chi tiết đơn hàng: /admin/order/detail/123
-        ADD: "order/add",               // Thêm đơn hàng: /admin/order/add
-        DETAIL: "order/detail/:id",     // Chi tiết đơn hàng: /admin/order/detail/123
+        INDEX: "admin/order",                 // Danh sách đơn hàng: /admin/order
+        ADD: "admin/order/add",               // Thêm đơn hàng: /admin/order/add
+        DETAIL: "admin/order/detail/:id",     // Chi tiết đơn hàng: /admin/order/detail/123
       },
     },
   

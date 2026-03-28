@@ -4,6 +4,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { API_BASE, UPLOAD_BASE } from "../../../constants";
+import { ROUTERS } from "../../../utils/router";
 import useHttp from "../../../hooks/useHttp";
 import "./style.scss";
 
@@ -55,9 +56,9 @@ const Homepage = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const managementItems = [
-    { icon: "icons-product-management.png", label: "Sản phẩm", path: "/admin" },
-    { icon: "icons-order.png", label: "Đơn hàng", path: "/admin/order" },
-    { icon: "icons-product-category.png", label: "Danh mục", path: "/admin/category" },
+    { icon: "icons-product-management.png", label: "Sản phẩm", path: `/${ROUTERS.ADMIN.HOME}` },
+    { icon: "icons-order.png", label: "Đơn hàng", path: `/${ROUTERS.ADMIN.HOME}/${ROUTERS.ADMIN.ORDER.INDEX}` },
+    { icon: "icons-product-category.png", label: "Danh mục", path: `/${ROUTERS.ADMIN.HOME}/${ROUTERS.ADMIN.CATEGORY.INDEX}` },
     { icon: "icons-shipment.png", label: "Lô hàng", path: "/admin/shipment" },
     { icon: "icons-customer.png", label: "Khách hàng", path: "/admin/customer" },
     { icon: "icons-account.png", label: "Tài khoản", path: "/admin/account" },
