@@ -109,6 +109,29 @@ exports.handleProductDetail = async (req, res) => {
   }
 };
 
+//=======================CẬP NHẬT CHI TIẾT SẢN PHẨM + LÔ HÀNG==============================
+exports.updateProductDetail = async (req, res) => {
+  try {
+    const payload = req.body || {};
+    if (!payload.ProductID) {
+      return res.status(400).json({
+        success: false,
+        message: "Thiếu ProductID",
+      });
+    }
+
+    const result = await productService.updateProductDetailWithBatches(payload);
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error("❌ Lỗi updateProductDetail:", error.message);
+    return res.status(500).json({ success: false, message: "Lỗi server khi cập nhật chi tiết sản phẩm" });
+  }
+};
+
 // ===================== ẨN SẢN PHẨM (XÓA MỀM) =====================
 exports.deleteProducts = async (req, res) => {
   try {

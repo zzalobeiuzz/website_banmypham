@@ -6,6 +6,7 @@ const {
   checkExisProduct,
   addProduct,
   handleProductDetail,
+  updateProductDetail,
   deleteProducts,
 } = require("../controllers/product.controller");
 
@@ -18,6 +19,7 @@ router.put("/updateProducts", update);
 router.get("/checkProductExistence", checkExisProduct);
 // GET: Lấy thông tin sản phẩm
 router.get("/productDetail", handleProductDetail);
+router.put("/updateProductDetail", updateProductDetail);
 // POST: thêm sản phẩm mới (có upload hình ảnh)
 router.post("/add", upload.single("Image"), addProduct);
 // DELETE: xóa mềm sản phẩm (set IsHidden = 1)

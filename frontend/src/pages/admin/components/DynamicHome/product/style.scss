@@ -582,6 +582,20 @@
           }
         }
 
+        &.btn-print {
+          background-color: #0f766e;
+          color: #fff;
+
+          &:hover {
+            background-color: #0d5f58;
+          }
+
+          &:disabled {
+            background-color: #8ecbc6;
+            cursor: not-allowed;
+          }
+        }
+
         &.btn-save {
           background-color: #16a34a;
           color: #fff;
@@ -691,6 +705,16 @@
         letter-spacing: 0.4px;
       }
 
+      select {
+        width: 100%;
+        height: 38px;
+        padding: 8px 10px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        margin-bottom: 8px;
+        background: #fff;
+      }
+
       .barcode-value {
         min-height: 22px;
         font-family: "Courier New", Courier, monospace;
@@ -721,6 +745,81 @@
           content: "Chua co vach barcode";
           font-size: 12px;
           color: #6b7280;
+        }
+      }
+
+      .btn-print-inline {
+        margin-top: 10px;
+        width: 100%;
+        height: 36px;
+        border: none;
+        border-radius: 6px;
+        background: #0f766e;
+        color: #fff;
+        font-weight: 600;
+        cursor: pointer;
+
+        &:disabled {
+          cursor: not-allowed;
+          background: #8ecbc6;
+        }
+      }
+
+      .batch-barcode-list {
+        margin-top: 10px;
+        border-top: 1px solid #dbe4f0;
+        padding-top: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+
+        &__title {
+          font-size: 12px;
+          font-weight: 700;
+          color: #334155;
+        }
+
+        &__total {
+          font-size: 12px;
+          font-weight: 600;
+          color: #0f766e;
+        }
+
+        &__row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 8px;
+          padding: 6px 8px;
+          border: 1px solid #e2e8f0;
+          border-radius: 6px;
+          background: #ffffff;
+        }
+
+        &__left {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          min-width: 0;
+        }
+
+        &__barcode {
+          font-family: "Courier New", Courier, monospace;
+          font-size: 12px;
+          color: #1f2937;
+          word-break: break-all;
+        }
+
+        &__qty {
+          font-size: 12px;
+          font-weight: 700;
+          color: #1d4ed8;
+          white-space: nowrap;
+        }
+
+        &__import-date {
+          font-size: 11px;
+          color: #64748b;
         }
       }
     }
@@ -767,6 +866,263 @@
         padding: 8px;
         border: 1px solid #ccc;
         border-radius: 4px;
+      }
+
+      .rich-text-editor {
+        display: block;
+        width: 100%;
+        min-height: 220px;
+        position: relative;
+        isolation: isolate;
+
+        .ql-toolbar.ql-snow {
+          border: 1px solid #d1d5db;
+          border-radius: 6px 6px 0 0;
+          display: block;
+          visibility: visible;
+        }
+
+        .ql-container.ql-snow {
+          min-height: 180px;
+          border: 1px solid #d1d5db;
+          border-top: none;
+          border-radius: 0 0 6px 6px;
+          background: #fff;
+          display: block;
+          visibility: visible;
+        }
+
+        .ql-editor {
+          min-height: 150px;
+          display: block;
+          visibility: visible;
+        }
+      }
+
+      .rich-text-fallback {
+        margin-top: 8px;
+        min-height: 140px;
+        width: 100%;
+        display: block;
+        resize: vertical;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        background: #ffffff;
+      }
+
+      &.lot-editor-block {
+        border: 1px solid #dbe4f0;
+        border-radius: 10px;
+        padding: 10px;
+        background: #f8fbff;
+
+        .lot-editor-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 8px;
+
+          label {
+            margin: 0;
+            font-size: 14px;
+          }
+
+          .btn-add-lot {
+            border: 1px solid #0d6efd;
+            background: #0d6efd;
+            color: #fff;
+            border-radius: 6px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+          }
+
+          &__right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
+
+          .lot-editor-existing-count {
+            font-size: 12px;
+            color: #0f766e;
+            font-weight: 600;
+          }
+        }
+
+        .lot-editor-list {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .lot-selector-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 8px;
+
+          span {
+            font-size: 12px;
+            font-weight: 800;
+            color: #334155;
+            white-space: nowrap;
+          }
+
+          select {
+            flex: 1;
+          }
+
+          .lot-selector-filter {
+            flex: 1;
+            min-width: 200px;
+          }
+
+          .lot-selector-autocomplete {
+            flex: 1;
+            position: relative;
+
+            .lot-selector-filter {
+              width: 100%;
+
+              &:disabled {
+                background: #f1f5f9;
+                color: #64748b;
+                cursor: not-allowed;
+              }
+            }
+
+            .lot-selector-dropdown {
+              position: absolute;
+              top: calc(100% + 4px);
+              left: 0;
+              right: 0;
+              max-height: 220px;
+              overflow-y: auto;
+              background: #fff;
+              border: 1px solid #cbd5e1;
+              border-radius: 6px;
+              box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+              z-index: 30;
+              padding: 4px;
+            }
+
+            .lot-selector-option {
+              width: 100%;
+              text-align: left;
+              border: none;
+              background: #fff;
+              padding: 7px 8px;
+              border-radius: 4px;
+              cursor: pointer;
+              font-family: "Courier New", monospace;
+              font-size: 12px;
+
+              &:hover {
+                background: #eff6ff;
+              }
+            }
+
+            .lot-selector-hint {
+              margin-top: 4px;
+              font-size: 11px;
+              color: #64748b;
+            }
+          }
+        }
+
+        .all-batches-list {
+          border: 1px solid #dbe4f0;
+          border-radius: 8px;
+          background: #fff;
+          padding: 8px;
+          margin-bottom: 10px;
+          max-height: 220px;
+          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+
+          &__title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #334155;
+          }
+
+          &__empty {
+            font-size: 12px;
+            color: #64748b;
+            padding: 4px 0;
+          }
+
+          &__row {
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 6px;
+            background: #f8fafc;
+          }
+
+          &__id {
+            font-family: "Courier New", monospace;
+            font-size: 12px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 3px;
+          }
+
+          &__meta {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            font-size: 11px;
+            color: #475569;
+          }
+        }
+
+        .lot-editor-row {
+          display: grid;
+          grid-template-columns: 1fr 1.2fr 0.55fr 0.8fr 0.8fr auto;
+          gap: 8px;
+          align-items: end;
+          background: #fff;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          padding: 8px;
+        }
+
+        .lot-editor-field {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+
+          span {
+            font-size: 11px;
+            font-weight: 600;
+            color: #475569;
+          }
+
+          input {
+            width: 100%;
+          }
+        }
+
+        .btn-remove-lot {
+          border: 1px solid #ef4444;
+          color: #ef4444;
+          background: #fff;
+          border-radius: 6px;
+          height: 34px;
+          padding: 0 12px;
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 600;
+
+          &:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+          }
+        }
       }
     }
 
@@ -1030,6 +1386,18 @@
       border-radius: 12px;
       box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
       animation: fadeIn 0.5s ease forwards;
+      height: auto;
+    }
+
+    &__inactive {
+      margin: 20px auto;
+      padding: 14px 16px;
+      border-radius: 10px;
+      border: 1px solid #f5c2c7;
+      background: #fff5f5;
+      color: #842029;
+      font-size: 15px;
+      font-weight: 500;
     }
 
     // =======================
@@ -1162,6 +1530,35 @@
           margin-left: 5px;
           font-weight: normal;
         }
+
+        &.price-edit {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #1f2937;
+          font-size: 15px;
+
+          strong {
+            font-size: 15px;
+          }
+
+          input {
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 6px 8px;
+            width: 200px;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.2px;
+            text-align: right;
+          }
+
+          .price-currency {
+            color: #374151;
+            font-size: 14px;
+            font-weight: 600;
+          }
+        }
       }
 
       p.stock,
@@ -1179,6 +1576,265 @@
           padding: 3px 10px;
           border-radius: 6px;
           max-width: 60px;
+        }
+      }
+
+      .lot-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-width: 680px;
+
+        .lot-empty {
+          font-size: 13px;
+          color: #6c757d;
+          margin: 0;
+        }
+
+        .lot-content {
+          display: grid;
+          grid-template-columns: 1.35fr 0.95fr;
+          gap: 10px;
+          align-items: start;
+        }
+
+        .lot-list {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          max-height: none;
+          overflow: visible;
+          padding-right: 4px;
+        }
+
+        .lot-item-row {
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 8px;
+          align-items: stretch;
+
+          &.is-active .lot-item {
+            border-color: #0d6efd;
+            background: #eef5ff;
+          }
+        }
+
+        .lot-item {
+          border: 1px solid #d9d9d9;
+          border-radius: 8px;
+          background: #fff;
+          text-align: left;
+          padding: 6px 8px;
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+
+          &:hover {
+            border-color: #0d6efd;
+            background: #f4f8ff;
+          }
+
+          &__id {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1f2937;
+          }
+
+          &__meta {
+            margin-top: 2px;
+          }
+
+          &__import-date {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 1px;
+          }
+
+          &__barcode {
+            border: 1px dashed #cbd5e1;
+            border-radius: 6px;
+            background: #fff;
+            padding: 3px 5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+
+            svg {
+              width: 100%;
+              max-width: 160px;
+              height: 28px;
+            }
+          }
+
+          &__barcode-text {
+            font-family: "Courier New", monospace;
+            font-size: 11px;
+            color: #374151;
+            letter-spacing: 0.3px;
+            text-align: center;
+            word-break: break-all;
+            line-height: 1.2;
+          }
+
+          &__barcode-empty {
+            font-size: 11px;
+            color: #6b7280;
+          }
+        }
+
+        .btn-lot-print {
+          border: none;
+          border-radius: 8px;
+          padding: 0 10px;
+          background: #0f766e;
+          color: #fff;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          white-space: nowrap;
+          transition: background 0.2s ease;
+
+          &:hover {
+            background: #0d5f58;
+          }
+
+          &:disabled {
+            background: #8ecbc6;
+            cursor: not-allowed;
+          }
+        }
+
+        .lot-detail {
+          border: 1px solid #dbe6f5;
+          background: #f8fbff;
+          border-radius: 8px;
+          padding: 8px 10px;
+          display: grid;
+          gap: 5px;
+          min-height: 100%;
+
+          p {
+            margin: 0;
+            font-size: 13px;
+            color: #374151;
+
+            strong {
+              color: #111827;
+              font-size: 13px;
+            }
+          }
+        }
+
+        @media (max-width: 768px) {
+          .lot-content {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        &.is-edit {
+          .lot-edit-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+
+            .lot-edit-select {
+              border: 1px solid #dbe6f5;
+              border-radius: 8px;
+              background: #fff;
+              text-align: left;
+              padding: 8px 10px;
+              display: flex;
+              flex-direction: column;
+              gap: 3px;
+              font-size: 13px;
+              font-weight: 600;
+              color: #1f2937;
+              cursor: pointer;
+
+              small {
+                font-size: 11px;
+                color: #64748b;
+                font-weight: 500;
+              }
+
+              &.is-selected {
+                border-color: #0d6efd;
+                background: #eef5ff;
+              }
+            }
+          }
+
+          .lot-edit-form {
+            display: grid;
+            gap: 8px;
+            padding: 10px;
+            border: 1px solid #dbe6f5;
+            border-radius: 10px;
+            background: linear-gradient(180deg, #f9fcff 0%, #f3f8ff 100%);
+
+            .lot-edit-title {
+              font-size: 14px;
+              font-weight: 600;
+              color: #1f2937;
+            }
+
+            .lot-edit-import-date {
+              font-size: 12px;
+              color: #0f766e;
+              font-weight: 600;
+            }
+
+            .lot-edit-row-inline {
+              display: grid;
+              grid-template-columns: 1.2fr 0.8fr 0.9fr;
+              gap: 8px;
+
+              .lot-edit-field {
+                display: grid;
+                gap: 5px;
+                padding: 8px;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                background: #ffffff;
+
+                &__label {
+                  font-size: 12px;
+                  color: #475569;
+                  font-weight: 600;
+                }
+
+                input {
+                  border: 1px solid #cbd5e1;
+                  border-radius: 6px;
+                  padding: 7px 9px;
+                  font-size: 13px;
+                  background: #fff;
+                  color: #1f2937;
+                  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+                  &:focus {
+                    outline: none;
+                    border-color: #0d6efd;
+                    box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.12);
+                  }
+                }
+              }
+            }
+          }
+
+          @media (max-width: 900px) {
+            .lot-edit-form {
+              padding: 10px;
+
+              .lot-edit-row-inline {
+                grid-template-columns: 1fr;
+              }
+            }
+          }
         }
       }
     }

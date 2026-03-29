@@ -1,4 +1,10 @@
-const {findSaleProducts,findHotProducts,findCategories,findAllProducts } = require("../models/product.model");
+const {
+  findSaleProducts,
+  findHotProducts,
+  findCategories,
+  findAllProducts,
+  syncExpiredBatchDetailsStatus,
+} = require("../models/product.model");
 const { calculateDiscountPercent, calculateTimeLeft } = require("../utils/productUtils");
 
 // ================================ LẤY DANH SÁCH SẢN PHẨM SALE ==============================
@@ -34,6 +40,8 @@ exports.getAllCategories = async () => {
 // ================================ LẤY TẤT CẢ SẢN PHẨM ==============================
 exports.getAllProducts = async () => {
   try {
+    await syncExpiredBatchDetailsStatus();
+
     const data = await findAllProducts();
 
     // Nếu sản phẩm có trường giảm giá, thêm % giảm và thời gian còn lại (nếu cần)

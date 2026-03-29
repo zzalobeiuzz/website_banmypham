@@ -11,11 +11,12 @@ import MasterLayout from "./pages/user/theme/masterLayout/masterLayout.js";
 // ========== 🛠️ ADMIN IMPORTS ==========
 import AddProduct from "./pages/admin/components/DynamicHome/product/AddProduct.js";
 import { ProductOverview } from "./pages/admin/components/DynamicHome/product/ProductOverview.js";
-import CategoryPage from "./pages/admin/components/DynamicHome/product/CategoryPage.js";
-import CategoryProductsPage from "./pages/admin/components/DynamicHome/product/CategoryProductsPage.js";
+import CategoryPage from "./pages/admin/components/DynamicHome/category/CategoryPage.js";
+import CategoryProductsPage from "./pages/admin/components/DynamicHome/category/CategoryProductsPage.js";
 import AdminHomepage from "./pages/admin/homepage/homepage.js";
 import AdminMasterLayout from "./pages/admin/theme/masterLayout.js";
 import ProductTable from "./pages/admin/components/DynamicHome/product/ProductTable.js";
+import BatchesPage from "./pages/admin/components/DynamicHome/batches/BatchesPage.js";
 import OrderPage from "./pages/admin/components/DynamicHome/order/OrderPage.js";
 import AddOrder from "./pages/admin/components/DynamicHome/order/AddOrder.js";
 
@@ -59,6 +60,12 @@ const adminRoutes = [
         path: ROUTERS.ADMIN.ORDER.ADD.replace("order/", ""), // ➕ Thêm đơn hàng (/admin/order/add)
         element: <AddOrder />,
       },
+    ],
+  },
+  {
+    path: ROUTERS.ADMIN.SHIPMENT.INDEX || "shipment", // 🚚 Lô hàng
+    children: [
+      { index: true, element: <BatchesPage /> },
     ],
   },
 ];

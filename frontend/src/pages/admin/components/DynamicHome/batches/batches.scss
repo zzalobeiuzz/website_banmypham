@@ -1,0 +1,69 @@
+.lo-hang-page {
+  .lo-hang-card {
+    background: #ffffff;
+    border: 1px solid #dbe6f4;
+    border-radius: 12px;
+    padding: 12px;
+
+    .lo-hang-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+
+      h3 {
+        margin: 0;
+        font-size: 16px;
+        color: #0f172a;
+      }
+
+      span {
+        font-size: 12px;
+        font-weight: 700;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
+        background: #eff6ff;
+        border-radius: 999px;
+        padding: 4px 10px;
+      }
+    }
+
+    .lo-hang-empty {
+      border: 1px dashed #cbd5e1;
+      border-radius: 10px;
+      background: #f8fafc;
+      color: #475569;
+      text-align: center;
+      padding: 18px;
+    }
+
+    .lo-hang-table-wrap {
+      overflow: auto;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+    }
+
+    .lo-hang-table {
+      width: 100%;
+      border-collapse: collapse;
+
+      th,
+      td {
+        text-align: left;
+        padding: 10px;
+        border-bottom: 1px solid #eef2f7;
+        white-space: nowrap;
+      }
+
+      th {
+        background: #f8fafc;
+        color: #0f172a;
+        font-size: 12px;
+      }
+
+      tbody tr:hover {
+        background: #f9fbff;
+      }
+    }
+  }
+}

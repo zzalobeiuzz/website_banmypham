@@ -30,6 +30,10 @@ export const ROUTERS = {
         ADD: "admin/order/add",               // Thêm đơn hàng: /admin/order/add
         DETAIL: "admin/order/detail/:id",     // Chi tiết đơn hàng: /admin/order/detail/123
       },
+
+      SHIPMENT: {
+        INDEX: "shipment",                    // Danh sách lô hàng: /admin/shipment
+      },
     },
   
     // Đường dẫn trang không tìm thấy

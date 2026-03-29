@@ -1,5 +1,43 @@
 const { connectDB } = require("../../config/connect");
 
+// ===============ĐỒNG BỘ LÔ HẾT HẠN===============
+exports.syncExpiredBatchDetailsStatus = async () => {
+  try {
+    const pool = await connectDB();
+    const result = await pool.request().query(`
+      DECLARE @expiryColumn SYSNAME = NULL;
+
+      IF COL_LENGTH('BATCH_DETAIL', 'ExpiryDate') IS NOT NULL SET @expiryColumn = 'ExpiryDate';
+      ELSE IF COL_LENGTH('BATCH_DETAIL', 'ExpiredDate') IS NOT NULL SET @expiryColumn = 'ExpiredDate';
+      ELSE IF COL_LENGTH('BATCH_DETAIL', 'ExpireDate') IS NOT NULL SET @expiryColumn = 'ExpireDate';
+
+      IF @expiryColumn IS NULL OR COL_LENGTH('BATCH_DETAIL', 'IsActive') IS NULL
+      BEGIN
+        SELECT 0 AS UpdatedRows;
+        RETURN;
+      END
+
+      DECLARE @sql NVARCHAR(MAX) = N'
+        UPDATE BD
+        SET BD.IsActive = 0
+        FROM BATCH_DETAIL BD
+        WHERE ISNULL(BD.IsActive, 1) = 1
+          AND BD.' + QUOTENAME(@expiryColumn) + N' IS NOT NULL
+          AND CAST(BD.' + QUOTENAME(@expiryColumn) + N' AS DATE) < CAST(GETDATE() AS DATE);
+
+        SELECT @@ROWCOUNT AS UpdatedRows;
+      ';
+
+      EXEC sp_executesql @sql;
+    `);
+
+    return Number(result.recordset?.[0]?.UpdatedRows || 0);
+  } catch (error) {
+    console.error("❌ Lỗi đồng bộ lô hết hạn phía user:", error.message);
+    return 0;
+  }
+};
+
 //===============TRUY VẤN SẢN PHẨM SALE===============
 exports.findSaleProducts = async () => {
   const pool = await connectDB();
@@ -78,14 +116,13 @@ exports.findAllProducts = async () => {
     const result = await pool.request().query(`
           SELECT 
           P.ProductID,
-          P.Barcode,
           P.ProductName,
           P.Type,
           P.SupplierID,
           P.Price,
           P.Image,
           P.isHot,
-          P.StockQuantity,
+          ISNULL(BDQ.StockQuantity, 0) AS StockQuantity,
           P.CategoryID,
           P.SubCategoryID,
           P.IsHidden,
@@ -98,7 +135,13 @@ exports.findAllProducts = async () => {
       LEFT JOIN PRODUCT_SALE PS ON P.ProductID = PS.product_id
       LEFT JOIN CATEGORY C ON P.CategoryID = C.CategoryID
       LEFT JOIN SUB_CATEGORY SC ON P.SubCategoryID = SC.SubCategoryID
-      WHERE P.IsHidden = 0 OR P.IsHidden IS NULL
+      LEFT JOIN (
+        SELECT ProductID, SUM(CAST(Quantity AS INT)) AS StockQuantity
+        FROM BATCH_DETAIL
+        WHERE ISNULL(IsActive, 1) = 1
+        GROUP BY ProductID
+      ) BDQ ON BDQ.ProductID = P.ProductID
+      WHERE (P.IsHidden = 0 OR P.IsHidden IS NULL)
         AND (C.IsHidden = 0 OR C.IsHidden IS NULL)
         AND (SC.IsHidden = 0 OR SC.IsHidden IS NULL)
     `);

@@ -132,7 +132,7 @@
     border: 1px solid #e2e8f0;
     border-radius: 12px;
     overflow: auto;
-    max-height: 62vh;
+    max-height: 85vh;
     box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
     scrollbar-width: none;
 
@@ -146,20 +146,10 @@
     }
   }
 
-  .category-products-drag-hint {
-    margin-bottom: 8px;
-    padding: 8px 10px;
-    border: 1px dashed #cbd5e1;
-    border-radius: 10px;
-    color: #475569;
-    font-size: 12px;
-    user-select: none;
-    cursor: grab;
-  }
-
   .category-products-table {
     width: max-content;
     min-width: 100%;
+    table-layout: fixed;
     border-collapse: collapse;
 
     th,
@@ -184,6 +174,18 @@
     tbody tr:hover {
       background: #f9fbff;
     }
+
+    // Cột Tên sản phẩm: hẹp hơn và cho xuống dòng khi dài
+    th:nth-child(3),
+    td:nth-child(3) {
+      width: 240px;
+      min-width: 240px;
+      max-width: 240px;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      line-height: 1.35;
+    }
   }
 
   .category-products-image {
@@ -196,6 +198,22 @@
 
   .category-products-sub-select {
     min-width: 180px;
+    min-height: 34px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 6px 10px;
+    color: #0f172a;
+
+    &:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+  }
+
+  .category-products-cat-select {
+    min-width: 190px;
     min-height: 34px;
     border: 1px solid #cbd5e1;
     border-radius: 8px;

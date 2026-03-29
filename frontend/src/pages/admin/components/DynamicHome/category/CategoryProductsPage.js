@@ -11,10 +11,11 @@ const CategoryProductsPage = () => {
   const { request } = useHttp();
 
   const [products, setProducts] = useState([]);
-  const [subCategories, setSubCategories] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState("");
+  const [pendingCategoryByProduct, setPendingCategoryByProduct] = useState({});
   const [pendingSubCategoryByProduct, setPendingSubCategoryByProduct] = useState({});
   const tableWrapperRef = useRef(null);
   const dragStateRef = useRef({
@@ -44,26 +45,20 @@ const CategoryProductsPage = () => {
   }, [request]);
 
   useEffect(() => {
-    const fetchSubCategories = async () => {
+    const fetchCategoryData = async () => {
       try {
         const res = await request("GET", `${API_BASE}/api/admin/categories`);
-        const categories = Array.isArray(res?.data) ? res.data : [];
-        const currentCategory = categories.find(
-          (cat) => String(cat?.CategoryID || "") === String(categoryId || ""),
-        );
+        const allCategories = Array.isArray(res?.data) ? res.data : [];
+        const visibleCategories = allCategories.filter((cat) => Number(cat?.IsHidden || 0) !== 1);
 
-        const visibleSubs = Array.isArray(currentCategory?.SubCategories)
-          ? currentCategory.SubCategories.filter((sub) => Number(sub?.IsHidden || 0) !== 1)
-          : [];
+        setCategories(visibleCategories);
 
-        setSubCategories(visibleSubs);
       } catch (err) {
         console.error("Lỗi tải danh mục con:", err);
-        setSubCategories([]);
       }
     };
 
-    fetchSubCategories();
+    fetchCategoryData();
   }, [request, categoryId]);
 
   const filteredProducts = useMemo(() => {
@@ -81,6 +76,39 @@ const CategoryProductsPage = () => {
       .sort((a, b) => String(a?.ProductName || "").localeCompare(String(b?.ProductName || "")));
   }, [products, categoryId, searchKeyword]);
 
+  const subCategoriesByCategory = useMemo(() => {
+    const map = {};
+    for (const cat of categories) {
+      map[cat.CategoryID] = Array.isArray(cat?.SubCategories)
+        ? cat.SubCategories.filter((sub) => Number(sub?.IsHidden || 0) !== 1)
+        : [];
+    }
+    return map;
+  }, [categories]);
+
+  const handleChangeCategory = (product, nextCategoryId) => {
+    const productId = product.ProductID;
+    setPendingCategoryByProduct((prev) => ({
+      ...prev,
+      [productId]: nextCategoryId,
+    }));
+
+    const validSubIds = (subCategoriesByCategory[nextCategoryId] || []).map((sub) =>
+      String(sub.SubCategoryID || ""),
+    );
+    const currentSub =
+      pendingSubCategoryByProduct[productId] !== undefined
+        ? pendingSubCategoryByProduct[productId]
+        : product.SubCategoryID || "";
+
+    if (!validSubIds.includes(String(currentSub || ""))) {
+      setPendingSubCategoryByProduct((prev) => ({
+        ...prev,
+        [productId]: "",
+      }));
+    }
+  };
+
   const handleChangeSubCategory = (productId, value) => {
     setPendingSubCategoryByProduct((prev) => ({
       ...prev,
@@ -91,6 +119,10 @@ const CategoryProductsPage = () => {
   const handleUpdateSubCategories = async () => {
     const changedProducts = filteredProducts
       .map((product) => {
+        const nextCategoryId =
+          pendingCategoryByProduct[product.ProductID] !== undefined
+            ? pendingCategoryByProduct[product.ProductID]
+            : product.CategoryID || "";
         const nextSubId =
           pendingSubCategoryByProduct[product.ProductID] !== undefined
             ? pendingSubCategoryByProduct[product.ProductID]
@@ -98,13 +130,16 @@ const CategoryProductsPage = () => {
 
         return {
           ProductID: product.ProductID,
+          currentCategory: String(product.CategoryID || ""),
+          nextCategory: String(nextCategoryId || ""),
           currentSub: String(product.SubCategoryID || ""),
           nextSub: String(nextSubId || ""),
         };
       })
-      .filter((item) => item.currentSub !== item.nextSub)
+      .filter((item) => item.currentCategory !== item.nextCategory || item.currentSub !== item.nextSub)
       .map((item) => ({
         ProductID: item.ProductID,
+        CategoryID: item.nextCategory || null,
         SubCategoryID: item.nextSub || null,
       }));
 
@@ -116,6 +151,7 @@ const CategoryProductsPage = () => {
       setUpdating(true);
       await request("PUT", `${API_BASE}/api/admin/products/updateProducts`, changedProducts);
       await loadProducts();
+      setPendingCategoryByProduct({});
       setPendingSubCategoryByProduct({});
     } catch (err) {
       console.error("Lỗi cập nhật danh mục con:", err);
@@ -225,13 +261,6 @@ const CategoryProductsPage = () => {
       ) : (
         <>
           <div
-            className="category-products-drag-hint"
-            title="Giữ chuột và kéo để lướt ngang bảng"
-          >
-            Giữ chuột và kéo để lướt ngang bảng
-          </div>
-
-          <div
             className="category-products-table-wrapper"
             ref={tableWrapperRef}
             onMouseDown={handleTableMouseDown}
@@ -248,14 +277,22 @@ const CategoryProductsPage = () => {
                 <th>Mã sản phẩm</th>
                 <th>Ảnh</th>
                 <th>Tên sản phẩm</th>
+                <th>Danh mục</th>
                 <th>Danh mục con</th>
-                <th>Giá</th>
-                <th>Tồn kho</th>
               </tr>
             </thead>
             <tbody>
               {filteredProducts.map((product) => (
                 <tr key={product.ProductID}>
+                  {(() => {
+                    const selectedCategoryId =
+                      pendingCategoryByProduct[product.ProductID] !== undefined
+                        ? pendingCategoryByProduct[product.ProductID]
+                        : product.CategoryID || "";
+                    const availableSubCategories = subCategoriesByCategory[selectedCategoryId] || [];
+
+                    return (
+                      <>
                   <td>{product.ProductID}</td>
                   <td>
                     <img
@@ -271,6 +308,20 @@ const CategoryProductsPage = () => {
                   <td>{product.ProductName}</td>
                   <td>
                     <select
+                      className="category-products-cat-select"
+                      value={selectedCategoryId}
+                      onChange={(e) => handleChangeCategory(product, e.target.value)}
+                    >
+                      <option value="">Chọn danh mục</option>
+                      {categories.map((cat) => (
+                        <option key={cat.CategoryID} value={cat.CategoryID}>
+                          {cat.CategoryName}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>
+                    <select
                       className="category-products-sub-select"
                       value={
                         pendingSubCategoryByProduct[product.ProductID] !== undefined
@@ -280,15 +331,16 @@ const CategoryProductsPage = () => {
                       onChange={(e) => handleChangeSubCategory(product.ProductID, e.target.value)}
                     >
                       <option value="">Không có</option>
-                      {subCategories.map((sub) => (
+                      {availableSubCategories.map((sub) => (
                         <option key={sub.SubCategoryID} value={sub.SubCategoryID}>
                           {sub.SubCategoryName}
                         </option>
                       ))}
                     </select>
                   </td>
-                  <td>{Number(product.Price || 0).toLocaleString("vi-VN")}đ</td>
-                  <td>{product.StockQuantity || 0}</td>
+                      </>
+                    );
+                  })()}
                 </tr>
               ))}
             </tbody>

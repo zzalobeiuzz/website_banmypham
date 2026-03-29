@@ -214,7 +214,6 @@ const AddProduct = () => {
     name: "",              // 🏷️ Tên sản phẩm
     price: "",             // 💰 Giá
     type: "",              // 📦 Loại sản phẩm (thường để trống nếu không cần)
-    stockQuantity: "",     // 📦 Số lượng tồn kho
     supplierID: "",        // 🏭 Nhà cung cấp
     isHot: false,          // 🔥 Sản phẩm hot (đặc biệt)
     intro: "",             // 📖 Mô tả ngắn (giới thiệu)
@@ -307,11 +306,10 @@ const AddProduct = () => {
   };
 
   const recalculateStockFromLots = (lots) => {
-    const total = (Array.isArray(lots) ? lots : []).reduce(
+    return (Array.isArray(lots) ? lots : []).reduce(
       (sum, lot) => sum + Number(lot?.quantity || 0),
       0,
     );
-    setProductData((prev) => ({ ...prev, stockQuantity: total }));
   };
 
   const handleLotDraftChange = (index, field, value) => {
@@ -431,7 +429,6 @@ const AddProduct = () => {
 
   const fillExistingProductToForm = (product, fallbackBarcode = "") => {
     setIsExistingProduct(true);
-    const totalBatchQuantity = Number(product.totalBatchQuantity || product.stockQuantity || 0);
 
     setProductData({
       productCode: product.id || "",
@@ -440,7 +437,6 @@ const AddProduct = () => {
       name: product.name || "",
       price: product.price || "",
       type: product.type || "",
-      stockQuantity: totalBatchQuantity,
       supplierID: product.supplierId || "",
       isHot: product.isHot === 1,
       intro: normalizeEditorValue(product.detail?.intro),
@@ -499,7 +495,6 @@ const AddProduct = () => {
       name: preserveDraft ? prev.name : "",
       price: preserveDraft ? prev.price : "",
       type: preserveDraft ? prev.type : "",
-      stockQuantity: preserveDraft ? prev.stockQuantity : "",
       supplierID: preserveDraft ? prev.supplierID : "",
       isHot: preserveDraft ? prev.isHot : false,
       intro: preserveDraft ? prev.intro : "",
@@ -698,11 +693,6 @@ const AddProduct = () => {
         return;
       }
 
-      const totalLotStock = normalizedLotDrafts.reduce(
-        (sum, lot) => sum + Number(lot.quantity || 0),
-        0,
-      );
-
       formData.append("ProductID", productData.productCode);
       formData.append("Barcode", productData.barcode);
       formData.append("IsUpdateAfterScan", isExistingProduct ? "1" : "0");
@@ -711,7 +701,6 @@ const AddProduct = () => {
       formData.append("Type", productData.type);
       formData.append("CategoryID", selectedCategoryID);
       formData.append("SubCategoryID", selectedSubCategoryID);
-      formData.append("StockQuantity", totalLotStock);
       formData.append("SupplierID", productData.supplierID);
       formData.append("IsHot", productData.isHot ? 1 : 0);
       formData.append("ProductDescription", productData.intro);
@@ -747,7 +736,6 @@ const AddProduct = () => {
           name: "",
           price: "",
           type: "",
-          stockQuantity: "",
           supplierID: "",
           isHot: false,
           intro: "",
