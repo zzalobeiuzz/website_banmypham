@@ -48,7 +48,7 @@ const BarcodeScannerPopup = ({ onClose, onScanSuccess }) => {
               const now = Date.now();
               const isDuplicateBurst =
                 scannedValue === lastScannedValueRef.current &&
-                now - lastScannedAtRef.current < 1500;
+                now - lastScannedAtRef.current < 600;
 
               if (isDuplicateBurst) {
                 return;

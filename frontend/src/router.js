@@ -17,6 +17,7 @@ import AdminHomepage from "./pages/admin/homepage/homepage.js";
 import AdminMasterLayout from "./pages/admin/theme/masterLayout.js";
 import ProductTable from "./pages/admin/components/DynamicHome/product/ProductTable.js";
 import BatchesPage from "./pages/admin/components/DynamicHome/batches/BatchesPage.js";
+import BatchDetailPage from "./pages/admin/components/DynamicHome/batches/BatchDetailPage.js";
 import OrderPage from "./pages/admin/components/DynamicHome/order/OrderPage.js";
 import AddOrder from "./pages/admin/components/DynamicHome/order/AddOrder.js";
 
@@ -66,6 +67,7 @@ const adminRoutes = [
     path: ROUTERS.ADMIN.SHIPMENT.INDEX || "shipment", // 🚚 Lô hàng
     children: [
       { index: true, element: <BatchesPage /> },
+      { path: ":batchId", element: <BatchDetailPage /> },
     ],
   },
 ];

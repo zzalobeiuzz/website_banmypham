@@ -33,6 +33,7 @@ export const ROUTERS = {
 
       SHIPMENT: {
         INDEX: "shipment",                    // Danh sách lô hàng: /admin/shipment
+        DETAIL: "shipment/:batchId",          // Chi tiết lô hàng: /admin/shipment/BATCH_001
       },
     },
   

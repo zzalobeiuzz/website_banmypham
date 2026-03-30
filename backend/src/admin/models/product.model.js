@@ -3,6 +3,7 @@ const sql = require("mssql");
 
 const createAutoBatchForProduct = async (transaction, payload = {}) => {
   const productId = String(payload.productId || "").trim();
+  const shouldDeactivateMissingLots = payload.deactivateMissingLots === true;
   if (!productId) {
     return;
   }
@@ -63,6 +64,8 @@ const createAutoBatchForProduct = async (transaction, payload = {}) => {
         WHEN COL_LENGTH('BATCH_DETAIL', 'BatchID') IS NOT NULL THEN 'BatchID'
         WHEN COL_LENGTH('BATCH_DETAIL', 'BatchId') IS NOT NULL THEN 'BatchId'
         WHEN COL_LENGTH('BATCH_DETAIL', 'IDBatch') IS NOT NULL THEN 'IDBatch'
+        WHEN COL_LENGTH('BATCH_DETAIL', 'ID') IS NOT NULL THEN 'ID'
+        WHEN COL_LENGTH('BATCH_DETAIL', 'Id') IS NOT NULL THEN 'Id'
         ELSE NULL
       END AS BdBatchFKColumn,
       CASE
@@ -341,6 +344,10 @@ const createAutoBatchForProduct = async (transaction, payload = {}) => {
       continue;
     }
 
+    if (bdBatchFKColumn && !batchIdValue) {
+      throw new Error("Thiếu mã lô hàng để lưu BATCH_DETAIL");
+    }
+
     await new sql.Request(transaction)
       .input("ProductID", sql.VarChar(50), productId)
       .input("Quantity", sql.Int, batch.quantity)
@@ -352,6 +359,36 @@ const createAutoBatchForProduct = async (transaction, payload = {}) => {
         INSERT INTO BATCH_DETAIL (${detailCols.join(", ")})
         VALUES (${detailVals.join(", ")})
       `);
+  }
+
+  if (shouldDeactivateMissingLots && bdIsActiveColumn && bdBatchFKColumn) {
+    const incomingBatchIds = Array.from(
+      new Set(
+        normalizedBatches
+          .map((batch) => String(batch?.batchId || "").trim())
+          .filter(Boolean),
+      ),
+    );
+
+    const deactivateRequest = new sql.Request(transaction)
+      .input("ProductID", sql.VarChar(50), productId);
+
+    let excludeClause = "";
+    if (incomingBatchIds.length > 0) {
+      const placeholders = incomingBatchIds.map((_, index) => `@KeepBatchID_${index}`);
+      incomingBatchIds.forEach((batchId, index) => {
+        deactivateRequest.input(`KeepBatchID_${index}`, sql.NVarChar(100), batchId);
+      });
+      excludeClause = `AND CAST([${bdBatchFKColumn}] AS NVARCHAR(100)) NOT IN (${placeholders.join(", ")})`;
+    }
+
+    await deactivateRequest.query(`
+      UPDATE BATCH_DETAIL
+      SET [${bdIsActiveColumn}] = 0
+      WHERE [${bdProductColumn}] = @ProductID
+        AND ISNULL([${bdIsActiveColumn}], 1) = 1
+        ${excludeClause}
+    `);
   }
 };
 
@@ -493,16 +530,11 @@ exports.checkProductExistsByBarcode = async (barcode) => {
       .input("Barcode", sql.VarChar(100), barcode)
       .query(`
             DECLARE @batchBarcodeColumn SYSNAME = NULL;
-            DECLARE @productBarcodeColumn SYSNAME = NULL;
 
             IF COL_LENGTH('BATCH_DETAIL', 'Barcode') IS NOT NULL SET @batchBarcodeColumn = 'Barcode';
             ELSE IF COL_LENGTH('BATCH_DETAIL', 'BatchBarcode') IS NOT NULL SET @batchBarcodeColumn = 'BatchBarcode';
             ELSE IF COL_LENGTH('BATCH_DETAIL', 'BarCode') IS NOT NULL SET @batchBarcodeColumn = 'BarCode';
             ELSE IF COL_LENGTH('BATCH_DETAIL', 'Code') IS NOT NULL SET @batchBarcodeColumn = 'Code';
-
-            IF COL_LENGTH('PRODUCT', 'Barcode') IS NOT NULL SET @productBarcodeColumn = 'Barcode';
-            ELSE IF COL_LENGTH('PRODUCT', 'BarCode') IS NOT NULL SET @productBarcodeColumn = 'BarCode';
-            ELSE IF COL_LENGTH('PRODUCT', 'Code') IS NOT NULL SET @productBarcodeColumn = 'Code';
 
             IF @batchBarcodeColumn IS NOT NULL
             BEGIN
@@ -532,37 +564,6 @@ exports.checkProductExistsByBarcode = async (barcode) => {
               ';
 
               EXEC sp_executesql @sql, N'@Barcode VARCHAR(100)', @Barcode = @Barcode;
-              RETURN;
-            END
-
-            -- Fallback cho dữ liệu cũ: một số hệ chỉ lưu barcode ở PRODUCT.
-            IF @productBarcodeColumn IS NOT NULL
-            BEGIN
-              DECLARE @legacySql NVARCHAR(MAX) = N'
-                SELECT TOP 1
-                  P.*,                          -- Lấy toàn bộ cột của bảng PRODUCT
-                  ISNULL(BDQ.StockQuantity, 0) AS BatchStockQuantity,
-                  C.CategoryName,               -- Tên danh mục chính
-                  SC.SubCategoryName,           -- Tên danh mục phụ
-                  D.Usage,                      -- Công dụng
-                  D.Ingredient,                 -- Thành phần
-                  D.ProductDescription,         -- Mô tả sản phẩm
-                  D.HowToUse,                   -- Hướng dẫn sử dụng
-                  P.' + QUOTENAME(@productBarcodeColumn) + N' AS MatchedBatchBarcode
-                FROM PRODUCT P
-                LEFT JOIN Category C ON P.CategoryID = C.CategoryID
-                LEFT JOIN Sub_Category SC ON P.SubCategoryID = SC.SubCategoryID
-                LEFT JOIN (
-                  SELECT ProductID, SUM(CAST(Quantity AS INT)) AS StockQuantity
-                  FROM BATCH_DETAIL
-                  WHERE ISNULL(IsActive, 1) = 1
-                  GROUP BY ProductID
-                ) BDQ ON BDQ.ProductID = P.ProductID
-                LEFT JOIN Product_Detail D ON P.DetailID = D.IDDetail
-                WHERE P.' + QUOTENAME(@productBarcodeColumn) + N' = @Barcode
-              ';
-
-              EXEC sp_executesql @legacySql, N'@Barcode VARCHAR(100)', @Barcode = @Barcode;
               RETURN;
             END
 
@@ -612,6 +613,70 @@ exports.checkProductExistsByBarcode = async (barcode) => {
   }
 };
 
+// =========================KIỂM TRA BARCODE CÓ TRÙNG TRONG CÙNG SẢN PHẨM KHÔNG====================
+/**
+ * Kiểm tra xem barcode đã tồn tại cho product này chưa (kiểm tra duplicate barcode trong cùng sản phẩm)
+ * @param {string} productId - Mã sản phẩm
+ * @param {string} barcode - Mã vạch
+ * @returns {Promise<boolean>} - true nếu barcode đã tồn tại cho product này
+ */
+exports.checkBarcodeExistsForProduct = async (productId, barcode, excludeBatchId = "") => {
+  try {
+    const pool = await connectDB();
+    const result = await pool.request()
+      .input("ProductID", sql.VarChar(50), productId)
+      .input("Barcode", sql.VarChar(100), barcode)
+      .input("ExcludeBatchID", sql.NVarChar(100), String(excludeBatchId || "").trim())
+      .query(`
+        DECLARE @batchBarcodeColumn SYSNAME = NULL;
+        DECLARE @batchFKColumn SYSNAME = NULL;
+        DECLARE @isActiveColumn SYSNAME = NULL;
+
+        IF COL_LENGTH('BATCH_DETAIL', 'Barcode') IS NOT NULL SET @batchBarcodeColumn = 'Barcode';
+        ELSE IF COL_LENGTH('BATCH_DETAIL', 'BatchBarcode') IS NOT NULL SET @batchBarcodeColumn = 'BatchBarcode';
+        ELSE IF COL_LENGTH('BATCH_DETAIL', 'BarCode') IS NOT NULL SET @batchBarcodeColumn = 'BarCode';
+        ELSE IF COL_LENGTH('BATCH_DETAIL', 'Code') IS NOT NULL SET @batchBarcodeColumn = 'Code';
+
+        IF COL_LENGTH('BATCH_DETAIL', 'BatchID') IS NOT NULL SET @batchFKColumn = 'BatchID';
+        ELSE IF COL_LENGTH('BATCH_DETAIL', 'BatchId') IS NOT NULL SET @batchFKColumn = 'BatchId';
+        ELSE IF COL_LENGTH('BATCH_DETAIL', 'IDBatch') IS NOT NULL SET @batchFKColumn = 'IDBatch';
+        ELSE IF COL_LENGTH('BATCH_DETAIL', 'ID') IS NOT NULL SET @batchFKColumn = 'ID';
+        ELSE IF COL_LENGTH('BATCH_DETAIL', 'Id') IS NOT NULL SET @batchFKColumn = 'Id';
+
+        IF COL_LENGTH('BATCH_DETAIL', 'IsActive') IS NOT NULL SET @isActiveColumn = 'IsActive';
+        ELSE IF COL_LENGTH('BATCH_DETAIL', 'isActive') IS NOT NULL SET @isActiveColumn = 'isActive';
+
+        IF @batchBarcodeColumn IS NOT NULL
+        BEGIN
+          DECLARE @sql NVARCHAR(MAX) = N'
+            SELECT COUNT(*) AS BarcodeCount
+            FROM BATCH_DETAIL
+            WHERE ProductID = @ProductID
+              AND ' + QUOTENAME(@batchBarcodeColumn) + N' = @Barcode';
+
+          IF @isActiveColumn IS NOT NULL
+            SET @sql += N' AND ISNULL(' + QUOTENAME(@isActiveColumn) + N', 1) = 1';
+
+          IF @batchFKColumn IS NOT NULL
+            SET @sql += N' AND (@ExcludeBatchID = '''' OR CAST(' + QUOTENAME(@batchFKColumn) + N' AS NVARCHAR(100)) <> @ExcludeBatchID)';
+
+          EXEC sp_executesql @sql, N'@ProductID VARCHAR(50), @Barcode VARCHAR(100), @ExcludeBatchID NVARCHAR(100)', 
+            @ProductID = @ProductID, @Barcode = @Barcode, @ExcludeBatchID = @ExcludeBatchID;
+        END
+        ELSE
+        BEGIN
+          SELECT 0 AS BarcodeCount;
+        END
+      `);
+
+    const count = result.recordset?.[0]?.BarcodeCount || 0;
+    return count > 0;
+  } catch (error) {
+    console.error("❌ Lỗi khi kiểm tra barcode cho sản phẩm:", error.message);
+    throw new Error("Đã xảy ra lỗi khi kiểm tra barcode cho sản phẩm");
+  }
+};
+
 // =========================HIỆN LẠI SẢN PHẨM THEO BARCODE====================
 /**
  * Bỏ ẩn sản phẩm theo barcode (IsHidden: true -> false)
@@ -624,14 +689,36 @@ exports.unhideProductByBarcode = async (barcode) => {
     const result = await pool.request()
       .input("Barcode", sql.VarChar(100), barcode)
       .query(`
-        UPDATE PRODUCT
-        SET IsHidden = 0,
-            UpdatedAt = GETDATE()
-        WHERE Barcode = @Barcode
-          AND IsHidden = 1
+        DECLARE @batchBarcodeColumn SYSNAME = NULL;
+
+        IF COL_LENGTH('BATCH_DETAIL', 'Barcode') IS NOT NULL SET @batchBarcodeColumn = 'Barcode';
+        ELSE IF COL_LENGTH('BATCH_DETAIL', 'BatchBarcode') IS NOT NULL SET @batchBarcodeColumn = 'BatchBarcode';
+        ELSE IF COL_LENGTH('BATCH_DETAIL', 'BarCode') IS NOT NULL SET @batchBarcodeColumn = 'BarCode';
+        ELSE IF COL_LENGTH('BATCH_DETAIL', 'Code') IS NOT NULL SET @batchBarcodeColumn = 'Code';
+
+        IF @batchBarcodeColumn IS NULL
+        BEGIN
+          SELECT 0 AS AffectedRows;
+          RETURN;
+        END
+
+        DECLARE @sql NVARCHAR(MAX) = N'
+          UPDATE P
+          SET P.IsHidden = 0,
+              P.UpdatedAt = GETDATE()
+          FROM PRODUCT P
+          INNER JOIN BATCH_DETAIL BD ON BD.ProductID = P.ProductID
+          WHERE P.IsHidden = 1
+            AND BD.' + QUOTENAME(@batchBarcodeColumn) + N' = @Barcode
+            AND ISNULL(BD.IsActive, 1) = 1;
+
+          SELECT @@ROWCOUNT AS AffectedRows;
+        ';
+
+        EXEC sp_executesql @sql, N'@Barcode VARCHAR(100)', @Barcode = @Barcode;
       `);
 
-    return (result.rowsAffected?.[0] || 0) > 0;
+    return Number(result.recordset?.[0]?.AffectedRows || 0) > 0;
   } catch (error) {
     console.error("❌ Lỗi khi hiện lại sản phẩm theo barcode:", error.message);
     throw new Error("Đã xảy ra lỗi khi cập nhật trạng thái hiển thị sản phẩm");
@@ -679,9 +766,7 @@ exports.checkHiddenProductConflictForAdd = async (productId, barcode) => {
       .input("Barcode", sql.VarChar(100), barcode)
       .query(`
         DECLARE @batchBarcodeColumn SYSNAME = NULL;
-        DECLARE @productBarcodeColumn SYSNAME = NULL;
         DECLARE @isDuplicateBatchBarcode INT = 0;
-        DECLARE @isDuplicateProductBarcode INT = 0;
         DECLARE @isDuplicateProductID INT = 0;
 
         IF COL_LENGTH('BATCH_DETAIL', 'Barcode') IS NOT NULL SET @batchBarcodeColumn = 'Barcode';
@@ -689,11 +774,7 @@ exports.checkHiddenProductConflictForAdd = async (productId, barcode) => {
         ELSE IF COL_LENGTH('BATCH_DETAIL', 'BarCode') IS NOT NULL SET @batchBarcodeColumn = 'BarCode';
         ELSE IF COL_LENGTH('BATCH_DETAIL', 'Code') IS NOT NULL SET @batchBarcodeColumn = 'Code';
 
-        IF COL_LENGTH('PRODUCT', 'Barcode') IS NOT NULL SET @productBarcodeColumn = 'Barcode';
-        ELSE IF COL_LENGTH('PRODUCT', 'BarCode') IS NOT NULL SET @productBarcodeColumn = 'BarCode';
-        ELSE IF COL_LENGTH('PRODUCT', 'Code') IS NOT NULL SET @productBarcodeColumn = 'Code';
-
-        IF @batchBarcodeColumn IS NOT NULL
+        IF @batchBarcodeColumn IS NOT NULL AND LTRIM(RTRIM(ISNULL(@Barcode, ''))) <> ''
         BEGIN
           DECLARE @sql NVARCHAR(MAX) = N'
             SELECT @dupOut = CASE
@@ -727,34 +808,9 @@ exports.checkHiddenProductConflictForAdd = async (productId, barcode) => {
             ELSE 0
           END;
 
-        IF @productBarcodeColumn IS NOT NULL
-        BEGIN
-          DECLARE @productBarcodeSql NVARCHAR(MAX) = N'
-            SELECT @dupOut = CASE
-              WHEN EXISTS (
-                SELECT 1
-                FROM PRODUCT
-                WHERE IsHidden = 0
-                  AND ' + QUOTENAME(@productBarcodeColumn) + N' = @Barcode
-              ) THEN 1
-              ELSE 0
-            END
-          ';
-
-          EXEC sp_executesql
-            @productBarcodeSql,
-            N'@Barcode VARCHAR(100), @dupOut INT OUTPUT',
-            @Barcode = @Barcode,
-            @dupOut = @isDuplicateProductBarcode OUTPUT;
-        END
-
         SELECT
           @isDuplicateProductID AS IsDuplicateProductID,
-          CASE
-            WHEN @isDuplicateProductBarcode = 1 OR @isDuplicateBatchBarcode = 1
-              THEN 1
-            ELSE 0
-          END AS IsDuplicateBarcode
+          @isDuplicateBatchBarcode AS IsDuplicateBarcode
       `);
 
     const row = result.recordset?.[0] || {};
@@ -782,7 +838,6 @@ exports.updateProduct = async (product) => {
   const {
     ProductID,
     ProductName,
-    Barcode,
     Description,
     IsHot,
     Type,
@@ -799,7 +854,6 @@ exports.updateProduct = async (product) => {
   const updateFields = [];
 
   if (ProductName !== undefined) updateFields.push(`ProductName = @ProductName`);
-  if (Barcode !== undefined) updateFields.push(`Barcode = @Barcode`);
   if (Description !== undefined) updateFields.push(`Description = @Description`);
   if (IsHot !== undefined) updateFields.push(`IsHot = @IsHot`);
   if (Type !== undefined) updateFields.push(`Type = @Type`);
@@ -819,7 +873,6 @@ exports.updateProduct = async (product) => {
   await pool.request()
     .input("ProductID", sql.VarChar(50), ProductID)
     .input("ProductName", sql.NVarChar(sql.MAX), ProductName ?? null)
-    .input("Barcode", sql.VarChar(100), Barcode ?? null)
     .input("Description", sql.NVarChar(sql.MAX), Description ?? null)
     .input("IsHot", sql.TinyInt, IsHot ?? null)
     .input("Type", sql.NVarChar(sql.MAX), Type ?? null)
@@ -854,7 +907,6 @@ exports.updateProductFromAddFormDB = async (product) => {
     const {
       ProductID,
       ProductName,
-      Barcode,
       Price,
       Type,
       CategoryID,
@@ -879,7 +931,6 @@ exports.updateProductFromAddFormDB = async (product) => {
     await productRequest
       .input("ProductID", sql.VarChar(50), ProductID)
       .input("ProductName", sql.NVarChar(sql.MAX), ProductName ?? null)
-      .input("Barcode", sql.VarChar(100), Barcode ?? null)
       .input("Price", sql.Int, Price ?? 0)
       .input("Type", sql.NVarChar(100), Type ?? null)
       .input("CategoryID", sql.NVarChar(100), CategoryID ?? null)
@@ -892,7 +943,6 @@ exports.updateProductFromAddFormDB = async (product) => {
         UPDATE PRODUCT
         SET
           ProductName = @ProductName,
-          Barcode = @Barcode,
           Price = @Price,
           Type = @Type,
           CategoryID = @CategoryID,
@@ -924,9 +974,9 @@ exports.updateProductFromAddFormDB = async (product) => {
 
     await createAutoBatchForProduct(transaction, {
       productId: ProductID,
-      barcode: Barcode,
       batchId: String(BatchID || "").trim(),
       batchDetails: Array.isArray(BatchDetails) ? BatchDetails : [],
+      deactivateMissingLots: true,
       note: `Lô cập nhật từ sản phẩm ${ProductID}`,
     });
 
@@ -966,37 +1016,45 @@ exports.addProductDB = async (product) => {
 
   try {
     const productId = (product.ProductID || "").trim();
-    const barcode = (product.Barcode || "").trim();
+    const incomingBatchDetails = Array.isArray(product.BatchDetails) ? product.BatchDetails : [];
+    const batchBarcodes = Array.from(
+      new Set(
+        incomingBatchDetails
+          .map((batch) => String(batch?.barcode || "").trim())
+          .filter(Boolean),
+      ),
+    );
 
     if (!productId) {
       return { success: false, message: "Thiếu mã sản phẩm" };
     }
 
-    if (!barcode) {
-      return { success: false, message: "Thiếu Barcode sản phẩm" };
+    if (batchBarcodes.length === 0) {
+      return { success: false, message: "Thiếu Barcode trong lô hàng" };
     }
 
-    // 🧠 1. Kiểm tra trùng ProductID và Barcode trong nhóm IsHidden = 0 (false)
-    const conflict = await exports.checkHiddenProductConflictForAdd(productId, barcode);
-    if (conflict.isDuplicateProductID || conflict.isDuplicateBarcode) {
-      let duplicateMessage = "";
-      if (conflict.isDuplicateProductID && conflict.isDuplicateBarcode) {
-        duplicateMessage = `Trùng ID ${productId} và Barcode ${barcode}`;
-      } else if (conflict.isDuplicateProductID) {
-        duplicateMessage = `ID sản phẩm đã tồn tại`;
-      } else {
-        duplicateMessage = `Barcode này đã tồn tại trên một sản phẩm khác`;
-      }
-
+    // 🧠 1. Kiểm tra trùng ProductID trong nhóm IsHidden = 0 (false)
+    const productConflict = await exports.checkHiddenProductConflictForAdd(productId, "");
+    if (productConflict.isDuplicateProductID) {
       return {
         success: false,
-        message: duplicateMessage,
+        message: "ID sản phẩm đã tồn tại",
       };
+    }
+
+    // 🧠 2. Barcode phải duy nhất toàn hệ thống và được lưu ở BATCH_DETAIL
+    for (const batchBarcode of batchBarcodes) {
+      const barcodeConflict = await exports.checkHiddenProductConflictForAdd(productId, batchBarcode);
+      if (barcodeConflict.isDuplicateBarcode) {
+        return {
+          success: false,
+          message: `Barcode ${batchBarcode} đã tồn tại trên một sản phẩm khác`,
+        };
+      }
     }
 
     // Chuẩn hóa dữ liệu sau khi kiểm tra
     product.ProductID = productId;
-    product.Barcode = barcode;
 
     // ✅ Bắt đầu transaction
     await transaction.begin();
@@ -1004,7 +1062,7 @@ exports.addProductDB = async (product) => {
     const {
       ProductID, ProductName, Price, Type, CategoryID, SubCategoryID,
       SupplierID, IsHot, IsHidden, ProductDescription, Usage, Ingredients,
-      Instructions, Image, DetailID, SubCategoryName, CreatedAt, UpdatedAt, Barcode, BatchDetails
+      Instructions, Image, DetailID, SubCategoryName, CreatedAt, UpdatedAt, BatchDetails
     } = product;
 
     // 🟩 2. Insert PRODUCT
@@ -1012,7 +1070,6 @@ exports.addProductDB = async (product) => {
     await productRequest
       .input("ProductID", sql.VarChar(50), ProductID)
       .input("ProductName", sql.NVarChar(sql.MAX), ProductName)
-      .input("Barcode", sql.VarChar(100), Barcode ?? null)
       .input("DetailID", sql.NVarChar(50), DetailID)
       .input("IsHot", sql.TinyInt, IsHot ?? 0)
       .input("Type", sql.NVarChar(100), Type ?? null)
@@ -1026,9 +1083,9 @@ exports.addProductDB = async (product) => {
       .input("UpdatedAt", sql.DateTime, UpdatedAt ?? new Date())
       .query(`
         INSERT INTO PRODUCT
-        (ProductID, ProductName, Barcode, Price, Type, CategoryID, SupplierID, SubCategoryID, IsHot, IsHidden, Image, DetailID, CreatedAt, UpdatedAt)
+        (ProductID, ProductName, Price, Type, CategoryID, SupplierID, SubCategoryID, IsHot, IsHidden, Image, DetailID, CreatedAt, UpdatedAt)
         VALUES
-        (@ProductID, @ProductName, @Barcode, @Price, @Type, @CategoryID, @SupplierID, @SubCategoryID, @IsHot, @IsHidden, @Image, @DetailID, @CreatedAt, @UpdatedAt)
+        (@ProductID, @ProductName, @Price, @Type, @CategoryID, @SupplierID, @SubCategoryID, @IsHot, @IsHidden, @Image, @DetailID, @CreatedAt, @UpdatedAt)
       `);
 
     // 🟩 3. Insert PRODUCT_DETAIL
@@ -1063,7 +1120,6 @@ exports.addProductDB = async (product) => {
     // 🟩 5. Tự động tạo lô hàng đầu tiên theo barcode + số lượng khi thêm sản phẩm
     await createAutoBatchForProduct(transaction, {
       productId: ProductID,
-      barcode: Barcode,
       batchId: String(product.BatchID || "").trim(),
       batchDetails: Array.isArray(BatchDetails) ? BatchDetails : [],
       note: `Lô tự động từ thêm sản phẩm ${ProductID}`,

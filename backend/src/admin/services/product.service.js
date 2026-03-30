@@ -60,9 +60,6 @@ exports.checkProductExistence = async (payload) => {
       batchDetails.find((batch) => String(batch.barcode || "").trim())?.barcode || "";
     const resolvedBarcode = String(
       productByBarcode?.MatchedBatchBarcode
-      || product.Barcode
-      || product.BarCode
-      || product.Code
       || firstBatchBarcode
       || "",
     ).trim();
@@ -147,20 +144,74 @@ exports.addProduct = async (req) => {
     req.body.BatchDetails = batchDetails;
 
     const normalizedProductId = String(req.body.ProductID || "").trim();
-    const normalizedBarcode = String(req.body.Barcode || "").trim();
+    const normalizedTopBarcode = String(req.body.Barcode || "").trim();
+    const normalizedLotDetails = (Array.isArray(batchDetails) ? batchDetails : [])
+      .map((batch) => ({
+        batchId: String(batch?.batchId || "").trim(),
+        barcode: String(batch?.barcode || "").trim(),
+      }))
+      .filter((batch) => batch.barcode);
+    const rawBatchBarcodes = normalizedLotDetails.map((batch) => batch.barcode);
+    const seenBarcodes = new Set();
+    const duplicatedInPayload = new Set();
 
-    if (normalizedBarcode) {
-      const barcodeOwner = await productModel.checkProductExistsByBarcode(normalizedBarcode);
+    for (const barcode of rawBatchBarcodes) {
+      if (seenBarcodes.has(barcode)) {
+        duplicatedInPayload.add(barcode);
+      } else {
+        seenBarcodes.add(barcode);
+      }
+    }
+
+    if (duplicatedInPayload.size > 0) {
+      const duplicatedText = Array.from(duplicatedInPayload).join(", ");
+      return {
+        success: false,
+        message: `Không thể tạo mới lô hàng với barcode trùng trong cùng sản phẩm: ${duplicatedText}`,
+      };
+    }
+
+    const uniqueBarcodes = Array.from(
+      new Set(
+        rawBatchBarcodes,
+      ),
+    );
+
+    if (normalizedTopBarcode && !uniqueBarcodes.includes(normalizedTopBarcode)) {
+      uniqueBarcodes.push(normalizedTopBarcode);
+    }
+
+    for (const barcode of uniqueBarcodes) {
+      // Kiểm tra xem barcode đã tồn tại ở sản phẩm khác
+      const barcodeOwner = await productModel.checkProductExistsByBarcode(barcode);
       const ownerProductId = String(barcodeOwner?.ProductID || "").trim();
 
       if (ownerProductId && ownerProductId !== normalizedProductId) {
         return {
           success: false,
-          message: "Barcode đã tồn tại ở sản phẩm khác. Barcode phải là duy nhất.",
+          message: `Barcode ${barcode} đã tồn tại ở sản phẩm khác. Barcode phải là duy nhất.`,
         };
       }
     }
 
+    // Cho phép sửa lô hiện tại nếu cùng ProductID + cùng mã lô.
+    // Chỉ chặn khi barcode đã tồn tại ở lô khác của cùng sản phẩm.
+    if (normalizedProductId) {
+      for (const lot of normalizedLotDetails) {
+        const barcodeExistsForProduct = await productModel.checkBarcodeExistsForProduct(
+          normalizedProductId,
+          lot.barcode,
+          lot.batchId,
+        );
+
+        if (barcodeExistsForProduct) {
+          return {
+            success: false,
+            message: `Barcode ${lot.barcode} đã tồn tại trong lô khác của sản phẩm này. Nếu cùng mã lô thì hệ thống sẽ tự cập nhật, không tạo mới.`,
+          };
+        }
+      }
+    }
     // ===== Xử lý ảnh trong các trường HTML =====
     const htmlFields = [
       { key: "ProductDescription", prefix: "productdescription" },

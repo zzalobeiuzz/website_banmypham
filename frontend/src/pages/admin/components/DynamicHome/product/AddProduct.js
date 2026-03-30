@@ -356,6 +356,11 @@ const AddProduct = () => {
     [lotDrafts],
   );
 
+  const currentStock = useMemo(
+    () => recalculateStockFromLots(lotDrafts),
+    [lotDrafts],
+  );
+
   const allBatchOptions = useMemo(
     () => allBatches
       .map((batch) => {
@@ -574,7 +579,9 @@ const AddProduct = () => {
         setIsCurrentProductVisible(data.isVisible !== false);
 
         if (data.barcodeConflict) {
-          showNotification("Barcode đã tồn tại ở sản phẩm khác. Vui lòng nhập barcode khác.", "error");
+          if (source !== "scan") {
+            showNotification("Barcode đã tồn tại ở sản phẩm khác. Vui lòng nhập barcode khác.", "error");
+          }
           fillExistingProductToForm(data.product, "");
           setProductData((prev) => ({
             ...prev,
@@ -583,9 +590,9 @@ const AddProduct = () => {
           return;
         }
 
-        if (data.isVisible === false) {
+        if (data.isVisible === false && source !== "scan") {
           showNotification("Sản phẩm này đang bị ẩn. Vui lòng bật hiển thị trước khi thao tác.", "error");
-        } else if (source !== "blur") {
+        } else if (source !== "blur" && source !== "scan") {
           showNotification("Đã tìm thấy sản phẩm theo thông tin vừa nhập.", "success");
         }
 
@@ -595,6 +602,14 @@ const AddProduct = () => {
         setIsCurrentProductVisible(true);
 
         if (data.barcodeExists && trimmedBarcode) {
+          if (source === "scan") {
+            setProductData((prev) => ({
+              ...prev,
+              barcode: trimmedBarcode,
+            }));
+            return;
+          }
+
           showNotification("Barcode đã tồn tại. Vui lòng nhập barcode khác.", "error");
           setExistingProductBatches([]);
           setProductData((prev) => ({
@@ -605,6 +620,14 @@ const AddProduct = () => {
         }
 
         if (trimmedBarcode) {
+          if (source === "scan") {
+            setProductData((prev) => ({
+              ...prev,
+              barcode: trimmedBarcode,
+            }));
+            return;
+          }
+
           // Barcode chưa tồn tại: chuyển về tạo mới nhưng giữ nguyên các ô định danh đã nhập.
           if (changedField === "barcode") {
             resetDetailFieldsKeepIdentity({
@@ -645,7 +668,9 @@ const AddProduct = () => {
       }
     } catch (err) {
       // Lỗi mạng/API.
-      showNotification(err.message || "Lỗi kiểm tra sản phẩm!", "error");
+      if (source !== "scan") {
+        showNotification(err.message || "Lỗi kiểm tra sản phẩm!", "error");
+      }
     } finally {
       // Dù thành công hay thất bại đều mở khóa để lần lookup sau chạy được.
       isLookupRunningRef.current = false;
@@ -665,7 +690,28 @@ const AddProduct = () => {
 
     try {
       const formData = new FormData();
-      const normalizedLotDrafts = lotDrafts
+      const typedBatchId = String(selectedBatchId || "").trim();
+      const lotDraftSource = Array.isArray(lotDrafts)
+        ? lotDrafts.map((lot) => ({ ...(lot || {}) }))
+        : [];
+
+      if (typedBatchId) {
+        const firstMissingBatchIndex = lotDraftSource.findIndex((lot) => {
+          const batchId = String(lot?.batchId || "").trim();
+          const barcode = String(lot?.barcode || "").trim();
+          const quantity = Number(lot?.quantity || 0);
+          return !batchId && (barcode || quantity > 0);
+        });
+
+        if (firstMissingBatchIndex >= 0) {
+          lotDraftSource[firstMissingBatchIndex] = {
+            ...(lotDraftSource[firstMissingBatchIndex] || {}),
+            batchId: typedBatchId,
+          };
+        }
+      }
+
+      const normalizedLotDrafts = lotDraftSource
         .map((lot) => ({
           batchId: String(lot?.batchId || "").trim(),
           barcode: String(lot?.barcode || "").trim(),
@@ -954,15 +1000,10 @@ const AddProduct = () => {
       return;
     }
 
-    // Tránh trường hợp scanner vừa mở đã bắt lại đúng mã cũ trong khung hình
-    const openedRecently = Date.now() - scannerOpenedAtRef.current < 1500;
-    if (openedRecently && normalizedBarcode === String(productData.barcode || "").trim()) {
-      return;
-    }
-
     await checkExistingByIdentity({
       barcode: normalizedBarcode,
-      productCode: productData.productCode,
+      // Scan flow ưu tiên tra theo barcode; không kèm productCode để tránh match sai.
+      productCode: "",
       showNotFoundMessage: false,
       source: "scan",
       changedField: "barcode",
@@ -1217,6 +1258,15 @@ const AddProduct = () => {
                 onChange={(e) => handleChange("supplierID", e.target.value)}
               />
             </div>
+
+            <div className="input-stock">
+              <label>Số lượng tồn</label>
+              <input
+                type="text"
+                value={String(currentStock)}
+                readOnly
+              />
+            </div>
           </div>
 
           <div className="form-group lot-editor-block">
@@ -1243,6 +1293,7 @@ const AddProduct = () => {
                   }}
                   placeholder={isExistingProduct ? "Nhập hoặc chọn mã lô" : "Nhập hoặc chọn mã lô hàng"}
                   className="lot-selector-filter"
+
                 />
 
                 {isBatchDropdownOpen && filteredBatchOptions.length > 0 && (
