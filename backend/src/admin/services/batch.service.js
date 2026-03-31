@@ -134,14 +134,6 @@ exports.deleteBatch = async (batchId) => {
       };
     }
 
-    const totalProducts = await batchModel.countProductsByBatchId(batchIdTrimmed);
-    if (totalProducts > 0) {
-      return {
-        success: false,
-        message: "Không thể xóa lô đã có sản phẩm. Vui lòng xử lý sản phẩm trước.",
-      };
-    }
-
     await batchModel.deleteBatch(batchIdTrimmed);
 
     return {
@@ -211,6 +203,85 @@ exports.updateProductInBatch = async ({
     return {
       success: false,
       message: "Không thể cập nhật sản phẩm trong lô",
+    };
+  }
+};
+
+exports.addProductToBatch = async ({
+  batchId,
+  productId,
+  barcode,
+  quantity,
+  isActive,
+}) => {
+  try {
+    const batchIdTrimmed = String(batchId || "").trim();
+    const productIdTrimmed = String(productId || "").trim();
+    const barcodeTrimmed = String(barcode || "").trim();
+    const normalizedQty = Number(quantity || 0);
+
+    if (!batchIdTrimmed || !productIdTrimmed || !barcodeTrimmed) {
+      return {
+        success: false,
+        message: "Thiếu dữ liệu để thêm sản phẩm vào lô",
+      };
+    }
+
+    if (Number.isNaN(normalizedQty) || normalizedQty < 0) {
+      return {
+        success: false,
+        message: "Số lượng không hợp lệ",
+      };
+    }
+
+    const batch = await batchModel.findBatchById(batchIdTrimmed);
+    if (!batch) {
+      return {
+        success: false,
+        message: "Không tìm thấy lô hàng",
+      };
+    }
+
+    const product = await batchModel.findProductById(productIdTrimmed);
+    if (!product || Number(product?.IsHidden || 0) === 1) {
+      return {
+        success: false,
+        message: "Sản phẩm không tồn tại hoặc đã bị ẩn",
+      };
+    }
+
+    const existedBarcode = await batchModel.findBatchDetailByBarcode(barcodeTrimmed);
+    if (existedBarcode) {
+      return {
+        success: false,
+        message: `Barcode ${barcodeTrimmed} đã tồn tại trong hệ thống`,
+      };
+    }
+
+    const insertedRows = await batchModel.addProductToBatch({
+      batchId: batchIdTrimmed,
+      productId: productIdTrimmed,
+      barcode: barcodeTrimmed,
+      quantity: normalizedQty,
+      isActive: Number(isActive || 0) === 1 ? 1 : 0,
+    });
+
+    if (insertedRows <= 0) {
+      return {
+        success: false,
+        message: "Không thể thêm sản phẩm vào lô",
+      };
+    }
+
+    return {
+      success: true,
+      message: "Thêm sản phẩm vào lô thành công",
+    };
+  } catch (error) {
+    console.error("❌ Lỗi addProductToBatch:", error);
+    return {
+      success: false,
+      message: "Không thể thêm sản phẩm vào lô",
     };
   }
 };

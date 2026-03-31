@@ -473,8 +473,10 @@ exports.checkProductExists = async (productId) => {
 
           LEFT JOIN (
             SELECT ProductID, SUM(CAST(Quantity AS INT)) AS StockQuantity
-            FROM BATCH_DETAIL
-            WHERE ISNULL(IsActive, 1) = 1
+            FROM BATCH_DETAIL BD
+            LEFT JOIN BATCHES B ON B.ID = BD.BatchID
+            WHERE ISNULL(BD.IsActive, 1) = 1
+              AND (B.IsActive = 1 OR B.IsActive IS NULL)
             GROUP BY ProductID
           ) BDQ ON BDQ.ProductID = P.ProductID
           
@@ -1215,6 +1217,7 @@ exports.getBatchDetailsByProductId = async (productId) => {
           LEFT JOIN BATCHES B ON B.ID = BD.BatchID
           WHERE BD.ProductID = @ProductID
             AND ISNULL(BD.IsActive, 1) = 1
+            AND (B.IsActive = 1 OR B.IsActive IS NULL)
           ORDER BY B.CreatedAt DESC
         `);
       rows = withJoin.recordset || [];
@@ -1223,10 +1226,12 @@ exports.getBatchDetailsByProductId = async (productId) => {
       const fallback = await pool.request()
         .input("ProductID", sql.VarChar(50), productId)
         .query(`
-          SELECT *
-          FROM BATCH_DETAIL
-          WHERE ProductID = @ProductID
-            AND ISNULL(IsActive, 1) = 1
+          SELECT BD.*
+          FROM BATCH_DETAIL BD
+          LEFT JOIN BATCHES B ON B.ID = BD.BatchID
+          WHERE BD.ProductID = @ProductID
+            AND ISNULL(BD.IsActive, 1) = 1
+            AND (B.IsActive = 1 OR B.IsActive IS NULL)
         `);
       rows = fallback.recordset || [];
     }

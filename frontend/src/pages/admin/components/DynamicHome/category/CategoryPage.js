@@ -54,12 +54,25 @@ const CategoryPage = () => {
   };
 
   const loadData = useCallback(async () => {
-    const [catRes, prodRes] = await Promise.all([
-      request("GET", `${API_BASE}/api/admin/categories`),
-      request("GET", `${API_BASE}/api/user/products/loadAllProducts`),
-    ]);
-    setCategories(catRes.data || []);
-    setProducts(prodRes.data || []);
+    const categoryPromise = request("GET", `${API_BASE}/api/admin/categories`)
+      .then((catRes) => {
+        setCategories(Array.isArray(catRes?.data) ? catRes.data : []);
+      })
+      .catch((error) => {
+        console.error("Lỗi tải danh mục:", error);
+        setCategories([]);
+      });
+
+    const productPromise = request("GET", `${API_BASE}/api/user/products/loadAllProducts`)
+      .then((prodRes) => {
+        setProducts(Array.isArray(prodRes?.data) ? prodRes.data : []);
+      })
+      .catch((error) => {
+        console.error("Lỗi tải sản phẩm:", error);
+        setProducts([]);
+      });
+
+    await Promise.allSettled([categoryPromise, productPromise]);
   }, [request]);
 
   useEffect(() => {

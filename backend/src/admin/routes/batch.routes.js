@@ -5,6 +5,7 @@ const {
 	getAllBatches,
 	createBatch,
 	getProductsByBatchId,
+	addProductToBatch,
 	updateBatch,
 	deleteBatch,
 	updateProductInBatch,
@@ -13,6 +14,7 @@ const {
 router.get("/", getAllBatches);
 router.post("/", createBatch);
 router.get("/:batchId/products", getProductsByBatchId);
+router.post("/:batchId/products", addProductToBatch);
 router.put("/:batchId/products", updateProductInBatch);
 router.put("/:batchId", updateBatch);
 router.delete("/:batchId", deleteBatch);

@@ -20,6 +20,13 @@ const BatchDetailPage = () => {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [editBatchId, setEditBatchId] = useState("");
   const [editNote, setEditNote] = useState("");
+  const [newRowDraft, setNewRowDraft] = useState({
+    productId: "",
+    productName: "",
+    barcode: "",
+    quantity: "0",
+    isActive: 1,
+  });
 
   const decodedBatchId = useMemo(
     () => decodeURIComponent(String(batchId || "")).trim(),
@@ -156,6 +163,13 @@ const BatchDetailPage = () => {
     setEditBatchId(currentBatchId);
     setEditNote(currentNote);
     setProductDraftMap(buildDraftMap());
+    setNewRowDraft({
+      productId: "",
+      productName: "",
+      barcode: "",
+      quantity: "0",
+      isActive: 1,
+    });
     setIsEditingAll(true);
   };
 
@@ -163,7 +177,66 @@ const BatchDetailPage = () => {
     setEditBatchId(String(batchMeta?.ID || decodedBatchId || "").trim());
     setEditNote(String(batchMeta?.Note || "").trim());
     setProductDraftMap({});
+    setNewRowDraft({
+      productId: "",
+      productName: "",
+      barcode: "",
+      quantity: "0",
+      isActive: 1,
+    });
     setIsEditingAll(false);
+  };
+
+  const handleAddNewProductRow = async () => {
+    const productId = String(newRowDraft?.productId || "").trim();
+    const barcode = String(newRowDraft?.barcode || "").trim();
+    const quantity = Number(newRowDraft?.quantity || 0);
+    const isActive = Number(newRowDraft?.isActive || 0) === 1 ? 1 : 0;
+
+    if (!productId || !barcode) {
+      window.alert("Vui lòng nhập mã sản phẩm và barcode để thêm.");
+      return;
+    }
+
+    if (Number.isNaN(quantity) || quantity < 0) {
+      window.alert("Số lượng không hợp lệ.");
+      return;
+    }
+
+    const duplicateBarcode = products.some((item) => String(item?.Barcode || "").trim() === barcode);
+    if (duplicateBarcode) {
+      window.alert("Barcode đã tồn tại trong danh sách lô hàng này.");
+      return;
+    }
+
+    try {
+      const check = await request("GET", `${API_BASE}/api/admin/products/checkProductExistence?productId=${encodeURIComponent(productId)}`);
+      if (!check?.exists || !check?.product?.id) {
+        window.alert("Mã sản phẩm không tồn tại.");
+        return;
+      }
+
+      const nameFromApi = String(check?.product?.name || "").trim();
+      const row = {
+        ProductID: productId,
+        ProductName: nameFromApi || String(newRowDraft?.productName || "").trim(),
+        Barcode: barcode,
+        Quantity: quantity,
+        IsActive: isActive,
+        __isNew: true,
+      };
+
+      setProducts((prev) => [row, ...prev]);
+      setNewRowDraft({
+        productId: "",
+        productName: "",
+        barcode: "",
+        quantity: "0",
+        isActive: 1,
+      });
+    } catch (error) {
+      window.alert(error?.message || "Không thể kiểm tra mã sản phẩm.");
+    }
   };
 
   const handleDraftChange = (rowKey, key, value) => {
@@ -186,7 +259,31 @@ const BatchDetailPage = () => {
     }
 
     const changes = [];
+    const creates = [];
     const nextProducts = products.map((item, index) => {
+      if (item?.__isNew) {
+        const payload = {
+          productId: String(item?.ProductID || "").trim(),
+          barcode: String(item?.Barcode || "").trim(),
+          quantity: Number(item?.Quantity || 0),
+          isActive: Number(item?.IsActive || 0) === 1 ? 1 : 0,
+        };
+
+        if (!payload.productId || !payload.barcode) {
+          throw new Error("Dòng sản phẩm mới thiếu mã sản phẩm hoặc barcode.");
+        }
+
+        if (Number.isNaN(payload.quantity) || payload.quantity < 0) {
+          throw new Error("Số lượng sản phẩm mới không hợp lệ.");
+        }
+
+        creates.push(payload);
+        return {
+          ...item,
+          __isNew: false,
+        };
+      }
+
       const rowKey = getRowKey(item, index);
       const draft = productDraftMap[rowKey];
       if (!draft) return item;
@@ -229,7 +326,7 @@ const BatchDetailPage = () => {
       };
     });
 
-    if (changes.length === 0) {
+    if (changes.length === 0 && creates.length === 0) {
       const currentBatchId = String(batchMeta?.ID || decodedBatchId || "").trim();
       const currentNote = String(batchMeta?.Note || "").trim();
       const batchChanged = nextBatchId !== currentBatchId || nextNote !== currentNote;
@@ -242,6 +339,13 @@ const BatchDetailPage = () => {
 
     try {
       setIsSavingAll(true);
+      for (const payload of creates) {
+        const res = await request("POST", `${API_BASE}/api/admin/batches/${encodeURIComponent(decodedBatchId)}/products`, payload);
+        if (!res?.success) {
+          throw new Error(res?.message || "Không thể thêm sản phẩm vào lô.");
+        }
+      }
+
       for (const payload of changes) {
         const res = await request("PUT", `${API_BASE}/api/admin/batches/${encodeURIComponent(decodedBatchId)}/products`, payload);
         if (!res?.success) {
@@ -366,6 +470,49 @@ const BatchDetailPage = () => {
               />
             </div>
           </div>
+
+          {isEditingAll ? (
+            <div className="add-product-row">
+              <input
+                type="text"
+                className="add-product-row__input"
+                placeholder="Mã sản phẩm"
+                value={newRowDraft.productId}
+                onChange={(e) => setNewRowDraft((prev) => ({ ...prev, productId: e.target.value }))}
+              />
+              <input
+                type="text"
+                className="add-product-row__input"
+                placeholder="Barcode"
+                value={newRowDraft.barcode}
+                onChange={(e) => setNewRowDraft((prev) => ({ ...prev, barcode: e.target.value }))}
+              />
+              <input
+                type="number"
+                min="0"
+                className="add-product-row__input"
+                placeholder="Số lượng"
+                value={newRowDraft.quantity}
+                onChange={(e) => setNewRowDraft((prev) => ({ ...prev, quantity: e.target.value }))}
+              />
+              <select
+                className="add-product-row__input"
+                value={String(newRowDraft.isActive)}
+                onChange={(e) => setNewRowDraft((prev) => ({ ...prev, isActive: Number(e.target.value) }))}
+              >
+                <option value="1">Đang kinh doanh</option>
+                <option value="0">Ngừng kinh doanh</option>
+              </select>
+              <button
+                type="button"
+                className="add-product-row__button"
+                onClick={handleAddNewProductRow}
+                disabled={isSavingAll}
+              >
+                Thêm sản phẩm
+              </button>
+            </div>
+          ) : null}
 
           {loading ? (
             <div className="lo-hang-empty">Đang tải dữ liệu...</div>

@@ -105,30 +105,32 @@ const ProductDetail = () => {
 
   useEffect(() => {
     const fetchProduct = async () => {
+      setLoading(true);
       try {
         const res = await request(
           "GET",
           `${API_BASE}/api/admin/products/productDetail?code=${id}`
         );
-        setProduct(res.data);
+        const productData = res?.data || null;
+        setProduct(productData);
         setEditFields({
-          ProductName: res.data.ProductName || "",
-          Price: res.data.Price || "",
-          ProductDescription: res.data.ProductDescription || "",
-          Ingredient: res.data.Ingredient || "",
-          Usage: res.data.Usage || "",
-          HowToUse: res.data.HowToUse || "",
-          StockQuantity: res.data.StockQuantity || "",
-          Lot: res.data.Lot || "",
+          ProductName: productData?.ProductName || "",
+          Price: productData?.Price || "",
+          ProductDescription: productData?.ProductDescription || "",
+          Ingredient: productData?.Ingredient || "",
+          Usage: productData?.Usage || "",
+          HowToUse: productData?.HowToUse || "",
+          StockQuantity: productData?.StockQuantity || "",
+          Lot: productData?.Lot || "",
           Image: null,
-          CategoryID: res.data.CategoryID || "",
-          SubCategoryID: res.data.SubCategoryID || "",
+          CategoryID: productData?.CategoryID || "",
+          SubCategoryID: productData?.SubCategoryID || "",
         });
 
-        const firstBatchId = res?.data?.batchDetails?.[0]?.batchId || null;
+        const firstBatchId = productData?.batchDetails?.[0]?.batchId || null;
         setSelectedBatchId(firstBatchId);
         setEditableBatches(
-          (res?.data?.batchDetails || []).map((batch) => ({
+          (productData?.batchDetails || []).map((batch) => ({
             batchId: batch.batchId || "",
             barcode: batch.barcode || "",
             quantity: Number(batch.quantity || 0),
@@ -138,10 +140,13 @@ const ProductDetail = () => {
             createdAt: batch.createdAt || null,
           }))
         );
-
-        setTimeout(() => setLoading(false), 1000);
       } catch (err) {
         console.error("❌ Không lấy được chi tiết sản phẩm:", err);
+        setProduct(null);
+        setEditableBatches([]);
+        setSelectedBatchId(null);
+      } finally {
+        setLoading(false);
       }
     };
     fetchProduct();
@@ -281,6 +286,43 @@ const ProductDetail = () => {
         return { ...batch, [field]: value };
       })
     );
+  };
+
+  const handleCancelEdit = () => {
+    if (!product) {
+      setIsEdit(false);
+      return;
+    }
+
+    setEditFields({
+      ProductName: product.ProductName || "",
+      Price: product.Price || "",
+      ProductDescription: product.ProductDescription || "",
+      Ingredient: product.Ingredient || "",
+      Usage: product.Usage || "",
+      HowToUse: product.HowToUse || "",
+      StockQuantity: product.StockQuantity || "",
+      Lot: product.Lot || "",
+      Image: null,
+      CategoryID: product.CategoryID || "",
+      SubCategoryID: product.SubCategoryID || "",
+    });
+
+    const resetBatches = (product?.batchDetails || []).map((batch) => ({
+      batchId: batch.batchId || "",
+      barcode: batch.barcode || "",
+      quantity: Number(batch.quantity || 0),
+      expiryDate: batch.expiryDate
+        ? new Date(batch.expiryDate).toISOString().slice(0, 10)
+        : "",
+      createdAt: batch.createdAt || null,
+    }));
+
+    setEditableBatches(resetBatches);
+    setSelectedBatchId(resetBatches?.[0]?.batchId || null);
+    setPreviewImage(null);
+    setSelectedImageName("");
+    setIsEdit(false);
   };
 
   const handleSaveProductDetail = async () => {
@@ -440,8 +482,16 @@ const ProductDetail = () => {
                 >
                   {isSaving ? "Đang lưu..." : isEdit ? "💾 Lưu" : "✏️ Sửa"}
                 </button>
+                {isEdit && (
+                  <button
+                    className="btn-cancel"
+                    onClick={handleCancelEdit}
+                    disabled={isSaving}
+                  >
+                    ✖ Hủy
+                  </button>
+                )}
                 <button className="btn-delete">🗑️ Xóa</button>
-                <button className="btn-hide">🙈 Ẩn</button>
               </div>
             )}
           </div>

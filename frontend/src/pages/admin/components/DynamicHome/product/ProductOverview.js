@@ -51,20 +51,42 @@ const ProductOverviewComponent = () => {
 
   // 🌐 Lấy dữ liệu categories & products từ API khi component mount
   useEffect(() => {
+    let isMounted = true;
+
     const fetchData = async () => {
-      try {
-        const [categoryRes, productRes] = await Promise.all([
-          request("GET", `${API_BASE}/api/user/products/loadCategory`), // 📂 Lấy danh mục
-          request("GET", `${API_BASE}/api/user/products/loadAllProducts`), // 🛍 Lấy tất cả sản phẩm
-        ]);
-        setCategories(categoryRes.data);
-        setProducts(productRes.data);
-        setOriginalProducts(productRes.data);
-      } catch (error) {
-        console.error("Lỗi tải dữ liệu:", error);
-      }
+      const categoryPromise = request("GET", `${API_BASE}/api/user/products/loadCategory`)
+        .then((categoryRes) => {
+          if (!isMounted) return;
+          setCategories(Array.isArray(categoryRes?.data) ? categoryRes.data : []);
+        })
+        .catch((error) => {
+          console.error("Lỗi tải danh mục:", error);
+          if (!isMounted) return;
+          setCategories([]);
+        });
+
+      const productPromise = request("GET", `${API_BASE}/api/user/products/loadAllProducts`)
+        .then((productRes) => {
+          if (!isMounted) return;
+          const rows = Array.isArray(productRes?.data) ? productRes.data : [];
+          setProducts(rows);
+          setOriginalProducts(rows);
+        })
+        .catch((error) => {
+          console.error("Lỗi tải sản phẩm:", error);
+          if (!isMounted) return;
+          setProducts([]);
+          setOriginalProducts([]);
+        });
+
+      await Promise.allSettled([categoryPromise, productPromise]);
     };
+    
     fetchData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [request]);
 
   useEffect(() => {

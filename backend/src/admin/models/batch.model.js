@@ -44,8 +44,9 @@ exports.findAllBatches = async () => {
   const pool = await connectDB();
 
   const result = await pool.request().query(`
-    SELECT ID, CreatedAt, Note
+    SELECT ID, CreatedAt, Note, IsActive
     FROM ${BATCH_TABLE}
+    WHERE IsActive = 1 OR IsActive IS NULL
     ORDER BY CreatedAt DESC
   `);
 
@@ -199,9 +200,132 @@ exports.deleteBatch = async (batchId) => {
   await pool.request()
     .input("BatchID", sql.NVarChar(100), String(batchId || "").trim())
     .query(`
-      DELETE FROM ${BATCH_TABLE}
+      UPDATE ${BATCH_TABLE}
+      SET IsActive = 0
       WHERE CAST(ID AS NVARCHAR(100)) = @BatchID
     `);
+};
+
+exports.findBatchById = async (batchId) => {
+  const pool = await connectDB();
+
+  const result = await pool.request()
+    .input("BatchID", sql.NVarChar(100), String(batchId || "").trim())
+    .query(`
+      SELECT TOP 1 ID, CreatedAt, Note
+      FROM ${BATCH_TABLE}
+      WHERE CAST(ID AS NVARCHAR(100)) = @BatchID
+    `);
+
+  return result.recordset?.[0] || null;
+};
+
+exports.findProductById = async (productId) => {
+  const pool = await connectDB();
+
+  const result = await pool.request()
+    .input("ProductID", sql.NVarChar(100), String(productId || "").trim())
+    .query(`
+      SELECT TOP 1 ProductID, ProductName, IsHidden
+      FROM PRODUCT
+      WHERE CAST(ProductID AS NVARCHAR(100)) = @ProductID
+    `);
+
+  return result.recordset?.[0] || null;
+};
+
+exports.findBatchDetailByBarcode = async (barcode) => {
+  const pool = await connectDB();
+
+  const result = await pool.request()
+    .input("Barcode", sql.NVarChar(100), String(barcode || "").trim())
+    .query(`
+      SELECT TOP 1 BatchID, ProductID, Barcode
+      FROM BATCH_DETAIL
+      WHERE CAST(Barcode AS NVARCHAR(100)) = @Barcode
+    `);
+
+  return result.recordset?.[0] || null;
+};
+
+exports.addProductToBatch = async ({
+  batchId,
+  productId,
+  barcode,
+  quantity,
+  isActive,
+}) => {
+  const pool = await connectDB();
+
+  const meta = await pool.request().query(`
+    SELECT
+      CASE
+        WHEN COL_LENGTH('BATCH_DETAIL', 'BatchID') IS NOT NULL THEN 'BatchID'
+        WHEN COL_LENGTH('BATCH_DETAIL', 'BatchId') IS NOT NULL THEN 'BatchId'
+        WHEN COL_LENGTH('BATCH_DETAIL', 'IDBatch') IS NOT NULL THEN 'IDBatch'
+        ELSE NULL
+      END AS BatchColumn,
+      CASE
+        WHEN COL_LENGTH('BATCH_DETAIL', 'ProductID') IS NOT NULL THEN 'ProductID'
+        WHEN COL_LENGTH('BATCH_DETAIL', 'ProductId') IS NOT NULL THEN 'ProductId'
+        ELSE NULL
+      END AS ProductColumn,
+      CASE
+        WHEN COL_LENGTH('BATCH_DETAIL', 'Barcode') IS NOT NULL THEN 'Barcode'
+        WHEN COL_LENGTH('BATCH_DETAIL', 'BatchBarcode') IS NOT NULL THEN 'BatchBarcode'
+        WHEN COL_LENGTH('BATCH_DETAIL', 'BarCode') IS NOT NULL THEN 'BarCode'
+        WHEN COL_LENGTH('BATCH_DETAIL', 'Code') IS NOT NULL THEN 'Code'
+        ELSE NULL
+      END AS BarcodeColumn,
+      CASE
+        WHEN COL_LENGTH('BATCH_DETAIL', 'Quantity') IS NOT NULL THEN 'Quantity'
+        WHEN COL_LENGTH('BATCH_DETAIL', 'StockQuantity') IS NOT NULL THEN 'StockQuantity'
+        ELSE NULL
+      END AS QuantityColumn,
+      CASE
+        WHEN COL_LENGTH('BATCH_DETAIL', 'IsActive') IS NOT NULL THEN 'IsActive'
+        WHEN COL_LENGTH('BATCH_DETAIL', 'isActive') IS NOT NULL THEN 'isActive'
+        ELSE NULL
+      END AS ActiveColumn,
+      CASE
+        WHEN COL_LENGTH('BATCH_DETAIL', 'CreatedAt') IS NOT NULL THEN 'CreatedAt'
+        ELSE NULL
+      END AS CreatedAtColumn
+  `);
+
+  const row = meta.recordset?.[0] || {};
+  if (!row.BatchColumn || !row.ProductColumn || !row.BarcodeColumn || !row.QuantityColumn || !row.ActiveColumn) {
+    return 0;
+  }
+
+  const columns = [
+    `[${row.BatchColumn}]`,
+    `[${row.ProductColumn}]`,
+    `[${row.BarcodeColumn}]`,
+    `[${row.QuantityColumn}]`,
+    `[${row.ActiveColumn}]`,
+  ];
+  const values = ["@BatchID", "@ProductID", "@Barcode", "@Quantity", "@IsActive"];
+
+  if (row.CreatedAtColumn) {
+    columns.push(`[${row.CreatedAtColumn}]`);
+    values.push("GETDATE()");
+  }
+
+  const result = await pool.request()
+    .input("BatchID", sql.NVarChar(100), String(batchId || "").trim())
+    .input("ProductID", sql.NVarChar(100), String(productId || "").trim())
+    .input("Barcode", sql.NVarChar(100), String(barcode || "").trim())
+    .input("Quantity", sql.Int, Number(quantity || 0))
+    .input("IsActive", sql.Bit, Number(isActive || 0) === 1 ? 1 : 0)
+    .query(`
+      INSERT INTO BATCH_DETAIL (${columns.join(", ")})
+      VALUES (${values.join(", ")});
+
+      SELECT @@ROWCOUNT AS InsertedRows;
+    `);
+
+  return Number(result.recordset?.[0]?.InsertedRows || 0);
 };
 
 exports.updateProductInBatch = async ({

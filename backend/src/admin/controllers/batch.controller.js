@@ -134,3 +134,35 @@ exports.updateProductInBatch = async (req, res) => {
     });
   }
 };
+
+exports.addProductToBatch = async (req, res) => {
+  try {
+    const { batchId } = req.params;
+    const {
+      productId,
+      barcode,
+      quantity,
+      isActive,
+    } = req.body;
+
+    const result = await batchService.addProductToBatch({
+      batchId,
+      productId,
+      barcode,
+      quantity,
+      isActive,
+    });
+
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    return res.status(201).json(result);
+  } catch (error) {
+    console.error("❌ Lỗi addProductToBatch:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server khi thêm sản phẩm vào lô",
+    });
+  }
+};

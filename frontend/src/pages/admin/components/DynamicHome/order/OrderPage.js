@@ -95,7 +95,6 @@ const OrderPage = () => {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [orders, setOrders] = useState(ordersData);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [pendingOrder, setPendingOrder] = useState(null); // Đơn hàng chờ hiển thị chi tiết
   const [isCollapsed, setIsCollapsed] = useState(false); // Trạng thái co bảng
   const [pendingStatusChange, setPendingStatusChange] = useState(null);
   const [openStatusMenuOrderId, setOpenStatusMenuOrderId] = useState(null);
@@ -292,37 +291,17 @@ const OrderPage = () => {
 
   //================== Khi ấn "Xem"==================
   const handleViewDetail = (order) => {
-    if (pendingOrder) return;
     setIsCalendarOpen(false);
     setOpenStatusMenuOrderId(null);
 
-    if (isCollapsed) {
-      if (selectedOrder) {
-        setSelectedOrder(order);
-      } else {
-        setPendingOrder(order);
-      }
-      return;
-    }
-
-    setPendingOrder(order);
+    setSelectedOrder(order);
     setIsCollapsed(true);
-  };
-
-  //==================  Khi bảng co xong (transitionEnd), mới hiện chi tiết==================
-  const handleTransitionEnd = (e) => {
-    if (isCollapsed && pendingOrder && e.propertyName === "max-width") {
-      setSelectedOrder(pendingOrder);
-      setPendingOrder(null);
-    }
   };
 
   //================== Khi đóng panel chi tiết==================
   const handleCloseDetail = () => {
     setSelectedOrder(null);
-    setTimeout(() => {
-      setIsCollapsed(false);
-    }, 50);
+    setIsCollapsed(false);
   };
 
   return (
@@ -337,7 +316,6 @@ const OrderPage = () => {
             maxWidth: isCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH,
             transition: `max-width ${TRANSITION_TIME}ms cubic-bezier(0.23, 1, 0.32, 1)`,
           }}
-          onTransitionEnd={handleTransitionEnd}
         >
           {/* 🔹 Bộ lọc trạng thái đơn hàng */}
           <div className="order-status-filters">
