@@ -1,9 +1,10 @@
 export const ROUTERS = {
     // Các đường dẫn của USER
     USER: {
-      HOME: "",                // Trang chủ user: /
-      PROFILE: "profile",      // Trang profile: /profile
-      SIGNUP: "signup",        // Trang đăng ký: /signup
+      HOME: "",                      // Trang chủ user: /
+      PROFILE: "profile",            // Trang profile: /profile
+      PRODUCT_DETAIL: "product/:id", // Chi tiết sản phẩm: /product/123
+      SIGNUP: "signup",              // Trang đăng ký: /signup
     },
   
     // Các đường dẫn của ADMIN
@@ -34,6 +35,12 @@ export const ROUTERS = {
       SHIPMENT: {
         INDEX: "shipment",                    // Danh sách lô hàng: /admin/shipment
         DETAIL: "shipment/:batchId",          // Chi tiết lô hàng: /admin/shipment/BATCH_001
+      },
+
+      // Nhóm đường dẫn khách hàng (Customer)
+      CUSTOMER: {
+        INDEX: "customer",                    // Danh sách khách hàng: /admin/customer
+        DETAIL: "customer/:customerId",       // Chi tiết khách hàng: /admin/customer/email@domain.com
       },
     },
   

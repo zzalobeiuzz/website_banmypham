@@ -1,15 +1,77 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { UPLOAD_BASE } from "../../constants";
 import '../auth.scss';
 
-const LoginForm = ({ email, setEmail, password, setPassword, onSubmit, switchToForgot }) => {
+const LoginForm = ({
+  email,
+  setEmail,
+  password,
+  setPassword,
+  loginError,
+  googleClientId,
+  onGoogleCode,
+  onSubmit,
+  switchToForgot,
+}) => {
   const [showPassword, setShowPassword] = useState(false);
+  const [googleReady, setGoogleReady] = useState(false);
+
+  useEffect(() => {
+    if (!googleClientId) return;
+
+    const existing = document.getElementById("google-identity-script");
+    if (existing) {
+      setGoogleReady(Boolean(window.google?.accounts?.id));
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = "google-identity-script";
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => setGoogleReady(true);
+    document.body.appendChild(script);
+  }, [googleClientId]);
 
   const toggleShowPassword = () => {
     setShowPassword((prev) => !prev);
   };
+
+  const handleGoogleLogin = () => {
+    if (!googleClientId) {
+      window.alert("Thiếu REACT_APP_GOOGLE_CLIENT_ID ở frontend.");
+      return;
+    }
+
+    if (!window.google?.accounts?.oauth2 || !googleReady) {
+      window.alert("Google Sign-In chưa sẵn sàng, vui lòng thử lại.");
+      return;
+    }
+
+    const codeClient = window.google.accounts.oauth2.initCodeClient({
+      client_id: googleClientId,
+      scope: "openid email profile",
+      ux_mode: "popup",
+      redirect_uri: "postmessage",
+      callback: (response) => {
+        if (response?.code) {
+          onGoogleCode(response.code);
+        }
+      },
+    });
+
+    codeClient.requestCode();
+  };
+
   return (
     <form onSubmit={onSubmit}>
+      {loginError && (
+        <div className="login-error-message" role="alert">
+          {loginError}
+        </div>
+      )}
+
       {/* Email */}
       <div className="form-outline mb-4">
         <input
@@ -78,7 +140,7 @@ const LoginForm = ({ email, setEmail, password, setPassword, onSubmit, switchToF
       <button
         type="button"
         className="btn btn-outline-danger mb-2"
-        onClick={() => alert("👉 Tích hợp Google ở đây")}
+        onClick={handleGoogleLogin}
       >
         <i className="fab fa-google me-2"></i> Đăng nhập bằng Google
       </button>

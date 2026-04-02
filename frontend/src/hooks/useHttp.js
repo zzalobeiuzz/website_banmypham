@@ -25,12 +25,22 @@ const useHttp = () => {
     setError(null);       // Reset lỗi cũ (nếu có)
 
     try {
+      const mergedHeaders = { ...(headers || {}) };
+
+      // Tự gắn access token cho toàn bộ API admin nếu caller chưa truyền Authorization.
+      if (typeof url === "string" && url.includes("/api/admin/") && !mergedHeaders.Authorization) {
+        const accessToken = localStorage.getItem("accessToken");
+        if (accessToken) {
+          mergedHeaders.Authorization = `Bearer ${accessToken}`;
+        }
+      }
+
       // Gửi request với cấu hình từ axios
       const response = await axios({
         method: method.toLowerCase(),  // Chuyển method về lowercase để axios hiểu đúng
         url,                           // Endpoint API
         data: payload,                  // Dữ liệu gửi đi (body)
-        headers,                        //Header để gửi token
+        headers: mergedHeaders,         // Header gửi lên server
         withCredentials: true, // 👈👈👈 Thêm dòng này để gửi cookie session
       });
 

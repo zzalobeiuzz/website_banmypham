@@ -1,9 +1,14 @@
 const {
   login,
+  loginWithGoogle,
   checkEmailAndGenerateCode,
   register,
   generateAndSendVerificationCode,
   resetPassword,
+  updateUserAvatar,
+  changePassword,
+  updateUserProfileFull,
+  getUserProfile,
 } = require("../services/auth.service");
 
 //================= Xử lý đăng nhập =================
@@ -25,6 +30,17 @@ exports.loginHandler = async (req, res) => {
     }
 
     res.status(500).json({ message: "Lỗi server khi đăng nhập." });
+  }
+};
+
+exports.googleLoginHandler = async (req, res) => {
+  try {
+    const { credential, code } = req.body || {};
+    const result = await loginWithGoogle({ credential, code });
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error("❌ Lỗi đăng nhập Google:", err.message);
+    return res.status(401).json({ message: err.message || "Đăng nhập Google thất bại." });
   }
 };
 
@@ -144,5 +160,62 @@ exports.resetPasswordHandler = async (req, res) => {
   } catch (err) {
     console.error("❌ Lỗi reset password:", err.message);
     return res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+exports.updateAvatarHandler = async (req, res) => {
+  try {
+    const email = req.user?.email;
+    const file = req.file;
+    const avatarUrl = req.body?.avatarUrl;
+
+    const result = await updateUserAvatar({ email, file, avatarUrl });
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error("❌ Lỗi cập nhật avatar:", err.message);
+    return res.status(400).json({ message: err.message || "Cập nhật avatar thất bại." });
+  }
+};
+
+exports.changePasswordHandler = async (req, res) => {
+  try {
+    const email = req.user?.email;
+    const { currentPassword, newPassword } = req.body || {};
+
+    const result = await changePassword({ email, currentPassword, newPassword });
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error("❌ Lỗi đổi mật khẩu:", err.message);
+    return res.status(400).json({ message: err.message || "Đổi mật khẩu thất bại." });
+  }
+};
+
+exports.updateProfileHandler = async (req, res) => {
+  try {
+    const currentEmail = req.user?.email;
+    const { email, name, phoneNumber, address } = req.body || {};
+
+    const result = await updateUserProfileFull({
+      currentEmail,
+      email,
+      name,
+      phoneNumber,
+      address,
+    });
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error("❌ Lỗi cập nhật hồ sơ:", err.message);
+    return res.status(400).json({ message: err.message || "Cập nhật hồ sơ thất bại." });
+  }
+};
+
+exports.getProfileHandler = async (req, res) => {
+  try {
+    const email = req.user?.email;
+    const result = await getUserProfile({ email });
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error("❌ Lỗi lấy hồ sơ:", err.message);
+    return res.status(400).json({ message: err.message || "Lấy hồ sơ thất bại." });
   }
 };

@@ -13,9 +13,11 @@ const LoginPopup = ({ toggleLoginPopup, onLoginSuccess }) => {
   const [step, setStep] = useState(1); // 1: login, 2: forgot, 3: verify, 4: reset password
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
   const [forgotMessage, setForgotMessage] = useState("");
   const [serverCode, setServerCode] = useState(""); // ✅ mã server trả về
   const { request } = useHttp();
+  const googleClientId = String(process.env.REACT_APP_GOOGLE_CLIENT_ID || "").trim();
 
   const nextStep = () => setStep((prev) => prev + 1);
   const prevStep = () => setStep((prev) => prev - 1);
@@ -23,6 +25,7 @@ const LoginPopup = ({ toggleLoginPopup, onLoginSuccess }) => {
   // ==== Đăng nhập ====
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
+    setLoginError("");
     try {
       const res = await request(
         "POST",
@@ -46,7 +49,7 @@ const LoginPopup = ({ toggleLoginPopup, onLoginSuccess }) => {
       alert(`🎉 Đăng nhập thành công! Xin chào, ${decoded.name}`);
       window.location.href = decoded.role === 1 ? "/admin" : "/";
     } catch (err) {
-      alert("❌ Lỗi đăng nhập: " + err.message);
+      setLoginError(err?.message || "Sai email hoặc mật khẩu");
       setPassword("");
     }
   };
@@ -109,6 +112,25 @@ const LoginPopup = ({ toggleLoginPopup, onLoginSuccess }) => {
     nextStep(); // Mã đúng → sang bước đổi mật khẩu
   };
 
+  const handleGoogleCode = async (code) => {
+    try {
+      setLoginError("");
+      const res = await request("POST", `${API_BASE}/api/user/auth/google-login`, { code });
+
+      localStorage.setItem("accessToken", res.accessToken);
+      localStorage.setItem("refreshToken", res.refreshToken);
+
+      const decoded = jwtDecode(res.accessToken);
+      localStorage.setItem("user", JSON.stringify(decoded));
+
+      onLoginSuccess(decoded);
+      toggleLoginPopup();
+      window.location.href = decoded.role === 1 ? "/admin" : "/";
+    } catch (err) {
+      setLoginError(err?.message || "Đăng nhập Google thất bại.");
+    }
+  };
+
   return (
     <div className="popup-overlay" onClick={toggleLoginPopup}>
       <div className="popup-wrapper" onClick={(e) => e.stopPropagation()}>
@@ -130,6 +152,9 @@ const LoginPopup = ({ toggleLoginPopup, onLoginSuccess }) => {
                 setEmail={setEmail}
                 password={password}
                 setPassword={setPassword}
+                loginError={loginError}
+                googleClientId={googleClientId}
+                onGoogleCode={handleGoogleCode}
                 onSubmit={handleLoginSubmit}
                 switchToForgot={() => setStep(2)}
               />
@@ -142,6 +167,7 @@ const LoginPopup = ({ toggleLoginPopup, onLoginSuccess }) => {
                 onSubmit={handleSendCodeForm}
                 switchToLogin={() => {
                   setForgotMessage("");
+                  setLoginError("");
                   setStep(1);
                 }}
                 message={forgotMessage}

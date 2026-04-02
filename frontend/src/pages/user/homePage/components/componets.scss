@@ -54,7 +54,7 @@
             touch-action: pan-y;
             -webkit-user-select: none;
             user-select: none;
-            pointer-events: none;
+            pointer-events: auto;
 
             .product-template {
               padding: 8px 10px;

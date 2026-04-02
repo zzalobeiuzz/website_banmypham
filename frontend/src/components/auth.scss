@@ -31,6 +31,19 @@
   /* ✅ Browser chuẩn */
 
   form {
+    .login-error-message {
+      width: 90%;
+      margin: 0 auto 12px;
+      padding: 10px 12px;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      background: #fff1f2;
+      color: #9f1239;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: left;
+    }
+
     img {
       position: absolute;
       right: 15px;

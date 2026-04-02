@@ -1,7 +1,9 @@
 import PropTypes from "prop-types";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { API_BASE, UPLOAD_BASE } from "../../../../constants";
 import useHttp from "../../../../hooks/useHttp";
+import { ROUTERS } from "../../../../utils/router";
 import "./componets.scss";
 
 // 🌟 Kích thước 1 item và số lượng item hiển thị
@@ -213,7 +215,10 @@ const Select = ({ title }) => {
                   style={{ width: `${ITEM_WIDTH}px`, flexShrink: 0 }}
                   key={index}
                 >
-                  <a href="/a" className="product-template">
+                  <Link
+                    to={`/${ROUTERS.USER.PRODUCT_DETAIL.replace(":id", String(product.ProductID || ""))}`}
+                    className="product-template"
+                  >
                     {product.sale_price && product.discountPercent > 0 && (
                       <div className="product-discount">
                         <span className="pe-1">{product.discountPercent}%</span>
@@ -252,7 +257,7 @@ const Select = ({ title }) => {
                         {product.discountTimeLeft}
                       </div>
                     )}
-                  </a>
+                  </Link>
                 </div>
               ))}
             </div>

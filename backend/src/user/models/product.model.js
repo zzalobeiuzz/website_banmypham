@@ -43,6 +43,7 @@ exports.findSaleProducts = async () => {
   const pool = await connectDB();
   const result = await pool.request().query(`
     SELECT 
+      P.ProductID,
       P.ProductName,
       P.SupplierID,
       P.Price,

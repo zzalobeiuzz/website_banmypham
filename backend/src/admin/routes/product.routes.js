@@ -12,17 +12,29 @@ const {
 
 const upload = require("../middlewares/upload.middleware");
 
-// PUT: update sản phẩm
+// Mọi route ở đây đều cần xác thực token và quyền admin
+const { verifyToken, verifyAdmin } = require("../middlewares/verifyToken.middleware");
+
+// Hàm xử lý middleware để xác thực token và quyền admin 
+// sẽ được áp dụng trước cho tất cả các route trong router này
+router.use(verifyToken, verifyAdmin);
+
+// Cập nhật thông tin tổng quan của sản phẩm.
 router.put("/updateProducts", update);
 
-// GET: kiểm tra sản phẩm tồn tại (barcode)
+// Kiểm tra sản phẩm đã tồn tại theo barcode hay chưa.
 router.get("/checkProductExistence", checkExisProduct);
-// GET: Lấy thông tin sản phẩm
+
+// Lấy chi tiết sản phẩm để hiển thị khi chỉnh sửa/xem.
 router.get("/productDetail", handleProductDetail);
+
+// Cập nhật phần thông tin chi tiết sản phẩm.
 router.put("/updateProductDetail", updateProductDetail);
-// POST: thêm sản phẩm mới (có upload hình ảnh)
+
+// Thêm sản phẩm mới và nhận ảnh upload (Image).
 router.post("/add", upload.single("Image"), addProduct);
-// DELETE: xóa mềm sản phẩm (set IsHidden = 1)
+
+// Xóa mềm sản phẩm (ẩn sản phẩm khỏi danh sách hiển thị).
 router.delete("/deleteProducts", deleteProducts);
 
 

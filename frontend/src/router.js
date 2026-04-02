@@ -6,6 +6,7 @@ import NotFoundPage from "./pages/NotFoundPage/NotFoundPage.js";
 // ========== 👤 USER IMPORTS ==========
 import HomePage from "./pages/user/homePage/home_page.js";
 import ProfilePage from "./pages/user/profilePage/profile_page.js";
+import ProductDetail from "./pages/user/productDetail/product_detail.js";
 import MasterLayout from "./pages/user/theme/masterLayout/masterLayout.js";
 
 // ========== 🛠️ ADMIN IMPORTS ==========
@@ -20,6 +21,7 @@ import BatchesPage from "./pages/admin/components/DynamicHome/batches/BatchesPag
 import BatchDetailPage from "./pages/admin/components/DynamicHome/batches/BatchDetailPage.js";
 import OrderPage from "./pages/admin/components/DynamicHome/order/OrderPage.js";
 import AddOrder from "./pages/admin/components/DynamicHome/order/AddOrder.js";
+import CustomerPage from "./pages/admin/components/DynamicHome/customer/CustomerPage.js";
 
 import { ROUTERS } from "./utils/router";
 
@@ -27,6 +29,7 @@ import { ROUTERS } from "./utils/router";
 const userRoutes = [
   { path: ROUTERS.USER.HOME, element: <HomePage />, showHeaderFooter: true },
   { path: ROUTERS.USER.PROFILE, element: <ProfilePage />, showHeaderFooter: true },
+  { path: ROUTERS.USER.PRODUCT_DETAIL, element: <ProductDetail />, showHeaderFooter: true },
   { path: ROUTERS.USER.SIGNUP, element: <SignUp />, showHeaderFooter: false },
 ];
 
@@ -68,6 +71,12 @@ const adminRoutes = [
     children: [
       { index: true, element: <BatchesPage /> },
       { path: ":batchId", element: <BatchDetailPage /> },
+    ],
+  },
+  {
+    path: ROUTERS.ADMIN.CUSTOMER.INDEX || "customer", // 👥 Khách hàng
+    children: [
+      { index: true, element: <CustomerPage /> }, // 🏠 Trang danh sách khách hàng (/admin/customer)
     ],
   },
 ];

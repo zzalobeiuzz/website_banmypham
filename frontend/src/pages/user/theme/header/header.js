@@ -9,6 +9,7 @@ import { Link, useLocation } from "react-router-dom";
 import LoginPopup from "../../../../components/LoginPopup";
 import { API_BASE, UPLOAD_BASE } from "../../../../constants";
 import useHttp from "../../../../hooks/useHttp";
+import { ROUTERS } from "../../../../utils/router";
 import "./header.scss";
 
 const Header = () => {
@@ -18,11 +19,18 @@ const Header = () => {
   const [showCustomService, setShowCustomService] = useState(true);
   const [showLogin, setShowLogin] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
   const [categories, setCategories] = useState([]);
   const [activeCategoryId, setActiveCategoryId] = useState(null);
 
   const location = useLocation();
   const { request } = useHttp();
+  const isProfilePage = location.pathname === `/${ROUTERS.USER.PROFILE}`;
+  const resolveAvatarSrc = (avatar) => {
+    if (!avatar) return `${UPLOAD_BASE}/icons/icons8-web-account.png`;
+    if (/^https?:\/\//i.test(avatar) || avatar.startsWith("data:")) return avatar;
+    return `${UPLOAD_BASE}/${String(avatar).replace(/^\/+/, "")}`;
+  };
 
   // ✅ Load category khi mount
   useEffect(() => {
@@ -41,8 +49,24 @@ const Header = () => {
 
   // ✅ Xử lý scroll header
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) setUser(JSON.parse(storedUser));
+    const hydrateUser = () => {
+      const storedUser = localStorage.getItem("user");
+      if (!storedUser) {
+        setUser(null);
+        return;
+      }
+
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (error) {
+        setUser(null);
+      }
+    };
+
+    hydrateUser();
+
+    const handleUserUpdated = () => hydrateUser();
+    window.addEventListener("user-updated", handleUserUpdated);
 
     if (location.state?.showLogin) {
       setShowLogin(true);
@@ -67,18 +91,26 @@ const Header = () => {
     };
 
     window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [location.state, isFixed, lastScrollY]);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("user-updated", handleUserUpdated);
+    };
+  }, [location.pathname, location.state, isFixed, lastScrollY]);
 
   // ✅ Toggle popup login
   const toggleLoginPopup = () => setShowLogin((prev) => !prev);
 
   // ✅ Toggle dropdown tìm kiếm
   const toggleDropdown = () => setDropdownOpen((prev) => !prev);
+  const openCategoryMenu = () => setCategoryMenuOpen(true);
+  const closeCategoryMenu = () => {
+    setCategoryMenuOpen(false);
+    setActiveCategoryId(null);
+  };
 
   return (
     <>
-      <div className={`header ${isFixed ? "fixed-elements" : ""}`}>
+      <div className={`header ${isFixed ? "fixed-elements" : ""} ${isProfilePage ? "profile-hover-menu" : ""}`}>
         {/* ---------- Header top ---------- */}
         <div className="header-top">
           <div className="container">
@@ -203,13 +235,14 @@ const Header = () => {
 
                 {user ? (
                   <div className="login-info d-flex align-items-center gap-3">
-                    <div className="login-button">
+                    <Link to={`/${ROUTERS.USER.PROFILE}`} className="login-button">
                       <img
-                        src={`${UPLOAD_BASE}/icons/icons8-web-account.png`}
-                        alt="icon-user"
+                        src={resolveAvatarSrc(user.avatar)}
+                        alt="user-avatar"
+                        className={user.avatar ? "user-avatar-thumb" : ""}
                       />
                       <span>{showCustomService ? `Xin chào, ${user.name}` : user.name}</span>
-                    </div>
+                    </Link>
                     <button
                       className="btn btn-sm btn-danger p-10"
                       onClick={() => {
@@ -238,11 +271,15 @@ const Header = () => {
         {/* ---------- Header bottom ---------- */}
         <div className="header-bottom">
           <div className="container header-bottom-menu header-menu">
-            <div className={`menu_item menu_site ${isFixed ? "fixed-elements" : ""}`}>
-              <a href="/" className="item">
+            <div
+              className={`menu_item menu_site ${categoryMenuOpen ? "open" : ""} ${isFixed ? "fixed-elements" : ""}`}
+              onMouseEnter={openCategoryMenu}
+              onMouseLeave={closeCategoryMenu}
+            >
+              <button type="button" className="item">
                 <FontAwesomeIcon icon={faBars} className="fas" />
                 Danh mục sản phẩm
-              </a>
+              </button>
               <div className="menu_content">
                 {categories.map((category) => (
                   <div
