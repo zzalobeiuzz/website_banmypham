@@ -59,6 +59,7 @@ const Homepage = () => {
     { icon: "icons-product-management.png", label: "Sản phẩm", path: `/${ROUTERS.ADMIN.HOME}` },
     { icon: "icons-order.png", label: "Đơn hàng", path: `/${ROUTERS.ADMIN.HOME}/${ROUTERS.ADMIN.ORDER.INDEX}` },
     { icon: "icons-product-category.png", label: "Danh mục", path: `/${ROUTERS.ADMIN.HOME}/${ROUTERS.ADMIN.CATEGORY.INDEX}` },
+    { icon: "icons8-brand.png", label: "Thương hiệu", path: `/${ROUTERS.ADMIN.HOME}/${ROUTERS.ADMIN.BRAND.INDEX}` },
     { icon: "icons-shipment.png", label: "Lô hàng", path: `/${ROUTERS.ADMIN.HOME}/${ROUTERS.ADMIN.SHIPMENT.INDEX}` },
     { icon: "icons-customer.png", label: "Khách hàng", path: `/${ROUTERS.ADMIN.HOME}/${ROUTERS.ADMIN.CUSTOMER.INDEX}` },
     { icon: "icons-account.png", label: "Tài khoản", path: "/admin/account" },

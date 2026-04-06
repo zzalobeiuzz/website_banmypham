@@ -47,7 +47,7 @@ const ProductDetail = () => {
       try {
         const res = await request(
           "GET",
-          `${API_BASE}/api/admin/products/productDetail?code=${id}`
+          `${API_BASE}/api/user/products/detail/${encodeURIComponent(id)}`
         );
         const productData = res?.data || null;
         setProduct(productData);

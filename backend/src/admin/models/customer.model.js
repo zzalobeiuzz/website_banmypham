@@ -191,3 +191,52 @@ exports.deleteCustomer = async (customerId) => {
     throw error;
   }
 };
+
+/**
+ * Reset mật khẩu tài khoản khách hàng theo email customerId
+ */
+exports.resetCustomerPassword = async (customerId, hashedPassword) => {
+  try {
+    const pool = await connectDB();
+    const result = await pool.request()
+      .input("customerId", sql.VarChar, customerId)
+      .input("hashedPassword", sql.VarChar, hashedPassword)
+      .query(`
+        UPDATE ACCOUNT
+        SET Password = @hashedPassword
+        WHERE Email = @customerId
+      `);
+
+    return result.rowsAffected[0] > 0;
+  } catch (error) {
+    console.error("❌ Lỗi resetCustomerPassword:", error.message);
+    throw error;
+  }
+};
+
+/**
+ * Cập nhật thông tin khách hàng trong CUSTOMER
+ */
+exports.updateCustomerInfo = async ({ customerId, fullName, phoneNumber, address }) => {
+  try {
+    const pool = await connectDB();
+    const result = await pool.request()
+      .input("customerId", sql.VarChar, customerId)
+      .input("fullName", sql.NVarChar, fullName)
+      .input("phoneNumber", sql.VarChar, phoneNumber)
+      .input("address", sql.NVarChar, address)
+      .query(`
+        UPDATE CUSTOMER
+        SET
+          Name = @fullName,
+          Phone = @phoneNumber,
+          Address = @address
+        WHERE Email = @customerId
+      `);
+
+    return result.rowsAffected[0] > 0;
+  } catch (error) {
+    console.error("❌ Lỗi updateCustomerInfo:", error.message);
+    throw error;
+  }
+};

@@ -1,14 +1,21 @@
 const fs = require("fs");
 const path = require("path");
 
-const uploadDir = path.join(__dirname, "./uploads");
+const uploadDir = path.join(__dirname, "..", "uploads");
 
 const cleanUploads = () => {
-  const files = fs.readdirSync(uploadDir);
+  if (!fs.existsSync(uploadDir)) {
+    console.warn("[cleanUploads] Upload directory not found:", uploadDir);
+    return;
+  }
+
+  const files = fs.readdirSync(uploadDir, { withFileTypes: true });
   const now = Date.now();
 
-  files.forEach((file) => {
-    const filePath = path.join(uploadDir, file);
+  files.forEach((entry) => {
+    if (!entry.isFile()) return;
+
+    const filePath = path.join(uploadDir, entry.name);
     fs.stat(filePath, (err, stats) => {
       if (err) return console.error("Stat error:", err);
 
@@ -16,7 +23,7 @@ const cleanUploads = () => {
       if (now - stats.mtimeMs >  60 * 1000) {
         fs.unlink(filePath, (err) => {
           if (err) console.error("Delete error:", err);
-          else console.log("✅ Deleted old file:", file);
+          else console.log("✅ Deleted old file:", entry.name);
         });
       }
     });

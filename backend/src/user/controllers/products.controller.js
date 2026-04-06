@@ -4,6 +4,7 @@ const {
   getSaleProducts,
   getHotProducts,
   getAllProducts,
+  getProductDetailById,
 } = require("../services/product.service");
 
 //============================ Gửi danh sách sản phẩm khuyến mãi=============================
@@ -74,6 +75,29 @@ exports.getProductsHandler = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Lỗi server khi lấy danh sách sản phẩm.",
+    });
+  }
+};
+
+// ============================= Lấy chi tiết sản phẩm theo ProductID =============================
+exports.getProductDetailHandler = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await getProductDetailById(id);
+
+    if (!result?.success || !result?.data) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy sản phẩm.",
+      });
+    }
+
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error("❌ Lỗi khi lấy chi tiết sản phẩm:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server khi lấy chi tiết sản phẩm.",
     });
   }
 };

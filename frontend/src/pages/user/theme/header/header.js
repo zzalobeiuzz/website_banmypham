@@ -26,6 +26,8 @@ const Header = () => {
   const location = useLocation();
   const { request } = useHttp();
   const isProfilePage = location.pathname === `/${ROUTERS.USER.PROFILE}`;
+  const normalizedPath = (location.pathname || "/").replace(/\/+$/, "") || "/";
+  const isHomePage = normalizedPath === "/";
   const resolveAvatarSrc = (avatar) => {
     if (!avatar) return `${UPLOAD_BASE}/icons/icons8-web-account.png`;
     if (/^https?:\/\//i.test(avatar) || avatar.startsWith("data:")) return avatar;
@@ -104,9 +106,17 @@ const Header = () => {
   const toggleDropdown = () => setDropdownOpen((prev) => !prev);
   const openCategoryMenu = () => setCategoryMenuOpen(true);
   const closeCategoryMenu = () => {
+    if (isHomePage) {
+      setCategoryMenuOpen(true);
+      return;
+    }
     setCategoryMenuOpen(false);
     setActiveCategoryId(null);
   };
+
+  useEffect(() => {
+    setCategoryMenuOpen(isHomePage);
+  }, [isHomePage]);
 
   return (
     <>
@@ -139,7 +149,7 @@ const Header = () => {
 
             <div className="container-header-main">
               {isFixed && (
-                <div className="show-when-fixed">
+                <div className={`show-when-fixed ${isHomePage ? "open" : ""}`}>
                   <a href="/" className="item">
                     <FontAwesomeIcon icon={faBars} className="fas" />
                     Danh mục sản phẩm
@@ -272,7 +282,7 @@ const Header = () => {
         <div className="header-bottom">
           <div className="container header-bottom-menu header-menu">
             <div
-              className={`menu_item menu_site ${categoryMenuOpen ? "open" : ""} ${isFixed ? "fixed-elements" : ""}`}
+              className={`menu_item menu_site ${categoryMenuOpen || isHomePage ? "open" : ""} ${isFixed ? "fixed-elements" : ""}`}
               onMouseEnter={openCategoryMenu}
               onMouseLeave={closeCategoryMenu}
             >

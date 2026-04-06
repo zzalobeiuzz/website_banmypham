@@ -22,6 +22,7 @@ import BatchDetailPage from "./pages/admin/components/DynamicHome/batches/BatchD
 import OrderPage from "./pages/admin/components/DynamicHome/order/OrderPage.js";
 import AddOrder from "./pages/admin/components/DynamicHome/order/AddOrder.js";
 import CustomerPage from "./pages/admin/components/DynamicHome/customer/CustomerPage.js";
+import BrandPage from "./pages/admin/components/DynamicHome/brand/BrandPage.js";
 
 import { ROUTERS } from "./utils/router";
 
@@ -55,6 +56,10 @@ const adminRoutes = [
         element: <ProductTable />,
       },
     ],
+  },
+  {
+    path: ROUTERS.ADMIN.BRAND.INDEX || "brand",
+    children: [{ index: true, element: <BrandPage /> }],
   },
   {
     path: ROUTERS.ADMIN.ORDER.INDEX || "order", // 📦 Đơn hàng

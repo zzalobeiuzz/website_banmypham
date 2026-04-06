@@ -25,7 +25,8 @@ const useHttp = () => {
     setError(null);       // Reset lỗi cũ (nếu có)
 
     try {
-      const mergedHeaders = { ...(headers || {}) };
+      const safeHeaders = headers && typeof headers === "object" && !Array.isArray(headers) ? headers : {};
+      const mergedHeaders = { ...safeHeaders };
 
       // Tự gắn access token cho toàn bộ API admin nếu caller chưa truyền Authorization.
       if (typeof url === "string" && url.includes("/api/admin/") && !mergedHeaders.Authorization) {

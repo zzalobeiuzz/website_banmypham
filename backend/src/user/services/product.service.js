@@ -3,9 +3,32 @@ const {
   findHotProducts,
   findCategories,
   findAllProducts,
+  findProductDetailById,
+  findBatchDetailsByProductId,
   syncExpiredBatchDetailsStatus,
 } = require("../models/product.model");
 const { calculateDiscountPercent, calculateTimeLeft } = require("../utils/productUtils");
+
+const BATCH_SYNC_INTERVAL_MS = Number(process.env.BATCH_SYNC_INTERVAL_MS || 10 * 60 * 1000);
+let lastBatchSyncAt = 0;
+let isBatchSyncRunning = false;
+
+const triggerBatchSyncInBackground = () => {
+  const now = Date.now();
+  if (isBatchSyncRunning) return;
+  if (now - lastBatchSyncAt < BATCH_SYNC_INTERVAL_MS) return;
+
+  isBatchSyncRunning = true;
+  lastBatchSyncAt = now;
+
+  syncExpiredBatchDetailsStatus()
+    .catch((error) => {
+      console.error("❌ Lỗi đồng bộ lô hết hạn (background):", error?.message || error);
+    })
+    .finally(() => {
+      isBatchSyncRunning = false;
+    });
+};
 
 // ================================ LẤY DANH SÁCH SẢN PHẨM SALE ==============================
 exports.getSaleProducts = async () => {
@@ -40,7 +63,7 @@ exports.getAllCategories = async () => {
 // ================================ LẤY TẤT CẢ SẢN PHẨM ==============================
 exports.getAllProducts = async () => {
   try {
-    await syncExpiredBatchDetailsStatus();
+    triggerBatchSyncInBackground();
 
     const data = await findAllProducts();
 
@@ -52,6 +75,41 @@ exports.getAllProducts = async () => {
     }));
   } catch (error) {
     console.error("❌ Lỗi khi lấy tất cả sản phẩm:", error);
+    throw error;
+  }
+};
+
+// ================================ LẤY CHI TIẾT 1 SẢN PHẨM ==============================
+exports.getProductDetailById = async (productId) => {
+  try {
+    if (!productId) {
+      return {
+        success: false,
+        message: "Thiếu mã sản phẩm.",
+      };
+    }
+
+    triggerBatchSyncInBackground();
+
+    const product = await findProductDetailById(productId);
+    if (!product) {
+      return {
+        success: false,
+        message: "Không tìm thấy sản phẩm.",
+      };
+    }
+
+    const batchDetails = await findBatchDetailsByProductId(productId);
+
+    return {
+      success: true,
+      data: {
+        ...product,
+        batchDetails,
+      },
+    };
+  } catch (error) {
+    console.error("❌ Lỗi getProductDetailById:", error);
     throw error;
   }
 };

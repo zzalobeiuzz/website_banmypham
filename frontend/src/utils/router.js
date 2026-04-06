@@ -24,6 +24,11 @@ export const ROUTERS = {
         INDEX: "product/categories",    // Danh sách danh mục: /admin/product/categories
         PRODUCTS: "product/categories/:categoryId/products", // Sản phẩm theo danh mục: /admin/product/categories/:categoryId/products
       },
+
+      // Nhóm đường dẫn thương hiệu (Brand)
+      BRAND: {
+        INDEX: "brand",                 // Danh sách thương hiệu: /admin/brand
+      },
   
       // Nhóm đường dẫn đơn hàng (Order)
       ORDER: {

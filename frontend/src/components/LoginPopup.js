@@ -30,8 +30,7 @@ const LoginPopup = ({ toggleLoginPopup, onLoginSuccess }) => {
       const res = await request(
         "POST",
         `${API_BASE}/api/user/auth/login`,
-        { email, password },
-        "Đăng nhập"
+        { email, password }
       );
       // Lưu token
       localStorage.setItem("accessToken", res.accessToken);
@@ -62,8 +61,7 @@ const LoginPopup = ({ toggleLoginPopup, onLoginSuccess }) => {
       const response = await request(
         "POST",
         `${API_BASE}/api/user/auth/sendVerificationCode`,
-        { email, use: "forgot" },
-        "Gửi mã"
+        { email, use: "forgot" }
       );
 
       if (response.success) {
@@ -82,8 +80,7 @@ const LoginPopup = ({ toggleLoginPopup, onLoginSuccess }) => {
       const res = await request(
         "POST",
         `${API_BASE}/api/user/auth/resetPassword`,
-        { email, code: serverCode, newPassword }, // Dùng mã cũ đã xác thực
-        "Đổi mật khẩu"
+        { email, code: serverCode, newPassword } // Dùng mã cũ đã xác thực
       );
       alert(res.message || "🎉 Đổi mật khẩu thành công!");
       setStep(1); // Quay về đăng nhập
