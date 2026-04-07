@@ -12,3 +12,16 @@ exports.getAllBrands = async (req, res) => {
     });
   }
 };
+
+exports.createBrand = async (req, res) => {
+  try {
+    const result = await brandService.createBrand(req);
+    return res.status(201).json(result);
+  } catch (error) {
+    console.error("❌ Lỗi createBrand:", error.message);
+    return res.status(error.statusCode || 400).json({
+      success: false,
+      message: error.message || "Không thể tạo thương hiệu.",
+    });
+  }
+};

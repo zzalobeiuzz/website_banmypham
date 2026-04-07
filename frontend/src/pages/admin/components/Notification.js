@@ -4,7 +4,15 @@ import successAnimation from "./Success.json";
 import "./components.scss";
 
 // 🔔 Component thông báo (thành công hoặc lỗi)
-const Notification = ({ message, type = "success", onClose, onConfirm }) => {
+const Notification = ({
+  message,
+  type = "success",
+  onClose,
+  onConfirm,
+  question = "Bạn có muốn thêm sản phẩm khác không?",
+  confirmText = "Không",
+  closeText = "Có",
+}) => {
   const animationRef = useRef(null);
   const [animationCompleted, setAnimationCompleted] = useState(false);
 
@@ -47,23 +55,28 @@ const Notification = ({ message, type = "success", onClose, onConfirm }) => {
               }`}
             >
               <p className="notification__message">{message}</p>
-              <p className="notification__question">
-                Bạn có muốn thêm sản phẩm khác không?
-              </p>
-              <div className="notification__actions">
-                <button
-                  className="notification__close-btn notification__close-btn--secondary"
-                  onClick={onConfirm} // 👉 Không => quay về
-                >
-                  Không
-                </button>
-                <button
-                  className="notification__close-btn"
-                  onClick={onClose} // 👉 Có => reset form
-                >
-                  Có
-                </button>
-              </div>
+              {typeof onConfirm === "function" ? (
+                <>
+                  <p className="notification__question">{question}</p>
+                  <div className="notification__actions">
+                    <button
+                      className="notification__close-btn notification__close-btn--secondary"
+                      onClick={onConfirm}
+                    >
+                      {confirmText}
+                    </button>
+                    <button className="notification__close-btn" onClick={onClose}>
+                      {closeText}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="notification__actions">
+                  <button className="notification__close-btn" onClick={onClose}>
+                    Đóng
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -1,8 +1,21 @@
 import React, { useEffect, useState } from "react";
+import "react-quill/dist/quill.snow.css";
 import { API_BASE, UPLOAD_BASE } from "../../../../../constants";
+import Notification from "../../Notification";
 import useHttp from "../../../../../hooks/useHttp";
 import ToolBar from "../../ToolBar";
+import BrandCreatePopup from "./BrandCreatePopup";
+import BrandDetailPopup from "./BrandDetailPopup";
 import "./style.scss";
+
+const quillModules = {
+  toolbar: [
+    [{ header: [2, 3, false] }],
+    ["bold", "italic", "underline"],
+    [{ list: "ordered" }, { list: "bullet" }],
+    ["link", "clean"],
+  ],
+};
 
 const resolveBrandLogoUrl = (value) => {
   if (!value) return "";
@@ -19,6 +32,25 @@ const BrandPage = () => {
   const [brands, setBrands] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [isDraggingLogo, setIsDraggingLogo] = useState(false);
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState("");
+  const [notify, setNotify] = useState({
+    visible: false,
+    message: "",
+    type: "success",
+  });
+  const [detailBrand, setDetailBrand] = useState(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    idBrand: "",
+    Brand: "",
+    description: "",
+    status: "1",
+    logo_url: "",
+  });
 
   useEffect(() => {
     let mounted = true;
@@ -46,15 +78,210 @@ const BrandPage = () => {
     };
   }, [request]);
 
+  useEffect(() => {
+    const scrollContainer = document.querySelector(".dynamic-content");
+    const scrollTarget = scrollContainer || window;
+
+    const handleScroll = () => {
+      const top = scrollContainer
+        ? scrollContainer.scrollTop
+        : window.scrollY || document.documentElement.scrollTop || 0;
+      setShowScrollTop(top > 220);
+    };
+
+    scrollTarget.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+
+    return () => {
+      scrollTarget.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
+  const handleBrandLogoFile = (file) => {
+    if (!(file instanceof File)) return;
+    if (!String(file.type || "").startsWith("image/")) {
+      setError("Vui lòng chọn file ảnh hợp lệ.");
+      return;
+    }
+
+    setLogoFile(file);
+    setCreateForm((prev) => ({ ...prev, logo_url: "" }));
+    setLogoPreview(URL.createObjectURL(file));
+    setError("");
+  };
+
+  const handleLogoDrop = (e) => {
+    e.preventDefault();
+    setIsDraggingLogo(false);
+
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) {
+      handleBrandLogoFile(files[0]);
+      return;
+    }
+
+    const droppedUrl =
+      e.dataTransfer?.getData("text/uri-list") ||
+      e.dataTransfer?.getData("text/plain") ||
+      "";
+
+    if (/^https?:\/\//i.test(String(droppedUrl).trim())) {
+      setLogoFile(null);
+      setCreateForm((prev) => ({
+        ...prev,
+        logo_url: String(droppedUrl).trim(),
+      }));
+      setLogoPreview(String(droppedUrl).trim());
+      setError("");
+    }
+  };
+
+  const showNotification = (message, type = "success") => {
+    setNotify({
+      visible: true,
+      message,
+      type,
+    });
+  };
+
+  const closeNotification = () => {
+    setNotify((prev) => ({ ...prev, visible: false }));
+  };
+
+  const openBrandDetail = (brand) => {
+    setDetailBrand(brand || null);
+  };
+
+  const closeBrandDetail = () => {
+    setDetailBrand(null);
+  };
+
+  const handleCreateFormChange = (key, value) => {
+    setCreateForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleCreateSubmit = async (e) => {
+    e.preventDefault();
+    if (creating) return;
+
+    try {
+      setCreating(true);
+      setError("");
+
+      const payload = {
+        idBrand: createForm.idBrand,
+        Brand: createForm.Brand,
+        description: createForm.description,
+        status: createForm.status,
+      };
+
+      const formData = new FormData();
+      formData.append("idBrand", payload.idBrand);
+      formData.append("Brand", payload.Brand);
+      formData.append("description", payload.description || "");
+      formData.append("status", payload.status || "1");
+      formData.append("logo_url", createForm.logo_url || "");
+      if (logoFile instanceof File) {
+        formData.append("logoFile", logoFile);
+      }
+
+      const res = await request(
+        "POST",
+        `${API_BASE}/api/admin/brand`,
+        formData,
+      );
+      const created = res?.data;
+
+      if (created) {
+        setBrands((prev) => [created, ...prev]);
+      }
+
+      showNotification("Tạo thương hiệu thành công.", "success");
+
+      setCreateForm({
+        idBrand: "",
+        Brand: "",
+        description: "",
+        status: "1",
+        logo_url: "",
+      });
+      setLogoFile(null);
+      setLogoPreview("");
+      setShowCreateForm(false);
+    } catch (err) {
+      showNotification(err?.message || "Không thể tạo thương hiệu.", "error");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleScrollToTop = () => {
+    const scrollContainer = document.querySelector(".dynamic-content");
+    if (scrollContainer) {
+      scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   return (
     <div className="brand-page">
       <ToolBar title="Quản lý thương hiệu" />
 
+      {notify.visible && (
+        <Notification
+          message={notify.message}
+          type={notify.type}
+          onClose={closeNotification}
+        />
+      )}
+
+      <BrandDetailPopup
+        brand={detailBrand}
+        onClose={closeBrandDetail}
+        resolveBrandLogoUrl={resolveBrandLogoUrl}
+      />
+
       <div className="brand-page__body">
+        <div className="brand-page__actions">
+          <button
+            type="button"
+            className="brand-btn-create"
+            onClick={() => setShowCreateForm((prev) => !prev)}
+          >
+            {showCreateForm ? "Đóng form" : "Tạo mới thương hiệu"}
+          </button>
+        </div>
+
+        <BrandCreatePopup
+          visible={showCreateForm}
+          creating={creating}
+          createForm={createForm}
+          isDraggingLogo={isDraggingLogo}
+          logoPreview={logoPreview}
+          quillModules={quillModules}
+          onClose={() => setShowCreateForm(false)}
+          onSubmit={handleCreateSubmit}
+          onChangeForm={handleCreateFormChange}
+          onLogoDragOver={(e) => {
+            e.preventDefault();
+            setIsDraggingLogo(true);
+          }}
+          onLogoDragLeave={(e) => {
+            e.preventDefault();
+            setIsDraggingLogo(false);
+          }}
+          onLogoDrop={handleLogoDrop}
+          onLogoFileChange={handleBrandLogoFile}
+        />
+
         {loading ? (
           <div className="brand-page__state">Đang tải thương hiệu...</div>
         ) : error ? (
-          <div className="brand-page__state brand-page__state--error">{error}</div>
+          <div className="brand-page__state brand-page__state--error">
+            {error}
+          </div>
         ) : brands.length === 0 ? (
           <div className="brand-page__state">Không có thương hiệu nào.</div>
         ) : (
@@ -64,9 +291,9 @@ const BrandPage = () => {
                 <tr>
                   <th>ID Brand</th>
                   <th>Logo</th>
-                  <th>Description</th>
+                  <th>Brand</th>
                   <th>Status</th>
-                  <th>Logo URL</th>
+                  <th>Chi tiết</th>
                 </tr>
               </thead>
               <tbody>
@@ -83,18 +310,35 @@ const BrandPage = () => {
                       <td>{brand.idBrand ?? "N/A"}</td>
                       <td>
                         {logoUrl ? (
-                          <img className="brand-table__logo" src={logoUrl} alt={brand.idBrand || "brand"} loading="lazy" />
+                          <img
+                            className="brand-table__logo"
+                            src={logoUrl}
+                            alt={brand.idBrand || "brand"}
+                            loading="lazy"
+                          />
                         ) : (
-                          <span className="brand-table__logo-empty">Không có logo</span>
+                          <span className="brand-table__logo-empty">
+                            Không có logo
+                          </span>
                         )}
                       </td>
-                      <td className="brand-table__description">{brand.description || "N/A"}</td>
+                      <td>{brand.Brand ?? brand.name ?? "N/A"}</td>
                       <td>
-                        <span className={`brand-status ${isActive ? "active" : "inactive"}`}>
-                          {isActive ? "Active" : "Inactive"}
+                        <span
+                          className={`brand-status ${isActive ? "active" : "inactive"}`}
+                        >
+                          {isActive ? "Hoạt động" : "Không hoạt động"}
                         </span>
                       </td>
-                      <td className="brand-table__logo-url">{brand.logo_url || "N/A"}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="brand-btn-detail"
+                          onClick={() => openBrandDetail(brand)}
+                        >
+                          Xem chi tiết
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -103,6 +347,18 @@ const BrandPage = () => {
           </div>
         )}
       </div>
+
+      {showScrollTop && (
+        <button
+          type="button"
+          className="brand-scroll-top"
+          onClick={handleScrollToTop}
+          aria-label="Lên đầu trang"
+          title="Lên đầu trang"
+        >
+          ↑
+        </button>
+      )}
     </div>
   );
 };
