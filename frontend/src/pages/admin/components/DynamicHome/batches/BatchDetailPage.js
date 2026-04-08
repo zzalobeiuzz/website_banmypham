@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import ToolBar from "../../ToolBar";
-import { API_BASE } from "../../../../../constants";
+import { API_BASE, UPLOAD_BASE } from "../../../../../constants";
 import useHttp from "../../../../../hooks/useHttp";
 import "./batch-detail.scss";
 
@@ -13,20 +13,16 @@ const BatchDetailPage = () => {
   const [loading, setLoading] = useState(false);
   const [batchMeta, setBatchMeta] = useState(null);
   const [products, setProducts] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
   const [isSavingAll, setIsSavingAll] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditingAll, setIsEditingAll] = useState(false);
   const [productDraftMap, setProductDraftMap] = useState({});
   const [searchKeyword, setSearchKeyword] = useState("");
-  const [editBatchId, setEditBatchId] = useState("");
   const [editNote, setEditNote] = useState("");
-  const [newRowDraft, setNewRowDraft] = useState({
-    productId: "",
-    productName: "",
-    barcode: "",
-    quantity: "0",
-    isActive: 1,
-  });
+  const [editCreatedAt, setEditCreatedAt] = useState("");
+  const [newProductRows, setNewProductRows] = useState([]);
+  const [activePickerRowId, setActivePickerRowId] = useState(null);
 
   const decodedBatchId = useMemo(
     () => decodeURIComponent(String(batchId || "")).trim(),
@@ -69,6 +65,38 @@ const BatchDetailPage = () => {
 
   const getNormalized = (value) => String(value || "").trim().toLowerCase();
 
+  const createEmptyNewRow = () => ({
+    rowId: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    productId: "",
+    productName: "",
+    productImage: "",
+    barcode: "",
+    quantity: "0",
+    isActive: 1,
+    expiryDate: "",
+  });
+
+  const resolveProductImage = (value) => {
+    const raw = String(value || "").trim();
+    if (!raw) return `${UPLOAD_BASE}/pictures/no_image.jpg`;
+    if (/^https?:\/\//i.test(raw) || raw.startsWith("data:")) return raw;
+    if (raw.startsWith("/uploads/")) return `${API_BASE}${raw}`;
+    if (raw.startsWith("/")) return `${UPLOAD_BASE}${raw}`;
+    return `${UPLOAD_BASE}/pictures/${raw}`;
+  };
+
+  const isProductVisible = (item) => {
+    const value = item?.IsHidden ?? item?.isHidden;
+    return (
+      value === undefined ||
+      value === null ||
+      value === 0 ||
+      value === "0" ||
+      value === false ||
+      String(value).toLowerCase() === "false"
+    );
+  };
+
   const displayedRows = useMemo(() => {
     const keyword = getNormalized(searchKeyword);
     return products
@@ -82,6 +110,21 @@ const BatchDetailPage = () => {
       });
   }, [products, searchKeyword]);
 
+  const filteredProductOptions = useMemo(() => {
+    const keyword = getNormalized(searchKeyword);
+    const visibleProducts = allProducts.filter((item) => isProductVisible(item));
+
+    if (!keyword) return visibleProducts.slice(0, 120);
+
+    return visibleProducts
+      .filter((item) => {
+        const pid = getNormalized(item?.ProductID || item?.id);
+        const pname = getNormalized(item?.ProductName || item?.name);
+        return pid.includes(keyword) || pname.includes(keyword);
+      })
+      .slice(0, 120);
+  }, [allProducts, searchKeyword]);
+
   useEffect(() => {
     const loadDetail = async () => {
       if (!decodedBatchId) {
@@ -93,9 +136,10 @@ const BatchDetailPage = () => {
       try {
         setLoading(true);
 
-        const [batchesRes, productsRes] = await Promise.all([
+        const [batchesRes, productsRes, allProductsRes] = await Promise.all([
           request("GET", `${API_BASE}/api/admin/batches`),
           request("GET", `${API_BASE}/api/admin/batches/${encodeURIComponent(decodedBatchId)}/products`),
+          request("GET", `${API_BASE}/api/user/products/loadAllProducts`),
         ]);
 
         const allBatches = Array.isArray(batchesRes?.data) ? batchesRes.data : [];
@@ -103,14 +147,14 @@ const BatchDetailPage = () => {
         const resolvedBatch = foundBatch || { ID: decodedBatchId, CreatedAt: null, Note: "" };
 
         setBatchMeta(resolvedBatch);
-        setEditBatchId(String(resolvedBatch?.ID || ""));
         setEditNote(String(resolvedBatch?.Note || ""));
         setProducts(Array.isArray(productsRes?.data) ? productsRes.data : []);
+        setAllProducts(Array.isArray(allProductsRes?.data) ? allProductsRes.data : []);
       } catch (error) {
         setBatchMeta({ ID: decodedBatchId, CreatedAt: null, Note: "" });
-        setEditBatchId(decodedBatchId);
         setEditNote("");
         setProducts([]);
+        setAllProducts([]);
       } finally {
         setLoading(false);
       }
@@ -158,84 +202,34 @@ const BatchDetailPage = () => {
   };
 
   const handleStartEditAll = () => {
-    const currentBatchId = String(batchMeta?.ID || decodedBatchId || "").trim();
     const currentNote = String(batchMeta?.Note || "").trim();
-    setEditBatchId(currentBatchId);
+    const currentCreatedAt = batchMeta?.CreatedAt ? new Date(batchMeta.CreatedAt).toISOString().split('T')[0] : "";
     setEditNote(currentNote);
+    setEditCreatedAt(currentCreatedAt);
     setProductDraftMap(buildDraftMap());
-    setNewRowDraft({
-      productId: "",
-      productName: "",
-      barcode: "",
-      quantity: "0",
-      isActive: 1,
-    });
+    setNewProductRows([createEmptyNewRow()]);
+    setActivePickerRowId(null);
     setIsEditingAll(true);
   };
 
   const handleCancelEditAll = () => {
-    setEditBatchId(String(batchMeta?.ID || decodedBatchId || "").trim());
     setEditNote(String(batchMeta?.Note || "").trim());
+    setEditCreatedAt('');
     setProductDraftMap({});
-    setNewRowDraft({
-      productId: "",
-      productName: "",
-      barcode: "",
-      quantity: "0",
-      isActive: 1,
-    });
+    setNewProductRows([]);
+    setActivePickerRowId(null);
     setIsEditingAll(false);
   };
 
-  const handleAddNewProductRow = async () => {
-    const productId = String(newRowDraft?.productId || "").trim();
-    const barcode = String(newRowDraft?.barcode || "").trim();
-    const quantity = Number(newRowDraft?.quantity || 0);
-    const isActive = Number(newRowDraft?.isActive || 0) === 1 ? 1 : 0;
+  const handleAddDraftInputRow = () => {
+    setNewProductRows((prev) => [...prev, createEmptyNewRow()]);
+    setActivePickerRowId(null);
+  };
 
-    if (!productId || !barcode) {
-      window.alert("Vui lòng nhập mã sản phẩm và barcode để thêm.");
-      return;
-    }
-
-    if (Number.isNaN(quantity) || quantity < 0) {
-      window.alert("Số lượng không hợp lệ.");
-      return;
-    }
-
-    const duplicateBarcode = products.some((item) => String(item?.Barcode || "").trim() === barcode);
-    if (duplicateBarcode) {
-      window.alert("Barcode đã tồn tại trong danh sách lô hàng này.");
-      return;
-    }
-
-    try {
-      const check = await request("GET", `${API_BASE}/api/admin/products/checkProductExistence?productId=${encodeURIComponent(productId)}`);
-      if (!check?.exists || !check?.product?.id) {
-        window.alert("Mã sản phẩm không tồn tại.");
-        return;
-      }
-
-      const nameFromApi = String(check?.product?.name || "").trim();
-      const row = {
-        ProductID: productId,
-        ProductName: nameFromApi || String(newRowDraft?.productName || "").trim(),
-        Barcode: barcode,
-        Quantity: quantity,
-        IsActive: isActive,
-        __isNew: true,
-      };
-
-      setProducts((prev) => [row, ...prev]);
-      setNewRowDraft({
-        productId: "",
-        productName: "",
-        barcode: "",
-        quantity: "0",
-        isActive: 1,
-      });
-    } catch (error) {
-      window.alert(error?.message || "Không thể kiểm tra mã sản phẩm.");
+  const handleRemoveNewProductRow = (rowId) => {
+    setNewProductRows((prev) => prev.filter((row) => row.rowId !== rowId));
+    if (activePickerRowId === rowId) {
+      setActivePickerRowId(null);
     }
   };
 
@@ -249,41 +243,49 @@ const BatchDetailPage = () => {
     }));
   };
 
-  const handleSaveAllEdits = async () => {
-    const nextBatchId = String(editBatchId || "").trim();
-    const nextNote = String(editNote || "").trim();
+  const handleNewRowChange = (rowId, key, value) => {
+    setNewProductRows((prev) => prev.map((row) => (
+      row.rowId === rowId
+        ? {
+            ...row,
+            [key]: value,
+          }
+        : row
+    )));
+  };
 
-    if (!nextBatchId) {
-      window.alert("Mã lô hàng không được để trống.");
-      return;
-    }
+  const handleSelectProductForNewRow = (rowId, productId) => {
+    const normalizedId = String(productId || "").trim();
+    const found = allProducts.find(
+      (item) => String(item?.ProductID || item?.id || "").trim() === normalizedId,
+    );
+
+    setNewProductRows((prev) => prev.map((row) => (
+      row.rowId === rowId
+        ? {
+            ...row,
+            productId: normalizedId,
+            productName: String(found?.ProductName || found?.name || "").trim(),
+            productImage: String(found?.Image || found?.image || "").trim(),
+          }
+        : row
+    )));
+    setActivePickerRowId(null);
+  };
+
+  const handleSaveAllEdits = async () => {
+    const nextNote = String(editNote || "").trim();
 
     const changes = [];
     const creates = [];
+    const toPairKey = (productId, barcode) => `${String(productId || "").trim().toLowerCase()}__${String(barcode || "").trim().toLowerCase()}`;
+    const existingPairSet = new Set(
+      products
+        .map((item) => toPairKey(item?.ProductID, item?.Barcode))
+        .filter((value) => value !== "__"),
+    );
+    const newPairSet = new Set();
     const nextProducts = products.map((item, index) => {
-      if (item?.__isNew) {
-        const payload = {
-          productId: String(item?.ProductID || "").trim(),
-          barcode: String(item?.Barcode || "").trim(),
-          quantity: Number(item?.Quantity || 0),
-          isActive: Number(item?.IsActive || 0) === 1 ? 1 : 0,
-        };
-
-        if (!payload.productId || !payload.barcode) {
-          throw new Error("Dòng sản phẩm mới thiếu mã sản phẩm hoặc barcode.");
-        }
-
-        if (Number.isNaN(payload.quantity) || payload.quantity < 0) {
-          throw new Error("Số lượng sản phẩm mới không hợp lệ.");
-        }
-
-        creates.push(payload);
-        return {
-          ...item,
-          __isNew: false,
-        };
-      }
-
       const rowKey = getRowKey(item, index);
       const draft = productDraftMap[rowKey];
       if (!draft) return item;
@@ -326,10 +328,57 @@ const BatchDetailPage = () => {
       };
     });
 
+    const preparedNewRows = [];
+    for (const row of newProductRows) {
+      const productId = String(row?.productId || "").trim();
+      const barcode = String(row?.barcode || "").trim();
+      const quantity = Number(row?.quantity || 0);
+      const isActive = Number(row?.isActive || 0) === 1 ? 1 : 0;
+      const isEmptyRow = !productId && !barcode;
+
+      if (isEmptyRow) {
+        continue;
+      }
+
+      if (!productId || !barcode) {
+        throw new Error("Mỗi dòng thêm mới cần đủ sản phẩm và barcode.");
+      }
+
+      if (Number.isNaN(quantity) || quantity < 0) {
+        throw new Error("Số lượng sản phẩm mới không hợp lệ.");
+      }
+
+      const pairKey = toPairKey(productId, barcode);
+      if (existingPairSet.has(pairKey)) {
+        throw new Error(`Sản phẩm ${productId} với barcode ${barcode} đã tồn tại trong lô hàng.`);
+      }
+
+      if (newPairSet.has(pairKey)) {
+        throw new Error(`Danh sách thêm mới đang bị trùng sản phẩm ${productId} và barcode ${barcode}.`);
+      }
+
+      newPairSet.add(pairKey);
+      preparedNewRows.push({
+        batchId: decodedBatchId,
+        productId,
+        barcode,
+        quantity,
+        isActive,
+        expiryDate: String(row?.expiryDate || "").trim(),
+      });
+    }
+
+    for (const payload of preparedNewRows) {
+      const check = await request("GET", `${API_BASE}/api/admin/products/checkProductExistence?productId=${encodeURIComponent(payload.productId)}`);
+      if (!check?.exists || !check?.product?.id) {
+        throw new Error(`Mã sản phẩm ${payload.productId} không tồn tại.`);
+      }
+      creates.push(payload);
+    }
+
     if (changes.length === 0 && creates.length === 0) {
-      const currentBatchId = String(batchMeta?.ID || decodedBatchId || "").trim();
       const currentNote = String(batchMeta?.Note || "").trim();
-      const batchChanged = nextBatchId !== currentBatchId || nextNote !== currentNote;
+      const batchChanged = nextNote !== currentNote;
 
       if (!batchChanged) {
         handleCancelEditAll();
@@ -354,7 +403,6 @@ const BatchDetailPage = () => {
       }
 
       const batchRes = await request("PUT", `${API_BASE}/api/admin/batches/${encodeURIComponent(decodedBatchId)}`, {
-        newBatchId: nextBatchId,
         note: nextNote,
       });
       if (!batchRes?.success) {
@@ -363,16 +411,12 @@ const BatchDetailPage = () => {
 
       setProducts(nextProducts);
 
-      if (nextBatchId !== decodedBatchId) {
-        navigate(`../${encodeURIComponent(nextBatchId)}`, { replace: true });
-        return;
-      }
-
       setBatchMeta((prev) => ({
         ...(prev || {}),
-        ID: nextBatchId,
         Note: nextNote,
       }));
+      setNewProductRows([]);
+      setActivePickerRowId(null);
       handleCancelEditAll();
     } catch (error) {
       window.alert(error?.message || "Không thể lưu chỉnh sửa.");
@@ -428,18 +472,21 @@ const BatchDetailPage = () => {
         <div className="lo-hang-detail-meta">
           <div className="meta-row">
             <span>Mã lô:</span>
+            <strong>{batchMeta?.ID || decodedBatchId || "Chưa có"}</strong>
+          </div>
+          <div className="meta-row">
+            <span>Ngày tạo:</span>
             {isEditingAll ? (
               <input
                 className="meta-input"
-                type="text"
-                value={editBatchId}
-                onChange={(e) => setEditBatchId(e.target.value)}
+                type="date"
+                value={editCreatedAt}
+                onChange={(e) => setEditCreatedAt(e.target.value)}
               />
             ) : (
-              <strong>{batchMeta?.ID || decodedBatchId || "Chưa có"}</strong>
+              <strong>{formatDateOnly(batchMeta?.CreatedAt)}</strong>
             )}
           </div>
-          <div className="meta-row"><span>Ngày tạo:</span><strong>{formatDateOnly(batchMeta?.CreatedAt)}</strong></div>
           <div className="meta-row"><span>Giờ tạo:</span><strong>{formatTimeOnly(batchMeta?.CreatedAt)}</strong></div>
           <div className="meta-row">
             <span>Ghi chú:</span>
@@ -472,46 +519,122 @@ const BatchDetailPage = () => {
           </div>
 
           {isEditingAll ? (
-            <div className="add-product-row">
-              <input
-                type="text"
-                className="add-product-row__input"
-                placeholder="Mã sản phẩm"
-                value={newRowDraft.productId}
-                onChange={(e) => setNewRowDraft((prev) => ({ ...prev, productId: e.target.value }))}
-              />
-              <input
-                type="text"
-                className="add-product-row__input"
-                placeholder="Barcode"
-                value={newRowDraft.barcode}
-                onChange={(e) => setNewRowDraft((prev) => ({ ...prev, barcode: e.target.value }))}
-              />
-              <input
-                type="number"
-                min="0"
-                className="add-product-row__input"
-                placeholder="Số lượng"
-                value={newRowDraft.quantity}
-                onChange={(e) => setNewRowDraft((prev) => ({ ...prev, quantity: e.target.value }))}
-              />
-              <select
-                className="add-product-row__input"
-                value={String(newRowDraft.isActive)}
-                onChange={(e) => setNewRowDraft((prev) => ({ ...prev, isActive: Number(e.target.value) }))}
-              >
-                <option value="1">Đang kinh doanh</option>
-                <option value="0">Ngừng kinh doanh</option>
-              </select>
-              <button
-                type="button"
-                className="add-product-row__button"
-                onClick={handleAddNewProductRow}
-                disabled={isSavingAll}
-              >
-                Thêm sản phẩm
-              </button>
-            </div>
+            <>
+              {newProductRows.map((newRow) => (
+                <div className="add-product-row" key={newRow.rowId}>
+                  <div className="product-picker">
+                    <button
+                      type="button"
+                      className="product-picker__toggle"
+                      onClick={() => setActivePickerRowId((prev) => (prev === newRow.rowId ? null : newRow.rowId))}
+                    >
+                      {newRow.productId ? (
+                        <span className="product-picker__selected">
+                          <img
+                            src={resolveProductImage(newRow.productImage)}
+                            alt={newRow.productName || "product"}
+                            loading="lazy"
+                            onError={(e) => {
+                              e.currentTarget.src = `${UPLOAD_BASE}/pictures/no_image.jpg`;
+                            }}
+                          />
+                          <span>
+                            {newRow.productId} - {newRow.productName || "Sản phẩm"}
+                          </span>
+                        </span>
+                      ) : (
+                        "Chọn sản phẩm"
+                      )}
+                    </button>
+                    {activePickerRowId === newRow.rowId && (
+                      <div className="product-picker__menu">
+                        {filteredProductOptions.length === 0 ? (
+                          <div className="product-picker__empty">Không có sản phẩm phù hợp</div>
+                        ) : (
+                          filteredProductOptions.map((item) => {
+                            const pid = String(item?.ProductID || item?.id || "").trim();
+                            const pname = String(item?.ProductName || item?.name || "").trim();
+                            return (
+                              <button
+                                key={`${newRow.rowId}_${pid}`}
+                                type="button"
+                                className="product-picker__option"
+                                onClick={() => handleSelectProductForNewRow(newRow.rowId, pid)}
+                              >
+                                <img
+                                  src={resolveProductImage(item?.Image || item?.image)}
+                                  alt={pname || "product"}
+                                  loading="lazy"
+                                  onError={(e) => {
+                                    e.currentTarget.src = `${UPLOAD_BASE}/pictures/no_image.jpg`;
+                                  }}
+                                />
+                                <span>{pid} - {pname}</span>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    className="add-product-row__input"
+                    placeholder="Barcode"
+                    value={newRow.barcode}
+                    onChange={(e) => handleNewRowChange(newRow.rowId, "barcode", e.target.value)}
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    className="add-product-row__input"
+                    placeholder="Số lượng"
+                    value={newRow.quantity}
+                    onChange={(e) => handleNewRowChange(newRow.rowId, "quantity", e.target.value)}
+                  />
+                  <input
+                    type="date"
+                    className="add-product-row__input"
+                    placeholder="Hạn sử dụng"
+                    value={newRow.expiryDate}
+                    onChange={(e) => handleNewRowChange(newRow.rowId, "expiryDate", e.target.value)}
+                  />
+                  <select
+                    className="add-product-row__input"
+                    value={String(newRow.isActive)}
+                    onChange={(e) => handleNewRowChange(newRow.rowId, "isActive", Number(e.target.value))}
+                    style={{
+                      backgroundColor: Number(newRow.isActive) === 1 ? "#d1fae5" : "#fee2e2",
+                    }}
+                  >
+                    <option value="1">Đang kinh doanh</option>
+                    <option value="0">Ngừng kinh doanh</option>
+                  </select>
+                  <button
+                    type="button"
+                    className="add-product-row__delete"
+                    onClick={() => handleRemoveNewProductRow(newRow.rowId)}
+                    disabled={isSavingAll}
+                    aria-label="Xóa dòng sản phẩm"
+                    title="Xóa dòng sản phẩm"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+              <div className="add-product-actions">
+                <button
+                  type="button"
+                  className="add-product-row__button add-product-row__button--small"
+                  onClick={handleAddDraftInputRow}
+                  disabled={isSavingAll}
+                  aria-label="Bấm để thêm sản phẩm"
+                  title="Bấm để thêm sản phẩm"
+                >
+                  +
+                </button>
+              </div>
+            </>
           ) : null}
 
           {loading ? (
@@ -525,6 +648,7 @@ const BatchDetailPage = () => {
               <table className="lo-hang-products-table">
                 <thead>
                   <tr>
+                    <th>Ảnh</th>
                     <th>Mã sản phẩm</th>
                     <th>Tên sản phẩm</th>
                     <th>Barcode</th>
@@ -544,6 +668,17 @@ const BatchDetailPage = () => {
 
                     return (
                     <tr key={rowKey}>
+                      <td>
+                        <img
+                          className="batch-product-thumb"
+                          src={resolveProductImage(item?.Image || item?.image)}
+                          alt={item?.ProductName || "product"}
+                          loading="lazy"
+                          onError={(e) => {
+                            e.currentTarget.src = `${UPLOAD_BASE}/pictures/no_image.jpg`;
+                          }}
+                        />
+                      </td>
                       <td>{item?.ProductID || ""}</td>
                       <td>{item?.ProductName || ""}</td>
                       <td>
@@ -577,6 +712,9 @@ const BatchDetailPage = () => {
                             className="inline-select"
                             value={String(draft.isActive)}
                             onChange={(e) => handleDraftChange(rowKey, "isActive", Number(e.target.value))}
+                            style={{
+                              backgroundColor: Number(draft.isActive) === 1 ? "#d1fae5" : "#fee2e2",
+                            }}
                           >
                             <option value="1">Đang kinh doanh</option>
                             <option value="0">Ngừng kinh doanh</option>

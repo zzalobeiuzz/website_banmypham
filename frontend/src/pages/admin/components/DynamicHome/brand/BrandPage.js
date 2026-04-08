@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import "react-quill/dist/quill.snow.css";
+import { useNavigate } from "react-router-dom";
 import { API_BASE, UPLOAD_BASE } from "../../../../../constants";
 import Notification from "../../Notification";
 import useHttp from "../../../../../hooks/useHttp";
@@ -28,6 +29,7 @@ const resolveBrandLogoUrl = (value) => {
 };
 
 const BrandPage = () => {
+  const navigate = useNavigate();
   const { request } = useHttp();
   const [brands, setBrands] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,6 +45,7 @@ const BrandPage = () => {
     type: "success",
   });
   const [detailBrand, setDetailBrand] = useState(null);
+  const [updatingDetail, setUpdatingDetail] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [createForm, setCreateForm] = useState({
     idBrand: "",
@@ -152,8 +155,74 @@ const BrandPage = () => {
     setDetailBrand(brand || null);
   };
 
+  const goToBrandProducts = (brand) => {
+    const id = encodeURIComponent(brand?.idBrand || "");
+    if (!id) return;
+    navigate(`/admin/brand/${id}/products`);
+  };
+
   const closeBrandDetail = () => {
     setDetailBrand(null);
+  };
+
+  const handleUpdateBrand = async (payload) => {
+    try {
+      setUpdatingDetail(true);
+
+      const formData = new FormData();
+      formData.append("idBrand", payload.idBrand);
+      formData.append("Brand", payload.Brand || "");
+      formData.append("description", payload.description || "");
+      formData.append("status", payload.status || "1");
+      formData.append("logo_url", payload.logo_url || "");
+
+      if (payload.logoFile instanceof File) {
+        formData.append("logoFile", payload.logoFile);
+      }
+
+      const res = await request(
+        "PUT",
+        `${API_BASE}/api/admin/brand/${encodeURIComponent(payload.idBrand)}`,
+        formData,
+      );
+
+      const assignIds = Array.isArray(payload.assignProductIds)
+        ? payload.assignProductIds
+            .map((id) => String(id || "").trim())
+            .filter(Boolean)
+        : [];
+
+      if (assignIds.length > 0) {
+        const assignPayload = assignIds.map((productId) => ({
+          ProductID: productId,
+          SupplierID: String(payload.idBrand),
+        }));
+
+        await request(
+          "PUT",
+          `${API_BASE}/api/admin/products/updateProducts`,
+          assignPayload,
+        );
+      }
+
+      const updated = res?.data;
+      if (updated) {
+        setBrands((prev) =>
+          prev.map((item) =>
+            String(item.idBrand) === String(updated.idBrand) ? { ...item, ...updated } : item,
+          ),
+        );
+        setDetailBrand(updated);
+      }
+
+      showNotification("Cập nhật thương hiệu thành công.", "success");
+      return true;
+    } catch (err) {
+      showNotification(err?.message || "Không thể cập nhật thương hiệu.", "error");
+      return false;
+    } finally {
+      setUpdatingDetail(false);
+    }
   };
 
   const handleCreateFormChange = (key, value) => {
@@ -241,6 +310,21 @@ const BrandPage = () => {
         brand={detailBrand}
         onClose={closeBrandDetail}
         resolveBrandLogoUrl={resolveBrandLogoUrl}
+        quillModules={quillModules}
+        onSave={handleUpdateBrand}
+        saving={updatingDetail}
+        onViewAllProducts={(brand) => {
+          const id = encodeURIComponent(brand?.idBrand || "");
+          if (!id) return;
+          closeBrandDetail();
+          navigate(`/admin/brand/${id}/products`);
+        }}
+        onViewProductDetail={(product) => {
+          const pid = encodeURIComponent(String(product?.ProductID || product?.id || "").trim());
+          if (!pid) return;
+          closeBrandDetail();
+          navigate(`/admin/product/detail/${pid}`);
+        }}
       />
 
       <div className="brand-page__body">
@@ -249,8 +333,10 @@ const BrandPage = () => {
             type="button"
             className="brand-btn-create"
             onClick={() => setShowCreateForm((prev) => !prev)}
+            aria-label={showCreateForm ? "Đóng form" : "Tạo mới thương hiệu"}
+            title={showCreateForm ? "Đóng form" : "Tạo mới thương hiệu"}
           >
-            {showCreateForm ? "Đóng form" : "Tạo mới thương hiệu"}
+            {showCreateForm ? "✕" : "＋"}
           </button>
         </div>
 
@@ -293,7 +379,7 @@ const BrandPage = () => {
                   <th>Logo</th>
                   <th>Brand</th>
                   <th>Status</th>
-                  <th>Chi tiết</th>
+                  <th>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -331,13 +417,24 @@ const BrandPage = () => {
                         </span>
                       </td>
                       <td>
-                        <button
-                          type="button"
-                          className="brand-btn-detail"
-                          onClick={() => openBrandDetail(brand)}
-                        >
-                          Xem chi tiết
-                        </button>
+                        <div className="brand-table__actions">
+                          <button
+                            type="button"
+                            className="brand-btn-detail"
+                            onClick={() => openBrandDetail(brand)}
+                          >
+                            Xem chi tiết
+                          </button>
+                          <button
+                            type="button"
+                            className="brand-btn-products"
+                            onClick={() => goToBrandProducts(brand)}
+                            aria-label="Xem sản phẩm"
+                            title="Xem sản phẩm"
+                          >
+                            +
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

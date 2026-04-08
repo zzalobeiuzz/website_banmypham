@@ -24,34 +24,78 @@ const useHttp = () => {
     setLoading(true);     // Bắt đầu hiển thị trạng thái loading
     setError(null);       // Reset lỗi cũ (nếu có)
 
-    try {
+    const isAdminApi = typeof url === "string" && url.includes("/api/admin/");
+
+    const sendRequest = async (overrideHeaders = {}) => {
       const safeHeaders = headers && typeof headers === "object" && !Array.isArray(headers) ? headers : {};
-      const mergedHeaders = { ...safeHeaders };
+      const mergedHeaders = { ...safeHeaders, ...overrideHeaders };
 
       // Tự gắn access token cho toàn bộ API admin nếu caller chưa truyền Authorization.
-      if (typeof url === "string" && url.includes("/api/admin/") && !mergedHeaders.Authorization) {
+      if (isAdminApi && !mergedHeaders.Authorization) {
         const accessToken = localStorage.getItem("accessToken");
         if (accessToken) {
           mergedHeaders.Authorization = `Bearer ${accessToken}`;
         }
       }
 
-      // Gửi request với cấu hình từ axios
-      const response = await axios({
-        method: method.toLowerCase(),  // Chuyển method về lowercase để axios hiểu đúng
-        url,                           // Endpoint API
-        data: payload,                  // Dữ liệu gửi đi (body)
-        headers: mergedHeaders,         // Header gửi lên server
-        withCredentials: true, // 👈👈👈 Thêm dòng này để gửi cookie session
+      return axios({
+        method: method.toLowerCase(),
+        url,
+        data: payload,
+        headers: mergedHeaders,
+        withCredentials: true,
       });
+    };
+
+    try {
+      // Gửi request với cấu hình từ axios
+      const response = await sendRequest();
 
       // Nếu thành công, trả về dữ liệu từ response
       return response.data;
     } catch (err) {
-      // Nếu lỗi xảy ra, lấy thông báo lỗi trả về từ server hoặc dùng thông báo mặc định
-      const message = err.response?.data?.message || "Có lỗi xảy ra";
       const status = err.response?.status || 500;
+      const message = err.response?.data?.message || "Có lỗi xảy ra";
 
+      const isInvalidToken =
+        status === 401 &&
+        /token không hợp lệ|jwt expired|invalid token/i.test(String(message));
+
+      // API admin: tự refresh access token rồi retry 1 lần nếu token hết hạn/không hợp lệ.
+      if (isAdminApi && isInvalidToken) {
+        try {
+          const refreshToken = localStorage.getItem("refreshToken");
+          if (!refreshToken) {
+            throw new Error("Không tìm thấy refresh token");
+          }
+
+          const refreshRes = await axios({
+            method: "post",
+            url: url.includes("/api/admin/refresh-token")
+              ? url
+              : `${new URL(url).origin}/api/admin/refresh-token`,
+            data: { refreshToken },
+            withCredentials: true,
+          });
+
+          const newAccessToken = refreshRes?.data?.accessToken;
+          if (!newAccessToken) {
+            throw new Error("Không lấy được access token mới");
+          }
+
+          localStorage.setItem("accessToken", newAccessToken);
+
+          const retryResponse = await sendRequest({
+            Authorization: `Bearer ${newAccessToken}`,
+          });
+
+          return retryResponse.data;
+        } catch (refreshError) {
+          // Rơi xuống luồng ném lỗi chuẩn phía dưới.
+        }
+      }
+
+      // Nếu lỗi xảy ra, lấy thông báo lỗi trả về từ server hoặc dùng thông báo mặc định
       // Cập nhật lỗi vào state để component có thể hiển thị
       setError(message);
 
@@ -59,6 +103,7 @@ const useHttp = () => {
       // 🔥 Tạo error object đúng chuẩn
       const customError = new Error(message);
       customError.status = status;
+      customError.response = err.response;
 
       throw customError;
     } finally {

@@ -81,6 +81,7 @@ exports.findProductsByBatchId = async (batchId) => {
       SELECT
         BD.ProductID,
         P.ProductName,
+        P.Image,
         BD.Barcode,
         BD.Quantity,
         BD.CreatedAt,

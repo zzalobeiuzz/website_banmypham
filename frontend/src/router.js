@@ -23,6 +23,7 @@ import OrderPage from "./pages/admin/components/DynamicHome/order/OrderPage.js";
 import AddOrder from "./pages/admin/components/DynamicHome/order/AddOrder.js";
 import CustomerPage from "./pages/admin/components/DynamicHome/customer/CustomerPage.js";
 import BrandPage from "./pages/admin/components/DynamicHome/brand/BrandPage.js";
+import BrandProductsPage from "./pages/admin/components/DynamicHome/brand/BrandProductsPage.js";
 
 import { ROUTERS } from "./utils/router";
 
@@ -59,7 +60,10 @@ const adminRoutes = [
   },
   {
     path: ROUTERS.ADMIN.BRAND.INDEX || "brand",
-    children: [{ index: true, element: <BrandPage /> }],
+    children: [
+      { index: true, element: <BrandPage /> },
+      { path: ":idBrand/products", element: <BrandProductsPage /> },
+    ],
   },
   {
     path: ROUTERS.ADMIN.ORDER.INDEX || "order", // 📦 Đơn hàng

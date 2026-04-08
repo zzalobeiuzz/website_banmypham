@@ -1262,6 +1262,7 @@ exports.updateProductDetailAndBatches = async (payload) => {
       ProductID,
       ProductName,
       Price,
+      SupplierID,
       CategoryID,
       SubCategoryID,
       ProductDescription,
@@ -1280,12 +1281,14 @@ exports.updateProductDetailAndBatches = async (payload) => {
       .input("ProductID", sql.VarChar(50), ProductID)
       .input("ProductName", sql.NVarChar(sql.MAX), ProductName ?? null)
       .input("Price", sql.Int, Price ?? null)
+      .input("SupplierID", sql.NVarChar(100), SupplierID ?? null)
       .input("CategoryID", sql.NVarChar(100), CategoryID ?? null)
       .input("SubCategoryID", sql.NVarChar(100), SubCategoryID ?? null)
       .query(`
         UPDATE PRODUCT
         SET ProductName = COALESCE(@ProductName, ProductName),
             Price = COALESCE(@Price, Price),
+            SupplierID = COALESCE(@SupplierID, SupplierID),
             CategoryID = COALESCE(@CategoryID, CategoryID),
             SubCategoryID = @SubCategoryID,
             UpdatedAt = GETDATE()

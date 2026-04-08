@@ -120,6 +120,7 @@ exports.findAllProducts = async () => {
           SELECT 
           P.ProductID,
           P.ProductName,
+              LOT.Barcode,
           P.Type,
           P.SupplierID,
           P.Price,
@@ -138,6 +139,17 @@ exports.findAllProducts = async () => {
       LEFT JOIN PRODUCT_SALE PS ON P.ProductID = PS.product_id
       LEFT JOIN CATEGORY C ON P.CategoryID = C.CategoryID
       LEFT JOIN SUB_CATEGORY SC ON P.SubCategoryID = SC.SubCategoryID
+      OUTER APPLY (
+        SELECT TOP 1
+          BD.Barcode
+        FROM BATCH_DETAIL BD
+        LEFT JOIN BATCHES B ON B.ID = BD.BatchID
+        WHERE BD.ProductID = P.ProductID
+          AND ISNULL(BD.IsActive, 1) = 1
+          AND (B.IsActive = 1 OR B.IsActive IS NULL)
+          AND ISNULL(BD.Barcode, '') <> ''
+        ORDER BY B.CreatedAt DESC, BD.CreatedAt DESC
+      ) LOT
       LEFT JOIN (
         SELECT ProductID, SUM(CAST(Quantity AS INT)) AS StockQuantity
         FROM BATCH_DETAIL

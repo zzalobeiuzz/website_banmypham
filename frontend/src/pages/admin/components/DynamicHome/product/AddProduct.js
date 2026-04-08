@@ -231,6 +231,7 @@ const AddProduct = () => {
 
   // 🗂️ STATE: Danh mục chính / phụ
   const [categories, setCategories] = useState([]); // 📚 Danh sách danh mục chính
+  const [brands, setBrands] = useState([]); // 🏷️ Danh sách thương hiệu
   const [selectedCategoryID, setSelectedCategoryID] = useState(""); // 🏷️ ID danh mục đang chọn
   const [subCategories, setSubCategories] = useState([]);           // 📚 Danh sách danh mục con theo danh mục chính
   const [selectedSubCategoryID, setSelectedSubCategoryID] = useState(""); // 🏷️ ID danh mục con
@@ -264,6 +265,19 @@ const AddProduct = () => {
       }
     };
     fetchCategories();
+  }, [request]);
+
+  useEffect(() => {
+    const fetchBrands = async () => {
+      try {
+        const res = await request("GET", `${API_BASE}/api/admin/brand`);
+        setBrands(Array.isArray(res?.data) ? res.data : []);
+      } catch (error) {
+        setBrands([]);
+      }
+    };
+
+    fetchBrands();
   }, [request]);
 
   useEffect(() => {
@@ -1251,12 +1265,18 @@ const AddProduct = () => {
             </div>
 
             <div className="input-supplier">
-              <label>Nhà cung cấp</label>
-              <input
-                type="text"
+              <label>Thương hiệu</label>
+              <select
                 value={productData.supplierID}
                 onChange={(e) => handleChange("supplierID", e.target.value)}
-              />
+              >
+                <option value="">Chọn thương hiệu</option>
+                {brands.map((item) => (
+                  <option key={item.idBrand} value={item.idBrand}>
+                    {item.Brand || item.name || item.idBrand}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="input-stock">

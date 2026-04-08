@@ -25,3 +25,16 @@ exports.createBrand = async (req, res) => {
     });
   }
 };
+
+exports.updateBrand = async (req, res) => {
+  try {
+    const result = await brandService.updateBrand(req);
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error("❌ Lỗi updateBrand:", error.message);
+    return res.status(error.statusCode || 400).json({
+      success: false,
+      message: error.message || "Không thể cập nhật thương hiệu.",
+    });
+  }
+};

@@ -172,3 +172,85 @@ exports.createBrand = async (req) => {
     data,
   };
 };
+
+exports.updateBrand = async (req) => {
+  const payload = req?.body || {};
+  const idBrand = String(req?.params?.idBrand || payload?.idBrand || "").trim();
+  const Brand = String(payload?.Brand || payload?.name || "").trim();
+  let description = payload?.description ? String(payload.description).trim() : "";
+
+  if (!idBrand) {
+    const error = new Error("idBrand không hợp lệ.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (!Brand) {
+    const error = new Error("Tên thương hiệu không được để trống.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const totalImageMap = [];
+  if (description) {
+    const { html, imageMap } = processHtmlWithPrefix(
+      description,
+      "branddescription",
+      BRAND_DESCRIPTION_FOLDER,
+    );
+    description = html;
+
+    imageMap.forEach((item) => {
+      const forcedSrc = ensureBrandDescriptionSrc(item.newSrc);
+
+      if (forcedSrc && forcedSrc !== item.newSrc) {
+        description = description.replaceAll(item.newSrc, forcedSrc);
+      }
+
+      totalImageMap.push({
+        ...item,
+        newSrc: forcedSrc,
+      });
+    });
+  }
+
+  let resolvedLogoUrl;
+
+  if (req?.file) {
+    resolvedLogoUrl = saveBrandLogoFromFile({ file: req.file, idBrand });
+  } else if (payload?.logo_url !== undefined) {
+    if (String(payload.logo_url || "").trim()) {
+      resolvedLogoUrl = await saveBrandLogoFromUrl({ url: payload.logo_url, idBrand });
+    } else {
+      resolvedLogoUrl = null;
+    }
+  }
+
+  const data = await brandModel.updateBrand({
+    idBrand,
+    Brand,
+    description,
+    status: payload?.status,
+    logo_url: resolvedLogoUrl,
+  });
+
+  if (totalImageMap.length > 0) {
+    for (const { oldSrc, newSrc, isBase64 } of totalImageMap) {
+      try {
+        if (isBase64) {
+          saveBase64ImageByMappedSrc({ oldSrc, newSrc });
+        } else {
+          await downloadImage(oldSrc, newSrc);
+        }
+      } catch (err) {
+        console.error(`❌ Không thể lưu ảnh mô tả brand ${oldSrc}:`, err.message);
+      }
+    }
+  }
+
+  return {
+    success: true,
+    message: "Cập nhật thương hiệu thành công.",
+    data,
+  };
+};

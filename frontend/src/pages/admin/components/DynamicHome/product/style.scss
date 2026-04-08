@@ -1612,6 +1612,31 @@
         }
       }
 
+      .product-brand-field,
+      p.brand-row {
+        font-size: 15px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin: 2px 0;
+
+        strong {
+          font-size: 16px;
+          font-weight: 700;
+        }
+      }
+
+      .product-brand-field {
+        select {
+          border: 1px solid #cbd5e1;
+          border-radius: 6px;
+          padding: 6px 8px;
+          min-width: 220px;
+          font-size: 14px;
+          background: #fff;
+        }
+      }
+
       p.stock,
       p.lot {
         font-size: 16px;

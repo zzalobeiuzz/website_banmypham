@@ -83,6 +83,7 @@ const ProductDetail = () => {
 
   const [product, setProduct] = useState(null);
   const [categories, setCategories] = useState([]);
+  const [brands, setBrands] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isEdit, setIsEdit] = useState(false);
   const [selectedImageName, setSelectedImageName] = useState("");
@@ -100,6 +101,7 @@ const ProductDetail = () => {
     HowToUse: "",
     StockQuantity: "",
     Lot: "",
+    SupplierID: "",
     Image: null,
   });
 
@@ -122,6 +124,7 @@ const ProductDetail = () => {
           HowToUse: productData?.HowToUse || "",
           StockQuantity: productData?.StockQuantity || "",
           Lot: productData?.Lot || "",
+          SupplierID: productData?.SupplierID || "",
           Image: null,
           CategoryID: productData?.CategoryID || "",
           SubCategoryID: productData?.SubCategoryID || "",
@@ -165,6 +168,19 @@ const ProductDetail = () => {
       }
     };
     fetchCategories();
+  }, [request]);
+
+  useEffect(() => {
+    const fetchBrands = async () => {
+      try {
+        const res = await request("GET", `${API_BASE}/api/admin/brand`);
+        setBrands(Array.isArray(res?.data) ? res.data : []);
+      } catch (error) {
+        setBrands([]);
+      }
+    };
+
+    fetchBrands();
   }, [request]);
 
   useEffect(() => {
@@ -271,6 +287,20 @@ const ProductDetail = () => {
   const selectedEditableBatchIndex = editableBatches.findIndex(
     (item) => item.batchId === selectedBatchId
   );
+
+  const currentBrandName = (() => {
+    const supplierId = String(product?.SupplierID || editFields?.SupplierID || "").trim();
+    if (!supplierId) return "Chưa gán thương hiệu";
+
+    const matched = brands.find(
+      (item) =>
+        String(item?.idBrand || "").trim() === supplierId ||
+        String(item?.Brand || item?.name || "").trim().toLowerCase() === supplierId.toLowerCase()
+    );
+
+    return matched?.Brand || matched?.name || supplierId;
+  })();
+
   const selectedEditableBatch =
     selectedEditableBatchIndex >= 0
       ? editableBatches[selectedEditableBatchIndex]
@@ -303,6 +333,7 @@ const ProductDetail = () => {
       HowToUse: product.HowToUse || "",
       StockQuantity: product.StockQuantity || "",
       Lot: product.Lot || "",
+      SupplierID: product.SupplierID || "",
       Image: null,
       CategoryID: product.CategoryID || "",
       SubCategoryID: product.SubCategoryID || "",
@@ -335,6 +366,7 @@ const ProductDetail = () => {
         DetailID: product.DetailID,
         ProductName: editFields.ProductName,
         Price: Number(editFields.Price || 0),
+        SupplierID: editFields.SupplierID || null,
         CategoryID: editFields.CategoryID || null,
         SubCategoryID: editFields.SubCategoryID || null,
         ProductDescription: editFields.ProductDescription,
@@ -364,6 +396,7 @@ const ProductDetail = () => {
         ...prev,
         ProductName: editFields.ProductName,
         Price: Number(editFields.Price || 0),
+        SupplierID: editFields.SupplierID || null,
         CategoryID: editFields.CategoryID || null,
         SubCategoryID: editFields.SubCategoryID || null,
         ProductDescription: editFields.ProductDescription,
@@ -650,6 +683,27 @@ const ProductDetail = () => {
                     {Number(product.Price)?.toLocaleString("vi-VN") + " đ"}
                     <span> (Đã bao gồm VAT)</span>
                   </span>
+                )}
+
+                {isEdit ? (
+                  <div className="product-brand-field">
+                    <strong>Thương hiệu:</strong>
+                    <select
+                      value={editFields.SupplierID || ""}
+                      onChange={(e) => handleInputChange("SupplierID", e.target.value)}
+                    >
+                      <option value="">-- Chọn thương hiệu --</option>
+                      {brands.map((item) => (
+                        <option key={item.idBrand} value={item.idBrand}>
+                          {item.Brand || item.name || item.idBrand}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <p className="brand-row">
+                    <strong>Thương hiệu:</strong> {currentBrandName}
+                  </p>
                 )}
 
                 {isEdit ? (
