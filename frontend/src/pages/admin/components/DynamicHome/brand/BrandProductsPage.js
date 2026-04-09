@@ -3,7 +3,15 @@ import { useNavigate, useParams } from "react-router-dom";
 import { API_BASE, UPLOAD_BASE } from "../../../../../constants";
 import useHttp from "../../../../../hooks/useHttp";
 import ToolBar from "../../ToolBar";
-import Notification from "../../Notification";
+import Notification from "../../shared/Notification";
+import AdminLoadingScreen from "../../shared/AdminLoadingScreen";
+import useMinimumLoading from "../../useMinimumLoading";
+import ProductAssignPicker from "../shared/ProductAssignPicker";
+
+// BrandProductsPage:
+// - Trang quản lý sản phẩm theo từng thương hiệu.
+// - Chịu trách nhiệm tải dữ liệu, lọc sản phẩm theo brand, gán thêm sản phẩm vào brand,
+//   và render toàn bộ UI của trang.
 
 const normalize = (value) =>
   String(value || "")
@@ -37,6 +45,7 @@ const BrandProductsPage = () => {
   const [savingAssign, setSavingAssign] = useState(false);
   const [notify, setNotify] = useState({ visible: false, message: "", type: "success" });
   const [loading, setLoading] = useState(true);
+  const showLoading = useMinimumLoading(loading, 500);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -133,6 +142,7 @@ const BrandProductsPage = () => {
   };
 
   const toggleProduct = (productId) => {
+    // Callback cho ProductAssignPicker: đồng bộ danh sách id được chọn.
     const normalized = String(productId || "").trim();
     if (!normalized) return;
 
@@ -272,65 +282,25 @@ const BrandProductsPage = () => {
               Chọn sản phẩm để gán vào thương hiệu {brand?.Brand || brand?.name || brandIdValue}.
             </div>
 
-            <div className="brand-suggest-products__filters">
-              <input
-                type="text"
-                value={searchCode}
-                onChange={(e) => setSearchCode(e.target.value)}
-                placeholder="Tìm theo ID/Barcode"
-              />
-              <input
-                type="text"
-                value={searchName}
-                onChange={(e) => setSearchName(e.target.value)}
-                placeholder="Tìm theo tên sản phẩm"
-              />
-            </div>
-
-            <div className="brand-suggest-products__table-wrap">
-              <table className="brand-suggest-products__table">
-                <thead>
-                  <tr>
-                    <th>Chọn</th>
-                    <th>Mã sản phẩm</th>
-                    <th>Barcode</th>
-                    <th>Tên sản phẩm</th>
-                    <th>Thương hiệu hiện tại</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredSuggestProducts.length === 0 ? (
-                    <tr>
-                      <td colSpan={5}>Không còn sản phẩm phù hợp để thêm.</td>
-                    </tr>
-                  ) : (
-                    filteredSuggestProducts.map((item) => {
-                      const pid = String(item?.ProductID || item?.id || "").trim();
-                      return (
-                        <tr key={pid || item?.ProductName}>
-                          <td>
-                            <input
-                              type="checkbox"
-                              checked={selectedProductIds.includes(pid)}
-                              onChange={() => toggleProduct(pid)}
-                            />
-                          </td>
-                          <td>{pid || "N/A"}</td>
-                          <td>{item?.Barcode || item?.barcode || "N/A"}</td>
-                          <td>{item?.ProductName || "N/A"}</td>
-                          <td>{item?.SupplierID || item?.supplierId || "N/A"}</td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <ProductAssignPicker
+              products={filteredSuggestProducts}
+              selectedIds={selectedProductIds}
+              onToggleProduct={toggleProduct}
+              searchCode={searchCode}
+              searchName={searchName}
+              onSearchCodeChange={setSearchCode}
+              onSearchNameChange={setSearchName}
+              contextHeader="Thương hiệu hiện tại"
+              getContextValue={(item) => item?.SupplierID || item?.supplierId || "N/A"}
+              emptyText="Không còn sản phẩm phù hợp để thêm."
+              resolveImageUrl={resolveProductImage}
+              fallbackImageUrl={`${UPLOAD_BASE}/pictures/no_image.jpg`}
+            />
           </div>
         )}
 
-        {loading ? (
-          <div className="brand-page__state">Đang tải sản phẩm...</div>
+        {showLoading ? (
+          <AdminLoadingScreen message="Đang tải sản phẩm..." />
         ) : error ? (
           <div className="brand-page__state brand-page__state--error">{error}</div>
         ) : products.length === 0 ? (

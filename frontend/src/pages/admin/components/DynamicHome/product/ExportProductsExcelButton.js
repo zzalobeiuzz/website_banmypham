@@ -5,10 +5,13 @@ const ExportProductsExcelButton = ({
   products,
   className = "btn-export",
   children = "Xuất Excel",
+  onNotify,
 }) => {
   const handleExportExcel = useCallback(async () => {
     if (!products.length) {
-      alert("Không có dữ liệu sản phẩm để xuất.");
+      if (typeof onNotify === "function") {
+        onNotify({ status: "warning", message: "Không có dữ liệu sản phẩm để xuất." });
+      }
       return;
     }
 
@@ -259,7 +262,7 @@ const ExportProductsExcelButton = ({
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [products]);
+  }, [products, onNotify]);
 
   return (
     <button className={className} onClick={handleExportExcel}>

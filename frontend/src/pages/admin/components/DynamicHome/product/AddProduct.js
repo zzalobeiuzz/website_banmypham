@@ -8,7 +8,7 @@ import { API_BASE, UPLOAD_BASE } from "../../../../../constants"; // 🌍 Địa
 import useHttp from "../../../../../hooks/useHttp"; // 🌐 Custom hook gọi API
 import ImageUploader from "../../../../../utils/patchedUploader"; // 📷 Upload ảnh custom cho ReactQuill
 import BarcodeScannerPopup from "../../BarcodeScannerPopup"; // 📦 Popup quét mã barcode
-import Notification from "../../Notification"; // 🔔 Component hiển thị thông báo
+import Notification from "../../shared/Notification"; // 🔔 Component hiển thị thông báo
 
 import "./style.scss";
 

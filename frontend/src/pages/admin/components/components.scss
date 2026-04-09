@@ -123,6 +123,67 @@
     transform: translateY(0);
   }
 }
+
+//========================ADMIN LOADING========================
+.admin-loading-screen {
+  width: 100%;
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+
+  &--compact {
+    min-height: 140px;
+    padding: 10px;
+  }
+
+  &__animation {
+    width: 140px;
+    height: 140px;
+  }
+
+  &__text {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #334155;
+    text-align: center;
+  }
+}
+
+.notification__success-box--popup {
+  min-height: 220px;
+}
+
+.notification__badge {
+  min-width: 140px;
+  padding: 14px 20px;
+  border-radius: 14px;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  color: #fff;
+  margin-bottom: 12px;
+
+  &--success {
+    background: linear-gradient(135deg, #16a34a, #22c55e);
+  }
+
+  &--error {
+    background: linear-gradient(135deg, #dc2626, #ef4444);
+  }
+
+  &--warning {
+    background: linear-gradient(135deg, #d97706, #f59e0b);
+  }
+
+  &--info {
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+  }
+}
 //========================NOTIFICATION POPUP==========================
 /* Cũ: dùng cho error hoặc dạng nhỏ */
 .notification {

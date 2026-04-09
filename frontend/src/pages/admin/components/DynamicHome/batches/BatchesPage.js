@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import ToolBar from "../../ToolBar";
 import { API_BASE, UPLOAD_BASE } from "../../../../../constants";
 import useHttp from "../../../../../hooks/useHttp";
+import AdminLoadingScreen from "../../shared/AdminLoadingScreen";
+import useMinimumLoading from "../../useMinimumLoading";
 import "./batches.scss";
 
 const generateAutoBarcode = (batchId, productId) => {
@@ -29,6 +31,7 @@ const BatchesPage = () => {
   const [lots, setLots] = useState([]);
   const [availableProducts, setAvailableProducts] = useState([]);
   const [loading, setLoading] = useState(false);
+  const showLoading = useMinimumLoading(loading, 500);
   const [isSaving, setIsSaving] = useState(false);
   const [deletingLotId, setDeletingLotId] = useState("");
   const [createdDateFilter, setCreatedDateFilter] = useState("");
@@ -516,8 +519,8 @@ const BatchesPage = () => {
         </div>
         )}
 
-        {loading ? (
-          <div className="lo-hang-empty">Đang tải dữ liệu lô hàng...</div>
+        {showLoading ? (
+          <AdminLoadingScreen message="Đang tải dữ liệu lô hàng..." />
         ) : (
           <div className="lo-hang-table-wrap">
             <table className="lo-hang-table">

@@ -2,9 +2,11 @@ import React, { useEffect, useState } from "react";
 import "react-quill/dist/quill.snow.css";
 import { useNavigate } from "react-router-dom";
 import { API_BASE, UPLOAD_BASE } from "../../../../../constants";
-import Notification from "../../Notification";
+import Notification from "../../shared/Notification";
 import useHttp from "../../../../../hooks/useHttp";
 import ToolBar from "../../ToolBar";
+import AdminLoadingScreen from "../../shared/AdminLoadingScreen";
+import useMinimumLoading from "../../useMinimumLoading";
 import BrandCreatePopup from "./BrandCreatePopup";
 import BrandDetailPopup from "./BrandDetailPopup";
 import "./style.scss";
@@ -33,6 +35,7 @@ const BrandPage = () => {
   const { request } = useHttp();
   const [brands, setBrands] = useState([]);
   const [loading, setLoading] = useState(true);
+  const showLoading = useMinimumLoading(loading, 500);
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -362,8 +365,8 @@ const BrandPage = () => {
           onLogoFileChange={handleBrandLogoFile}
         />
 
-        {loading ? (
-          <div className="brand-page__state">Đang tải thương hiệu...</div>
+        {showLoading ? (
+          <AdminLoadingScreen message="Đang tải thương hiệu..." />
         ) : error ? (
           <div className="brand-page__state brand-page__state--error">
             {error}

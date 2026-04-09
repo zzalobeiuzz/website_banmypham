@@ -2,6 +2,9 @@ import React, { useEffect, useState } from "react";
 import useHttp from "../../../../../hooks/useHttp";
 import { API_BASE, UPLOAD_BASE } from "../../../../../constants";
 import ToolBar from "../../ToolBar";
+import AdminLoadingScreen from "../../shared/AdminLoadingScreen";
+import Notification from "../../shared/Notification";
+import useMinimumLoading from "../../useMinimumLoading";
 import "./style.scss";
 
 const TXT = {
@@ -21,6 +24,7 @@ const CustomerPage = () => {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [showDetailPopup, setShowDetailPopup] = useState(false);
   const [loading, setLoading] = useState(false);
+  const showLoading = useMinimumLoading(loading, 500);
   const [customerDetail, setCustomerDetail] = useState(null);
 
   const [isResettingPassword, setIsResettingPassword] = useState(false);
@@ -34,6 +38,7 @@ const CustomerPage = () => {
   const [editMessage, setEditMessage] = useState("");
   const [showUpdateConfirmPopup, setShowUpdateConfirmPopup] = useState(false);
   const [showUpdateSuccessPopup, setShowUpdateSuccessPopup] = useState(false);
+  const [notify, setNotify] = useState({ open: false, status: "info", message: "" });
   const [editForm, setEditForm] = useState({
     fullName: "",
     phoneNumber: "",
@@ -161,6 +166,18 @@ const CustomerPage = () => {
   const getAccountStatusLabel = (customer) => {
     if (customer?.AccountStatus) return customer.AccountStatus;
     return isAccountCustomer(customer) ? "Đã có" : "Không có";
+  };
+
+  const showPopup = ({ status, message }) => {
+    setNotify({
+      open: true,
+      status: status || "info",
+      message: String(message || ""),
+    });
+  };
+
+  const closePopup = () => {
+    setNotify((prev) => ({ ...prev, open: false }));
   };
 
   const handleResetPassword = async () => {
@@ -318,7 +335,7 @@ const CustomerPage = () => {
       }
 
       if (!res?.success) {
-        alert(res?.message || "Cập nhật thông tin thất bại.");
+        showPopup({ status: "error", message: res?.message || "Cập nhật thông tin thất bại." });
         return;
       }
 
@@ -340,7 +357,7 @@ const CustomerPage = () => {
       setIsEditingCustomer(false);
       await fetchCustomers();
     } catch (error) {
-      alert(error?.message || "Cập nhật thông tin thất bại.");
+      showPopup({ status: "error", message: error?.message || "Cập nhật thông tin thất bại." });
     } finally {
       setIsSavingCustomer(false);
     }
@@ -348,6 +365,12 @@ const CustomerPage = () => {
 
   return (
     <div className="customer-page">
+      <Notification
+        open={notify.open}
+        status={notify.status}
+        message={notify.message}
+        onClose={closePopup}
+      />
       <ToolBar title={TXT.title} />
       <div className="customer-container">
         <div className="search-section">
@@ -361,8 +384,8 @@ const CustomerPage = () => {
         </div>
 
         <div className="customer-list">
-          {loading ? (
-            <div className="loading">{TXT.loading}</div>
+          {showLoading ? (
+            <AdminLoadingScreen message={TXT.loading} compact />
           ) : filteredCustomers.length === 0 ? (
             <div className="no-data">{TXT.noData}</div>
           ) : (

@@ -1,17 +1,18 @@
-import lottie from "lottie-web";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { API_BASE, UPLOAD_BASE } from "../../../../../constants";
 import useHttp from "../../../../../hooks/useHttp";
+import AdminLoadingScreen from "../../shared/AdminLoadingScreen";
+import useMinimumLoading from "../../useMinimumLoading";
 
 export const ProductDetail = () => {
   const { id } = useParams();
   const { request } = useHttp();
   const navigate = useNavigate();
-  const loadingRef = useRef();
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
+  const showLoading = useMinimumLoading(loading, 500);
 
   // 📦 Gọi API lấy thông tin sản phẩm theo mã
   useEffect(() => {
@@ -22,28 +23,14 @@ export const ProductDetail = () => {
           `${API_BASE}/api/admin/products/productDetail?code=${id}`
         );
         setProduct(res.data);
-        setTimeout(() => setLoading(false), 1000); // Giả lập delay loading
+        setLoading(false);
       } catch (err) {
         console.error("❌ Không lấy được chi tiết sản phẩm:", err);
+        setLoading(false);
       }
     };
     fetchProduct();
   }, [id, request]);
-
-
-  // 🔁 Khởi tạo animation loading với Lottie
-  useEffect(() => {
-    if (loadingRef.current && loading) {
-      const anim = lottie.loadAnimation({
-        container: loadingRef.current,
-        renderer: "svg",
-        loop: true,
-        autoplay: true,
-        path: "/animations/Trail loading.json",
-      });
-      return () => anim.destroy();
-    }
-  }, [loading]);
 
   // 📷 Xử lý ảnh sản phẩm
   const imageUrl = product?.Image?.startsWith("http")
@@ -53,15 +40,12 @@ export const ProductDetail = () => {
   return (
     <div className="product-detail__container">
       {/* 🔄 Loading */}
-      {loading && (
-        <div className="product-detail__loading">
-          <div ref={loadingRef} className="product-detail__loading-animation" />
-          <p>Đang tải thông tin sản phẩm...</p>
-        </div>
+      {showLoading && (
+        <AdminLoadingScreen message="Đang tải thông tin sản phẩm..." />
       )}
 
       {/* ✅ Nội dung sau khi đã tải xong */}
-      {!loading && (
+      {!showLoading && (
         <>
           {/* 🔘 Thanh công cụ */}
           <div className="product-detail__actions">

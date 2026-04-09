@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { API_BASE, UPLOAD_BASE } from "../../../../../constants";
 import useHttp from "../../../../../hooks/useHttp";
+import AdminLoadingScreen from "../../shared/AdminLoadingScreen";
+import useMinimumLoading from "../../useMinimumLoading";
 import "./categoryProducts.scss";
 
 const CategoryProductsPage = () => {
@@ -13,6 +15,7 @@ const CategoryProductsPage = () => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
+  const showLoading = useMinimumLoading(loading, 500);
   const [updating, setUpdating] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState("");
   const [pendingCategoryByProduct, setPendingCategoryByProduct] = useState({});
@@ -250,8 +253,8 @@ const CategoryProductsPage = () => {
         />
       </div>
 
-      {loading ? (
-        <div className="category-products-empty">Đang tải dữ liệu...</div>
+      {showLoading ? (
+        <AdminLoadingScreen message="Đang tải dữ liệu..." compact />
       ) : filteredProducts.length === 0 ? (
         <div className="category-products-empty">
           {searchKeyword

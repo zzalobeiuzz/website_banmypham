@@ -3,6 +3,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import ToolBar from "../../ToolBar";
 import { API_BASE, UPLOAD_BASE } from "../../../../../constants";
 import useHttp from "../../../../../hooks/useHttp";
+import AdminLoadingScreen from "../../shared/AdminLoadingScreen";
+import useMinimumLoading from "../../useMinimumLoading";
+import Notification from "../../shared/Notification";
+import ProductAssignPicker from "../shared/ProductAssignPicker";
 import "./batch-detail.scss";
 
 const BatchDetailPage = () => {
@@ -11,6 +15,7 @@ const BatchDetailPage = () => {
   const { request } = useHttp();
 
   const [loading, setLoading] = useState(false);
+  const showLoading = useMinimumLoading(loading, 500);
   const [batchMeta, setBatchMeta] = useState(null);
   const [products, setProducts] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
@@ -23,6 +28,7 @@ const BatchDetailPage = () => {
   const [editCreatedAt, setEditCreatedAt] = useState("");
   const [newProductRows, setNewProductRows] = useState([]);
   const [activePickerRowId, setActivePickerRowId] = useState(null);
+  const [notify, setNotify] = useState({ open: false, status: "info", message: "" });
 
   const decodedBatchId = useMemo(
     () => decodeURIComponent(String(batchId || "")).trim(),
@@ -83,6 +89,18 @@ const BatchDetailPage = () => {
     if (raw.startsWith("/uploads/")) return `${API_BASE}${raw}`;
     if (raw.startsWith("/")) return `${UPLOAD_BASE}${raw}`;
     return `${UPLOAD_BASE}/pictures/${raw}`;
+  };
+
+  const showPopup = ({ status, message }) => {
+    setNotify({
+      open: true,
+      status: status || "info",
+      message: String(message || ""),
+    });
+  };
+
+  const closePopup = () => {
+    setNotify((prev) => ({ ...prev, open: false }));
   };
 
   const isProductVisible = (item) => {
@@ -174,13 +192,13 @@ const BatchDetailPage = () => {
       setIsDeleting(true);
       const res = await request("DELETE", `${API_BASE}/api/admin/batches/${encodeURIComponent(targetId)}`);
       if (!res?.success) {
-        window.alert(res?.message || "Không thể xóa lô hàng.");
+        showPopup({ status: "error", message: res?.message || "Không thể xóa lô hàng." });
         return;
       }
 
       navigate("..", { replace: true });
     } catch (error) {
-      window.alert(error?.message || "Không thể xóa lô hàng.");
+      showPopup({ status: "error", message: error?.message || "Không thể xóa lô hàng." });
     } finally {
       setIsDeleting(false);
     }
@@ -255,6 +273,7 @@ const BatchDetailPage = () => {
   };
 
   const handleSelectProductForNewRow = (rowId, productId) => {
+    // Callback từ ProductAssignPicker (single mode): chọn 1 sản phẩm cho dòng thêm mới.
     const normalizedId = String(productId || "").trim();
     const found = allProducts.find(
       (item) => String(item?.ProductID || item?.id || "").trim() === normalizedId,
@@ -419,7 +438,7 @@ const BatchDetailPage = () => {
       setActivePickerRowId(null);
       handleCancelEditAll();
     } catch (error) {
-      window.alert(error?.message || "Không thể lưu chỉnh sửa.");
+      showPopup({ status: "error", message: error?.message || "Không thể lưu chỉnh sửa." });
     } finally {
       setIsSavingAll(false);
     }
@@ -435,6 +454,12 @@ const BatchDetailPage = () => {
 
   return (
     <div className="lo-hang-detail-page">
+      <Notification
+        open={notify.open}
+        status={notify.status}
+        message={notify.message}
+        onClose={closePopup}
+      />
       <ToolBar title="Chi tiết lô hàng" onSearchChange={() => {}} />
 
       <div className="lo-hang-detail-card">
@@ -548,32 +573,19 @@ const BatchDetailPage = () => {
                     </button>
                     {activePickerRowId === newRow.rowId && (
                       <div className="product-picker__menu">
-                        {filteredProductOptions.length === 0 ? (
-                          <div className="product-picker__empty">Không có sản phẩm phù hợp</div>
-                        ) : (
-                          filteredProductOptions.map((item) => {
-                            const pid = String(item?.ProductID || item?.id || "").trim();
-                            const pname = String(item?.ProductName || item?.name || "").trim();
-                            return (
-                              <button
-                                key={`${newRow.rowId}_${pid}`}
-                                type="button"
-                                className="product-picker__option"
-                                onClick={() => handleSelectProductForNewRow(newRow.rowId, pid)}
-                              >
-                                <img
-                                  src={resolveProductImage(item?.Image || item?.image)}
-                                  alt={pname || "product"}
-                                  loading="lazy"
-                                  onError={(e) => {
-                                    e.currentTarget.src = `${UPLOAD_BASE}/pictures/no_image.jpg`;
-                                  }}
-                                />
-                                <span>{pid} - {pname}</span>
-                              </button>
-                            );
-                          })
-                        )}
+                        <ProductAssignPicker
+                          // Dùng chung picker, nhưng ở batch chỉ cho chọn 1 sản phẩm mỗi dòng.
+                          products={filteredProductOptions}
+                          selectedIds={newRow.productId ? [String(newRow.productId)] : []}
+                          selectionMode="single"
+                          onToggleProduct={(pid) => handleSelectProductForNewRow(newRow.rowId, pid)}
+                          showFilters={false}
+                          contextHeader="Thuộc lô hàng"
+                          getContextValue={() => decodedBatchId || "N/A"}
+                          emptyText="Không có sản phẩm phù hợp"
+                          resolveImageUrl={resolveProductImage}
+                          fallbackImageUrl={`${UPLOAD_BASE}/pictures/no_image.jpg`}
+                        />
                       </div>
                     )}
                   </div>
@@ -637,8 +649,8 @@ const BatchDetailPage = () => {
             </>
           ) : null}
 
-          {loading ? (
-            <div className="lo-hang-empty">Đang tải dữ liệu...</div>
+          {showLoading ? (
+            <AdminLoadingScreen message="Đang tải dữ liệu..." />
           ) : displayedRows.length === 0 ? (
             <div className="lo-hang-empty">
               {products.length === 0 ? "Lô hàng này chưa có sản phẩm." : "Không tìm thấy sản phẩm phù hợp."}

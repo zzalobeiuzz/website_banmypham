@@ -862,6 +862,78 @@
         }
     }
 
+    .shared-product-assign {
+        width: 100%;
+    }
+
+    .shared-product-assign__filters {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 10px;
+
+        input {
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 9px 10px;
+            font-size: 13px;
+            outline: none;
+
+            &:focus {
+                border-color: #2563eb;
+                box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+            }
+        }
+    }
+
+    .shared-product-assign__table-wrap {
+        width: 100%;
+        overflow: auto;
+    }
+
+    .shared-product-assign__table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 620px;
+
+        th,
+        td {
+            border-bottom: 1px solid #e2e8f0;
+            text-align: left;
+            padding: 9px 10px;
+            font-size: 13px;
+            color: #0f172a;
+            vertical-align: middle;
+        }
+
+        th {
+            background: #eff6ff;
+            color: #1e3a8a;
+            font-weight: 700;
+        }
+
+        tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        input[type="checkbox"],
+        input[type="radio"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+    }
+
+    .shared-product-assign__thumb {
+        width: 44px;
+        height: 44px;
+        object-fit: contain;
+        border: 1px solid #dbeafe;
+        border-radius: 8px;
+        background: #fff;
+        display: block;
+    }
+
     .brand-suggest-products__table-wrap {
         width: 100%;
         overflow: auto;

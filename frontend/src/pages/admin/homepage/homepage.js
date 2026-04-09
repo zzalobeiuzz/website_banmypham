@@ -1,11 +1,12 @@
 // Đây là khung chung của trang admin với menu bên trái và nội dung bên phải
 // Homepage sẽ chứa Outlet để hiển thị các trang con như ProductOverview, OrderPage, v.v.
 // Menu bên trái có thể thu gọn, và có các mục như Quản lý sản phẩm, Đơn hàng, Khách hàng, Tài khoản, Sự kiện, Thống kê, v.v.
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { API_BASE, UPLOAD_BASE } from "../../../constants";
 import { ROUTERS } from "../../../utils/router";
 import useHttp from "../../../hooks/useHttp";
+import Notification from "../components/shared/Notification";
 import "./style.scss";
 
 const MenuSection = ({ title, items, isCollapsed, defaultOpen = true, onSelect }) => {
@@ -54,6 +55,7 @@ const Homepage = () => {
   const navigate = useNavigate();
   const { request } = useHttp();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [notify, setNotify] = useState({ open: false, status: "info", message: "" });
 
   const managementItems = [
     { icon: "icons-product-management.png", label: "Sản phẩm", path: `/${ROUTERS.ADMIN.HOME}` },
@@ -77,13 +79,31 @@ const Homepage = () => {
     { icon: "icons-conversion-rate.png", label: "Tỷ lệ chuyển đổi", path: "/admin/conversion" },
   ];
 
+  const showPopup = ({ status, message }) => {
+    setNotify({
+      open: true,
+      status: status || "info",
+      message: String(message || ""),
+    });
+  };
+
+  const closePopup = () => {
+    setNotify((prev) => ({ ...prev, open: false }));
+  };
+
+  const redirectToLogin = useCallback(() => {
+    setTimeout(() => {
+      localStorage.clear();
+      navigate("/", { state: { showLogin: true } });
+    }, 1200);
+  }, [navigate]);
+
   useEffect(() => {
     const checkAdmin = async () => {
       let token = localStorage.getItem("accessToken");
       if (!token) {
-        alert("Bạn chưa đăng nhập! Vui lòng quay lại trang đăng nhập");
-        localStorage.clear();
-        navigate("/", { state: { showLogin: true } });
+        showPopup({ status: "warning", message: "Bạn chưa đăng nhập! Vui lòng quay lại trang đăng nhập." });
+        redirectToLogin();
         return;
       }
 
@@ -109,21 +129,19 @@ const Homepage = () => {
             console.log("✅ Retry thành công!", retryRes);
           } catch (refreshError) {
             console.error("Lỗi refresh token:", refreshError);
-            alert("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!");
-            localStorage.clear();
-            navigate("/", { state: { showLogin: true } });
+            showPopup({ status: "warning", message: "Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!" });
+            redirectToLogin();
           }
         } else {
           const msg = error.response?.data?.message || "Bạn không có quyền truy cập trang này!";
-          alert(msg);
-          localStorage.clear();
-          navigate("/", { state: { showLogin: true } });
+          showPopup({ status: "error", message: msg });
+          redirectToLogin();
         }
       }
     };
 
     checkAdmin();
-  }, [request, navigate]);
+  }, [request, navigate, redirectToLogin]);
 
   const handleSelect = (item) => {
     navigate(item.path);
@@ -131,6 +149,12 @@ const Homepage = () => {
 
   return (
     <div className="homepage d-flex">
+      <Notification
+        open={notify.open}
+        status={notify.status}
+        message={notify.message}
+        onClose={closePopup}
+      />
       <div className={`menu-panel p-0 ${isCollapsed ? "collapsed" : ""}`}>
         <div className="app-sidebar">
           <ul className="vertical-nav-menu metismenu">

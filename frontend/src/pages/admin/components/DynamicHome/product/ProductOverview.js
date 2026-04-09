@@ -13,6 +13,7 @@ import {
 import { API_BASE, UPLOAD_BASE } from "../../../../../constants"; // 🌐 API endpoint & path upload
 import useHttp from "../../../../../hooks/useHttp"; // ⚡ Custom hook request HTTP
 import ToolBar from "../../ToolBar"; // 🔍 Toolbar search/filter
+import Notification from "../../shared/Notification";
 import ExportProductsExcelButton from "./ExportProductsExcelButton";
 import "./style.scss"; // 🎨 Styles
 
@@ -30,6 +31,7 @@ const ProductOverviewComponent = () => {
   const [selectedProducts, setSelectedProducts] = useState([]); // 🗂 Danh sách sản phẩm được chọn
   const [editMode, setEditMode] = useState(false); // ✏️ Chế độ chỉnh sửa
   const [searchKeyword, setSearchKeyword] = useState(""); // 🔍 Keyword search
+  const [notify, setNotify] = useState({ open: false, status: "info", message: "" });
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const categoryButtonsRef = useRef(null);
@@ -157,6 +159,14 @@ const ProductOverviewComponent = () => {
   // ➕ Navigate đến trang thêm sản phẩm
   const handleAddProduct = () => {
     navigate("/admin/product/add");
+  };
+
+  const showPopup = ({ status = "info", message = "" }) => {
+    setNotify({ open: true, status, message });
+  };
+
+  const closePopup = () => {
+    setNotify((prev) => ({ ...prev, open: false }));
   };
 
   // 🔎 Filter products theo category & search keyword
@@ -395,7 +405,7 @@ const ProductOverviewComponent = () => {
             className="view-detail"
             onClick={() => {
               if (!product.ProductID) {
-                alert("Sản phẩm chưa có ID, không thể xem chi tiết!");
+                showPopup({ status: "warning", message: "Sản phẩm chưa có ID, không thể xem chi tiết!" });
                 return;
               }
               goTo(`/admin/product/detail/${product.ProductID}`);
@@ -465,7 +475,7 @@ const ProductOverviewComponent = () => {
           updatedProducts,
           "Cập nhật sản phẩm",
         );
-        alert(res.message || "Đã lưu thay đổi thành công!");
+        showPopup({ status: "success", message: res.message || "Đã lưu thay đổi thành công!" });
 
         // 🔄 Cập nhật dữ liệu gốc
         setOriginalProducts((prev) =>
@@ -478,7 +488,7 @@ const ProductOverviewComponent = () => {
         );
       } catch (error) {
         console.error("Lỗi khi lưu:", error);
-        alert(error.message || "Có lỗi xảy ra khi lưu dữ liệu!");
+        showPopup({ status: "error", message: error.message || "Có lỗi xảy ra khi lưu dữ liệu!" });
         // 🔄 Khôi phục dữ liệu ban đầu khi có lỗi
         restoreSelectedProducts();
         setEditMode(false);
@@ -490,7 +500,7 @@ const ProductOverviewComponent = () => {
       setSelectedProducts([]);
     } else {
       if (selectedProducts.length === 0) {
-        alert("Vui lòng chọn ít nhất một sản phẩm trước khi chỉnh sửa.");
+        showPopup({ status: "warning", message: "Vui lòng chọn ít nhất một sản phẩm trước khi chỉnh sửa." });
         return;
       }
       //đổi trạng thái chế độ sửa thành bật
@@ -502,7 +512,7 @@ const ProductOverviewComponent = () => {
   // ====================🗑 Xử lý Xóa sản phẩm ===================
   const handleDelete = async () => {
     if (selectedProducts.length === 0) {
-      alert("Vui lòng chọn ít nhất một sản phẩm trước khi xóa.");
+      showPopup({ status: "warning", message: "Vui lòng chọn ít nhất một sản phẩm trước khi xóa." });
       return;
     }
     const confirmDelete = window.confirm(
@@ -516,7 +526,7 @@ const ProductOverviewComponent = () => {
         selectedProducts,
         "Xóa sản phẩm",
       );
-      alert("Đã xóa thành công!");
+      showPopup({ status: "success", message: "Đã xóa thành công!" });
       // Cập nhật lại danh sách sản phẩm sau khi xóa
       setProducts((prev) =>
         prev.filter((p) => !selectedProducts.includes(p.ProductID)),
@@ -524,7 +534,7 @@ const ProductOverviewComponent = () => {
       setSelectedProducts([]);
     } catch (error) {
       console.error("Lỗi khi xóa:", error);
-      alert("Có lỗi xảy ra khi xóa dữ liệu!");
+      showPopup({ status: "error", message: "Có lỗi xảy ra khi xóa dữ liệu!" });
     }
   };
 
@@ -532,6 +542,12 @@ const ProductOverviewComponent = () => {
 
   return (
     <div>
+      <Notification
+        open={notify.open}
+        status={notify.status}
+        message={notify.message}
+        onClose={closePopup}
+      />
       {/* 🔍 Toolbar tìm kiếm */}
       <ToolBar title="Sản phẩm" onSearchChange={setSearchKeyword} />
       <div className="product-wrapper">
@@ -664,6 +680,7 @@ const ProductOverviewComponent = () => {
               className="btn-export"
               title="Xuất danh sách Excel"
               aria-label="Xuất danh sách Excel"
+              onNotify={showPopup}
             >
               <FaFileExcel />
             </ExportProductsExcelButton>

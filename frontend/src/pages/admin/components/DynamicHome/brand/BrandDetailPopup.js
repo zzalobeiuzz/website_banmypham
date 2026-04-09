@@ -2,13 +2,18 @@ import React, { useEffect, useRef, useState } from "react";
 import ReactQuill from "react-quill";
 import { API_BASE, UPLOAD_BASE } from "../../../../../constants";
 import useHttp from "../../../../../hooks/useHttp";
+import AdminLoadingScreen from "../../shared/AdminLoadingScreen";
+import useMinimumLoading from "../../useMinimumLoading";
+import ProductAssignPicker from "../shared/ProductAssignPicker";
 
+// Chuẩn hóa trạng thái thương hiệu về kiểu boolean để render UI.
 const isBrandActive = (status) =>
-  status === 1 ||
+  status === 1 || 
   status === "1" ||
   String(status).toLowerCase() === "active" ||
   String(status).toLowerCase() === "true";
 
+// Kiểm tra sản phẩm có đang hiển thị hay không (lọc bỏ sản phẩm bị ẩn).
 const isProductVisible = (item) => {
   const value = item?.IsHidden ?? item?.isHidden;
   return (
@@ -33,19 +38,35 @@ const BrandDetailPopup = ({
 }) => {
   const { request } = useHttp();
   const detailModalBodyRef = useRef(null);
+
+  // Hiện nút cuộn lên đầu khi nội dung popup được cuộn xuống.
   const [showScrollTop, setShowScrollTop] = useState(false);
+  // Danh sách tất cả sản phẩm đang thuộc thương hiệu hiện tại.
   const [brandProducts, setBrandProducts] = useState([]);
+  // Danh sách preview (một phần nhỏ từ brandProducts) để hiển thị nhanh trên popup.
   const [previewProducts, setPreviewProducts] = useState([]);
+  // Danh sách sản phẩm gợi ý để thêm vào thương hiệu.
   const [suggestProducts, setSuggestProducts] = useState([]);
+  // Mảng ProductID đã chọn trong bảng gợi ý.
   const [selectedSuggestProductIds, setSelectedSuggestProductIds] = useState([]);
+  // Bật/tắt vùng ProductAssignPicker trong chế độ chỉnh sửa.
   const [showSuggestPicker, setShowSuggestPicker] = useState(false);
+  // Giá trị ô tìm theo mã/barcode trong bảng gợi ý.
   const [searchSuggestCode, setSearchSuggestCode] = useState("");
+  // Giá trị ô tìm theo tên sản phẩm trong bảng gợi ý.
   const [searchSuggestName, setSearchSuggestName] = useState("");
+  // Trạng thái đang tải dữ liệu sản phẩm từ API.
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const showLoadingProducts = useMinimumLoading(loadingProducts, 500);
+  // Trạng thái popup đang ở chế độ chỉnh sửa hay chỉ xem.
   const [isEditing, setIsEditing] = useState(false);
+  // Trạng thái kéo-thả logo để đổi style vùng upload.
   const [isDraggingLogo, setIsDraggingLogo] = useState(false);
+  // File logo mới người dùng chọn từ máy.
   const [logoFile, setLogoFile] = useState(null);
+  // URL preview logo (từ file local hoặc URL nhập vào).
   const [logoPreview, setLogoPreview] = useState("");
+  // Dữ liệu form thông tin thương hiệu đang hiển thị/chỉnh sửa.
   const [form, setForm] = useState({
     idBrand: "",
     Brand: "",
@@ -54,6 +75,7 @@ const BrandDetailPopup = ({
     logo_url: "",
   });
 
+  // Khi đổi brand: reset form + trạng thái edit/suggest theo dữ liệu brand mới.
   useEffect(() => {
     if (!brand) return;
 
@@ -80,14 +102,17 @@ const BrandDetailPopup = ({
     setLogoPreview(resolveBrandLogoUrl(normalizedLogoUrl));
   }, [brand, resolveBrandLogoUrl]);
 
+  // Tải danh sách sản phẩm, tách thành 2 nhóm: thuộc brand hiện tại và sản phẩm gợi ý để thêm.
   useEffect(() => {
     let mounted = true;
 
+    // Chuẩn hóa text để so sánh id/tên không phân biệt hoa thường.
     const normalize = (value) =>
       String(value || "")
         .trim()
         .toLowerCase();
 
+    // Xáo trộn để hiển thị danh sách gợi ý/preview đa dạng hơn.
     const shuffle = (arr) => {
       const cloned = [...arr];
       for (let i = cloned.length - 1; i > 0; i -= 1) {
@@ -97,6 +122,7 @@ const BrandDetailPopup = ({
       return cloned;
     };
 
+    // Lấy toàn bộ sản phẩm từ API rồi lọc theo brand hiện tại.
     const fetchBrandProducts = async () => {
       if (!brand) return;
       try {
@@ -143,6 +169,7 @@ const BrandDetailPopup = ({
     };
   }, [brand, request]);
 
+  // Theo dõi cuộn trong popup để hiện nút "lên đầu" khi người dùng cuộn xuống sâu.
   useEffect(() => {
     if (!brand) {
       setShowScrollTop(false);
@@ -172,10 +199,12 @@ const BrandDetailPopup = ({
   const logoUrl = logoPreview || resolveBrandLogoUrl(form.logo_url);
   const active = isBrandActive(form.status);
 
+  // Cập nhật từng field trong form chỉnh sửa.
   const handleChange = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  // Nhận file logo từ input, kiểm tra đúng kiểu ảnh rồi cập nhật preview.
   const handleLogoFile = (file) => {
     if (!(file instanceof File)) return;
     if (!String(file.type || "").startsWith("image/")) return;
@@ -185,6 +214,7 @@ const BrandDetailPopup = ({
     setLogoPreview(URL.createObjectURL(file));
   };
 
+  // Xử lý kéo-thả logo: hỗ trợ cả file ảnh và URL ảnh.
   const handleLogoDrop = (e) => {
     e.preventDefault();
     setIsDraggingLogo(false);
@@ -208,6 +238,7 @@ const BrandDetailPopup = ({
     }
   };
 
+  // Hủy chỉnh sửa: đưa form và vùng gợi ý về trạng thái ban đầu theo brand hiện tại.
   const handleCancelEdit = () => {
     setIsEditing(false);
     setIsDraggingLogo(false);
@@ -229,6 +260,7 @@ const BrandDetailPopup = ({
     setLogoPreview(resolveBrandLogoUrl(normalizedLogoUrl));
   };
 
+  // Chọn/bỏ chọn sản phẩm trong danh sách gợi ý.
   const toggleSuggestProduct = (productId) => {
     const normalized = String(productId || "").trim();
     if (!normalized) return;
@@ -240,6 +272,7 @@ const BrandDetailPopup = ({
     );
   };
 
+  // Lọc danh sách gợi ý theo ô tìm kiếm mã/barcode và tên sản phẩm.
   const filteredSuggestProducts = suggestProducts.filter((item) => {
     const codeQuery = String(searchSuggestCode || "")
       .trim()
@@ -264,6 +297,7 @@ const BrandDetailPopup = ({
     return matchedCode && matchedName;
   });
 
+  // Lưu thay đổi brand và danh sách sản phẩm đã chọn để gán vào brand.
   const handleSave = async () => {
     if (typeof onSave !== "function") return;
 
@@ -287,6 +321,7 @@ const BrandDetailPopup = ({
     }
   };
 
+  // Cuộn popup về đầu trang.
   const handleScrollToTop = () => {
     const detailBody = detailModalBodyRef.current;
     if (detailBody) {
@@ -294,6 +329,7 @@ const BrandDetailPopup = ({
     }
   };
 
+  // Chuẩn hóa đường dẫn ảnh sản phẩm để luôn render được ảnh hợp lệ.
   const resolveProductImage = (value) => {
     const raw = String(value || "").trim();
     if (!raw) return `${UPLOAD_BASE}/pictures/no_image.jpg`;
@@ -444,8 +480,8 @@ const BrandDetailPopup = ({
             <div className="brand-detail-bottom">
               <label>Sản phẩm thuộc thương hiệu</label>
               <div className="brand-related-products">
-                {loadingProducts ? (
-                  <div className="brand-related-products__state">Đang tải sản phẩm...</div>
+                {showLoadingProducts ? (
+                  <AdminLoadingScreen message="Đang tải sản phẩm..." compact />
                 ) : previewProducts.length === 0 ? (
                   <div className="brand-related-products__state">Chưa có sản phẩm thuộc thương hiệu này.</div>
                 ) : (
@@ -522,59 +558,21 @@ const BrandDetailPopup = ({
                           <div className="brand-suggest-products__hint">
                             Chọn sản phẩm muốn thêm vào thương hiệu này. Khi lưu, các sản phẩm được chọn sẽ chuyển sang thương hiệu hiện tại.
                           </div>
-                          <div className="brand-suggest-products__filters">
-                            <input
-                              type="text"
-                              value={searchSuggestCode}
-                              onChange={(e) => setSearchSuggestCode(e.target.value)}
-                              placeholder="Tìm theo ID/Barcode"
-                            />
-                            <input
-                              type="text"
-                              value={searchSuggestName}
-                              onChange={(e) => setSearchSuggestName(e.target.value)}
-                              placeholder="Tìm theo tên sản phẩm"
-                            />
-                          </div>
-                          <div className="brand-suggest-products__table-wrap">
-                            <table className="brand-suggest-products__table">
-                              <thead>
-                                <tr>
-                                  <th>Chọn</th>
-                                  <th>Mã sản phẩm</th>
-                                  <th>Barcode</th>
-                                  <th>Tên sản phẩm</th>
-                                  <th>Thương hiệu hiện tại</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {filteredSuggestProducts.length === 0 ? (
-                                  <tr>
-                                    <td colSpan={5}>Không tìm thấy sản phẩm phù hợp.</td>
-                                  </tr>
-                                ) : (
-                                  filteredSuggestProducts.map((item) => {
-                                    const pid = String(item?.ProductID || item?.id || "").trim();
-                                    return (
-                                      <tr key={pid || item?.ProductName}>
-                                        <td>
-                                          <input
-                                            type="checkbox"
-                                            checked={selectedSuggestProductIds.includes(pid)}
-                                            onChange={() => toggleSuggestProduct(pid)}
-                                          />
-                                        </td>
-                                        <td>{pid || "N/A"}</td>
-                                        <td>{item?.Barcode || item?.barcode || "N/A"}</td>
-                                        <td>{item?.ProductName || "N/A"}</td>
-                                        <td>{item?.SupplierID || item?.supplierId || "N/A"}</td>
-                                      </tr>
-                                    );
-                                  })
-                                )}
-                              </tbody>
-                            </table>
-                          </div>
+                          <ProductAssignPicker
+                            products={filteredSuggestProducts}
+                            selectedIds={selectedSuggestProductIds}
+                            // Ngữ cảnh thương hiệu: chọn nhiều sản phẩm, lọc theo mã/tên.
+                            onToggleProduct={toggleSuggestProduct}
+                            searchCode={searchSuggestCode}
+                            searchName={searchSuggestName}
+                            onSearchCodeChange={setSearchSuggestCode}
+                            onSearchNameChange={setSearchSuggestName}
+                            contextHeader="Thương hiệu hiện tại"
+                            getContextValue={(item) => item?.SupplierID || item?.supplierId || "N/A"}
+                            emptyText="Không tìm thấy sản phẩm phù hợp."
+                            resolveImageUrl={resolveProductImage}
+                            fallbackImageUrl={`${UPLOAD_BASE}/pictures/no_image.jpg`}
+                          />
                         </>
                       )}
                     </>

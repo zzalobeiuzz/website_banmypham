@@ -151,7 +151,7 @@ const CategoryPage = () => {
   const handleCreateCategory = async () => {
     const normalizedName = String(newCategoryName || "").trim();
     if (!normalizedName) {
-      alert("Vui lòng nhập tên danh mục mới");
+      showCenterNotice("Vui lòng nhập tên danh mục mới", "Thông báo");
       return;
     }
 
@@ -164,7 +164,7 @@ const CategoryPage = () => {
       setCreatingCategory(false);
       await loadData();
     } catch (err) {
-      alert(err?.message || "Không thể tạo danh mục mới");
+      showCenterNotice(err?.message || "Không thể tạo danh mục mới", "Không thể tạo");
     } finally {
       setSaving(false);
     }
@@ -173,7 +173,7 @@ const CategoryPage = () => {
   const handleCreateSubCategory = async (categoryId) => {
     const normalizedName = String(newSubCategoryName || "").trim();
     if (!normalizedName) {
-      alert("Vui lòng nhập tên danh mục con");
+      showCenterNotice("Vui lòng nhập tên danh mục con", "Thông báo");
       return;
     }
 
@@ -187,7 +187,7 @@ const CategoryPage = () => {
       setAddingSubForCategoryId(null);
       await loadData();
     } catch (err) {
-      alert(err?.message || "Không thể tạo danh mục con");
+      showCenterNotice(err?.message || "Không thể tạo danh mục con", "Không thể tạo");
     } finally {
       setSaving(false);
     }

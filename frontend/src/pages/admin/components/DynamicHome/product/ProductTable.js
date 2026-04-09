@@ -1,4 +1,3 @@
-import lottie from "lottie-web";
 import React, { useEffect, useRef, useState } from "react";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
@@ -6,6 +5,9 @@ import JsBarcode from "jsbarcode";
 import { useNavigate, useParams } from "react-router-dom";
 import { API_BASE, UPLOAD_BASE } from "../../../../../constants";
 import useHttp from "../../../../../hooks/useHttp";
+import AdminLoadingScreen from "../../shared/AdminLoadingScreen";
+import Notification from "../../shared/Notification";
+import useMinimumLoading from "../../useMinimumLoading";
 import "./style.scss";
 
 const productSections = [
@@ -79,18 +81,19 @@ const ProductDetail = () => {
   const { id } = useParams();
   const { request } = useHttp();
   const navigate = useNavigate();
-  const loadingRef = useRef();
 
   const [product, setProduct] = useState(null);
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
   const [loading, setLoading] = useState(true);
+  const showLoading = useMinimumLoading(loading, 500);
   const [isEdit, setIsEdit] = useState(false);
   const [selectedImageName, setSelectedImageName] = useState("");
   const [previewImage, setPreviewImage] = useState(null);
   const [selectedBatchId, setSelectedBatchId] = useState(null);
   const [editableBatches, setEditableBatches] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [notify, setNotify] = useState({ open: false, status: "info", message: "" });
 
   const [editFields, setEditFields] = useState({
     ProductName: "",
@@ -183,19 +186,6 @@ const ProductDetail = () => {
     fetchBrands();
   }, [request]);
 
-  useEffect(() => {
-    if (loadingRef.current && loading) {
-      const anim = lottie.loadAnimation({
-        container: loadingRef.current,
-        renderer: "svg",
-        loop: true,
-        autoplay: true,
-        path: "/animations/Trail loading.json",
-      });
-      return () => anim.destroy();
-    }
-  }, [loading]);
-
   const scrollToSection = (id) => {
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -214,6 +204,14 @@ const ProductDetail = () => {
   const handlePriceChange = (value) => {
     const digits = String(value ?? "").replace(/\D/g, "");
     handleInputChange("Price", digits);
+  };
+
+  const showPopup = ({ status = "info", message = "" }) => {
+    setNotify({ open: true, status, message });
+  };
+
+  const closePopup = () => {
+    setNotify((prev) => ({ ...prev, open: false }));
   };
   const handleImageDrop = (e) => {
     e.preventDefault();
@@ -388,7 +386,7 @@ const ProductDetail = () => {
       );
 
       if (!res?.success) {
-        window.alert(res?.message || "Không thể cập nhật chi tiết sản phẩm");
+        showPopup({ status: "error", message: res?.message || "Không thể cập nhật chi tiết sản phẩm" });
         return;
       }
 
@@ -409,10 +407,10 @@ const ProductDetail = () => {
 
       setSelectedBatchId(editableBatches?.[0]?.batchId || null);
       setIsEdit(false);
-      window.alert("Cập nhật sản phẩm thành công");
+      showPopup({ status: "success", message: "Cập nhật sản phẩm thành công" });
     } catch (error) {
       console.error("Lỗi cập nhật chi tiết sản phẩm:", error);
-      window.alert("Không thể cập nhật chi tiết sản phẩm");
+      showPopup({ status: "error", message: "Không thể cập nhật chi tiết sản phẩm" });
     } finally {
       setIsSaving(false);
     }
@@ -421,7 +419,7 @@ const ProductDetail = () => {
   const handlePrintBatchBarcode = (batch) => {
     const barcodeValue = String(batch?.barcode || "").trim();
     if (!barcodeValue) {
-      window.alert("Lô hàng này chưa có barcode để in.");
+      showPopup({ status: "warning", message: "Lô hàng này chưa có barcode để in." });
       return;
     }
 
@@ -438,13 +436,13 @@ const ProductDetail = () => {
       });
     } catch (error) {
       console.error("Khong the tao barcode de in:", error);
-      window.alert("Không thể tạo barcode để in.");
+      showPopup({ status: "error", message: "Không thể tạo barcode để in." });
       return;
     }
 
     const printWindow = window.open("", "_blank", "width=520,height=720");
     if (!printWindow) {
-      window.alert("Trình duyệt đã chặn popup in. Hãy cho phép popup.");
+      showPopup({ status: "warning", message: "Trình duyệt đã chặn popup in. Hãy cho phép popup." });
       return;
     }
 
@@ -493,14 +491,17 @@ const ProductDetail = () => {
 
   return (
     <div className="product-detail__container">
-      {loading && (
-        <div className="product-detail__loading">
-          <div ref={loadingRef} className="product-detail__loading-animation" />
-          <p>Đang tải thông tin sản phẩm...</p>
-        </div>
+      <Notification
+        open={notify.open}
+        status={notify.status}
+        message={notify.message}
+        onClose={closePopup}
+      />
+      {showLoading && (
+        <AdminLoadingScreen message="Đang tải thông tin sản phẩm..." />
       )}
 
-      {!loading && (
+      {!showLoading && (
         <>
           <div className="product-detail__actions">
             <button className="btn-back" onClick={() => navigate(-1)}>
