@@ -24,6 +24,7 @@ import AddOrder from "./pages/admin/components/DynamicHome/order/AddOrder.js";
 import CustomerPage from "./pages/admin/components/DynamicHome/customer/CustomerPage.js";
 import BrandPage from "./pages/admin/components/DynamicHome/brand/BrandPage.js";
 import BrandProductsPage from "./pages/admin/components/DynamicHome/brand/BrandProductsPage.js";
+import AccountPage from "./pages/admin/components/DynamicHome/account/AccountPage.js";
 
 import { ROUTERS } from "./utils/router";
 
@@ -86,6 +87,12 @@ const adminRoutes = [
     path: ROUTERS.ADMIN.CUSTOMER.INDEX || "customer", // 👥 Khách hàng
     children: [
       { index: true, element: <CustomerPage /> }, // 🏠 Trang danh sách khách hàng (/admin/customer)
+    ],
+  },
+  {
+    path: ROUTERS.ADMIN.ACCOUNT.INDEX || "account", // 👤 Tài khoản
+    children: [
+      { index: true, element: <AccountPage /> },
     ],
   },
 ];

@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const upload = require("../middlewares/upload.middleware");
 
 const {
   handleGetCustomers,
@@ -7,6 +8,7 @@ const {
   handleDeleteCustomer,
   handleResetCustomerPassword,
   handleUpdateCustomer,
+  handleCreateCustomer,
 } = require("../controllers/customer.controller");
 
 // Mọi route ở đây đều cần xác thực token và quyền admin
@@ -20,6 +22,9 @@ router.use(verifyToken, verifyAdmin);
 
 // Lấy danh sách khách hàng cho trang quản trị.
 router.get("/", handleGetCustomers);
+
+// Tạo mới khách hàng.
+router.post("/", upload.single("avatarFile"), handleCreateCustomer);
 
 // Lấy thông tin chi tiết của 1 khách hàng theo customerId.
 router.get("/:customerId", handleGetCustomerDetail);

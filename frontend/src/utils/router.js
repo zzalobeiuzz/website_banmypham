@@ -47,6 +47,10 @@ export const ROUTERS = {
         INDEX: "customer",                    // Danh sách khách hàng: /admin/customer
         DETAIL: "customer/:customerId",       // Chi tiết khách hàng: /admin/customer/email@domain.com
       },
+
+      ACCOUNT: {
+        INDEX: "account",                     // Danh sách tài khoản: /admin/account
+      },
     },
   
     // Đường dẫn trang không tìm thấy

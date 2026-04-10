@@ -240,3 +240,76 @@ exports.updateCustomerInfo = async ({ customerId, fullName, phoneNumber, address
     throw error;
   }
 };
+
+/**
+ * Tạo mới khách hàng với đầy đủ hồ sơ CUSTOMER
+ * và tùy chọn tạo ACCOUNT để đăng nhập thường / Google.
+ */
+exports.createCustomer = async ({
+  email,
+  fullName,
+  phoneNumber,
+  address,
+  createAccount = false,
+  hashedPassword = null,
+  displayName = null,
+  avatar = null,
+}) => {
+  try {
+    const pool = await connectDB();
+    const transaction = new sql.Transaction(pool);
+    await transaction.begin();
+
+    try {
+      const checkReq = new sql.Request(transaction);
+      const existsRes = await checkReq
+        .input("email", sql.VarChar, email)
+        .query(`
+          SELECT TOP 1 1 AS ExistsCheck
+          FROM (
+            SELECT Email FROM CUSTOMER
+            UNION
+            SELECT Email FROM ACCOUNT
+          ) E
+          WHERE E.Email = @email
+        `);
+
+      if (existsRes.recordset.length > 0) {
+        throw new Error("Email đã tồn tại.");
+      }
+
+      const customerReq = new sql.Request(transaction);
+      await customerReq
+        .input("name", sql.NVarChar, fullName)
+        .input("email", sql.VarChar, email)
+        .input("phone", sql.VarChar, phoneNumber)
+        .input("address", sql.NVarChar, address)
+        .query(`
+          INSERT INTO CUSTOMER (Name, Email, Phone, Address, isActive)
+          VALUES (@name, @email, @phone, @address, 1)
+        `);
+
+      if (createAccount) {
+        const accountReq = new sql.Request(transaction);
+        await accountReq
+          .input("email", sql.VarChar, email)
+          .input("password", sql.VarChar, hashedPassword)
+          .input("displayName", sql.NVarChar, displayName || fullName)
+          .input("avatar", sql.NVarChar, avatar || null)
+          .query(`
+            INSERT INTO ACCOUNT (Email, Password, DisplayName, Avatar, Role)
+            VALUES (@email, @password, @displayName, @avatar, 0)
+          `);
+      }
+
+      await transaction.commit();
+      return true;
+    } catch (innerError) {
+      await transaction.rollback();
+      throw innerError;
+    }
+  } catch (error) {
+    console.error("❌ Lỗi createCustomer:", error.message);
+    throw error;
+  }
+};

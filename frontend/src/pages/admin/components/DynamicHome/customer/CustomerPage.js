@@ -5,6 +5,8 @@ import ToolBar from "../../ToolBar";
 import AdminLoadingScreen from "../../shared/AdminLoadingScreen";
 import Notification from "../../shared/Notification";
 import useMinimumLoading from "../../useMinimumLoading";
+import AvatarCropEditor from "./AvatarCropEditor";
+import CreateCustomerPopup from "./CreateCustomerPopup";
 import "./style.scss";
 
 const TXT = {
@@ -39,6 +41,23 @@ const CustomerPage = () => {
   const [showUpdateConfirmPopup, setShowUpdateConfirmPopup] = useState(false);
   const [showUpdateSuccessPopup, setShowUpdateSuccessPopup] = useState(false);
   const [notify, setNotify] = useState({ open: false, status: "info", message: "" });
+  const [showCreateCustomerPopup, setShowCreateCustomerPopup] = useState(false);
+  const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
+  const [showAvatarEditor, setShowAvatarEditor] = useState(false);
+  const [avatarEditorSource, setAvatarEditorSource] = useState("");
+  const [createCustomerForm, setCreateCustomerForm] = useState({
+    fullName: "",
+    email: "",
+    phoneNumber: "",
+    address: "",
+    createAccount: true,
+    linkGoogle: true,
+    password: "",
+    displayName: "",
+    avatarUrl: "",
+    avatarFile: null,
+    avatarPreview: "",
+  });
   const [editForm, setEditForm] = useState({
     fullName: "",
     phoneNumber: "",
@@ -178,6 +197,242 @@ const CustomerPage = () => {
 
   const closePopup = () => {
     setNotify((prev) => ({ ...prev, open: false }));
+  };
+
+  const resetCreateCustomerForm = () => {
+    setCreateCustomerForm({
+      fullName: "",
+      email: "",
+      phoneNumber: "",
+      address: "",
+      createAccount: true,
+      linkGoogle: true,
+      password: "",
+      displayName: "",
+      avatarUrl: "",
+      avatarFile: null,
+      avatarPreview: "",
+    });
+  };
+
+  const openCreateCustomerPopup = () => {
+    resetCreateCustomerForm();
+    setShowCreateCustomerPopup(true);
+  };
+
+  const closeCreateCustomerPopup = () => {
+    if (isCreatingCustomer) return;
+    setShowCreateCustomerPopup(false);
+    resetCreateCustomerForm();
+  };
+
+  const handleChangeCreateCustomerForm = (field, value) => {
+    setCreateCustomerForm((prev) => {
+      const next = { ...prev, [field]: value };
+
+      if (field === "linkGoogle" && value) {
+        next.createAccount = true;
+      }
+
+      if (field === "createAccount" && !value) {
+        next.linkGoogle = false;
+        next.password = "";
+        next.displayName = "";
+        next.avatarUrl = "";
+        next.avatarFile = null;
+        next.avatarPreview = "";
+      }
+
+      return next;
+    });
+  };
+
+  const handleCreateAvatarFileChange = (event) => {
+    const file = event?.target?.files?.[0];
+    if (!file) {
+      handleChangeCreateCustomerForm("avatarFile", null);
+      handleChangeCreateCustomerForm("avatarPreview", "");
+      return;
+    }
+
+    if (!String(file.type || "").startsWith("image/")) {
+      showPopup({ status: "warning", message: "Vui lòng chọn file ảnh hợp lệ." });
+      return;
+    }
+
+    readFileAsDataUrl(file)
+      .then((dataUrl) => {
+        handleChangeCreateCustomerForm("avatarUrl", dataUrl);
+        handleChangeCreateCustomerForm("avatarFile", null);
+        handleChangeCreateCustomerForm("avatarPreview", dataUrl);
+      })
+      .catch((error) => {
+        showPopup({ status: "error", message: error?.message || "Không thể đọc ảnh đã chọn." });
+      });
+  };
+
+  const handleCreateAvatarUrlChange = (value) => {
+    const nextUrl = String(value || "").trim();
+    handleChangeCreateCustomerForm("avatarUrl", nextUrl);
+
+    if (!nextUrl) {
+      handleChangeCreateCustomerForm("avatarPreview", "");
+      return;
+    }
+
+    handleChangeCreateCustomerForm("avatarFile", null);
+    handleChangeCreateCustomerForm("avatarPreview", nextUrl);
+  };
+
+  const readFileAsDataUrl = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("Không thể đọc file ảnh."));
+      reader.readAsDataURL(file);
+    });
+
+  const getDroppedImageUrl = (event) => {
+    const uriList = String(event?.dataTransfer?.getData("text/uri-list") || "").trim();
+    if (/^https?:\/\//i.test(uriList) || uriList.startsWith("data:")) {
+      return uriList;
+    }
+
+    const plainText = String(event?.dataTransfer?.getData("text/plain") || "").trim();
+    if (/^https?:\/\//i.test(plainText) || plainText.startsWith("data:")) {
+      return plainText;
+    }
+
+    const htmlText = String(event?.dataTransfer?.getData("text/html") || "").trim();
+    const imgMatch = htmlText.match(/<img[^>]+src=["']([^"']+)["']/i);
+    const imgSrc = String(imgMatch?.[1] || "").trim();
+    if (/^https?:\/\//i.test(imgSrc) || imgSrc.startsWith("data:")) {
+      return imgSrc;
+    }
+
+    return "";
+  };
+
+  const handleCreateAvatarDrop = (event) => {
+    const files = event?.dataTransfer?.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (!String(file.type || "").startsWith("image/")) {
+        showPopup({ status: "warning", message: "Vui lòng kéo file ảnh hợp lệ." });
+        return;
+      }
+
+      readFileAsDataUrl(file)
+        .then((dataUrl) => {
+          handleChangeCreateCustomerForm("avatarUrl", dataUrl);
+          handleChangeCreateCustomerForm("avatarFile", null);
+          handleChangeCreateCustomerForm("avatarPreview", dataUrl);
+        })
+        .catch((error) => {
+          showPopup({ status: "error", message: error?.message || "Không thể tải ảnh vừa kéo vào." });
+        });
+      return;
+    }
+
+    const droppedUrl = getDroppedImageUrl(event);
+
+    if (droppedUrl) {
+      handleCreateAvatarUrlChange(droppedUrl);
+      return;
+    }
+
+    showPopup({ status: "warning", message: "Chỉ nhận ảnh kéo từ web hoặc liên kết ảnh." });
+  };
+
+  const handleOpenAvatarEditor = () => {
+    if (isCreatingCustomer) return;
+    const source = String(createCustomerForm.avatarPreview || createCustomerForm.avatarUrl || "").trim();
+    if (!source) {
+      showPopup({ status: "warning", message: "Bạn cần chọn ảnh trước khi chỉnh sửa." });
+      return;
+    }
+
+    setAvatarEditorSource(source);
+    setShowAvatarEditor(true);
+  };
+
+  const handleApplyAvatarEdit = (dataUrl) => {
+    handleChangeCreateCustomerForm("avatarUrl", dataUrl);
+    handleChangeCreateCustomerForm("avatarFile", null);
+    handleChangeCreateCustomerForm("avatarPreview", dataUrl);
+    setAvatarEditorSource("");
+    setShowAvatarEditor(false);
+  };
+
+  const handleCloseAvatarEditor = () => {
+    setAvatarEditorSource("");
+    setShowAvatarEditor(false);
+  };
+
+  const handleCreateCustomer = async () => {
+    const fullName = String(createCustomerForm.fullName || "").trim();
+    const email = String(createCustomerForm.email || "").trim().toLowerCase();
+    const phoneNumber = String(createCustomerForm.phoneNumber || "").trim();
+    const address = String(createCustomerForm.address || "").trim();
+    const createAccount = Boolean(createCustomerForm.createAccount);
+    const linkGoogle = Boolean(createCustomerForm.linkGoogle);
+    const password = String(createCustomerForm.password || "").trim();
+    const displayName = String(createCustomerForm.displayName || "").trim();
+    const avatarUrl = String(createCustomerForm.avatarUrl || "").trim();
+    const avatarFile = createCustomerForm.avatarFile || null;
+
+    if (!fullName || !email || !phoneNumber || !address) {
+      showPopup({ status: "warning", message: "Vui lòng nhập đầy đủ tên, email, số điện thoại và địa chỉ." });
+      return;
+    }
+
+    if (createAccount && !linkGoogle && password.length < 6) {
+      showPopup({ status: "warning", message: "Mật khẩu phải có ít nhất 6 ký tự." });
+      return;
+    }
+
+    try {
+      setIsCreatingCustomer(true);
+      let token = localStorage.getItem("accessToken");
+
+      const payload = new FormData();
+      payload.append("fullName", fullName);
+      payload.append("email", email);
+      payload.append("phoneNumber", phoneNumber);
+      payload.append("address", address);
+      payload.append("createAccount", String(createAccount));
+      payload.append("linkGoogle", String(linkGoogle));
+      payload.append("password", createAccount ? password : "");
+      payload.append("displayName", displayName);
+      payload.append("avatarUrl", avatarUrl);
+
+      if (avatarFile) {
+        payload.append("avatarFile", avatarFile);
+      }
+
+      let res;
+      try {
+        res = await request("POST", `${API_BASE}/api/admin/customers`, payload, getAuthHeaders(token));
+      } catch (error) {
+        if (error?.status !== 401) throw error;
+        token = await refreshAccessToken();
+        res = await request("POST", `${API_BASE}/api/admin/customers`, payload, getAuthHeaders(token));
+      }
+
+      if (!res?.success) {
+        showPopup({ status: "error", message: res?.message || "Tạo khách hàng thất bại." });
+        return;
+      }
+
+      setShowCreateCustomerPopup(false);
+      resetCreateCustomerForm();
+      await fetchCustomers();
+      showPopup({ status: "success", message: res?.message || "Tạo khách hàng thành công." });
+    } catch (error) {
+      showPopup({ status: "error", message: error?.message || "Tạo khách hàng thất bại." });
+    } finally {
+      setIsCreatingCustomer(false);
+    }
   };
 
   const handleResetPassword = async () => {
@@ -373,6 +628,12 @@ const CustomerPage = () => {
       />
       <ToolBar title={TXT.title} />
       <div className="customer-container">
+        <div className="customer-top-actions">
+          <button type="button" className="btn-action create-customer" onClick={openCreateCustomerPopup}>
+            {"+ Tạo khách hàng"}
+          </button>
+        </div>
+
         <div className="search-section">
           <input
             type="text"
@@ -653,6 +914,25 @@ const CustomerPage = () => {
           </div>
         </div>
       )}
+
+      <CreateCustomerPopup
+        open={showCreateCustomerPopup}
+        isCreating={isCreatingCustomer}
+        form={createCustomerForm}
+        onClose={closeCreateCustomerPopup}
+        onChangeField={handleChangeCreateCustomerForm}
+        onAvatarFileChange={handleCreateAvatarFileChange}
+        onAvatarDrop={handleCreateAvatarDrop}
+        onEditAvatar={handleOpenAvatarEditor}
+        onSubmit={handleCreateCustomer}
+      />
+
+      <AvatarCropEditor
+        open={showAvatarEditor}
+        source={avatarEditorSource}
+        onClose={handleCloseAvatarEditor}
+        onApply={handleApplyAvatarEdit}
+      />
     </div>
   );
 };
