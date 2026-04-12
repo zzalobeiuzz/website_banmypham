@@ -313,6 +313,27 @@
               object-fit: cover;
               border: 1px solid #e8e8e8;
             }
+
+            .shopping-cart-icon-wrap {
+              position: relative;
+              display: inline-flex;
+            }
+
+            .cart-count-badge {
+              position: absolute;
+              top: -1px;
+              right: -8px;
+              min-width: 18px;
+              height: 18px;
+              padding: 0 4px;
+              border-radius: 999px;
+              background: #c73030;
+              color: #fff;
+              font-size: 11px;
+              line-height: 18px;
+              text-align: center;
+              font-weight: 700;
+            }
           }
         }
       }
@@ -483,10 +504,17 @@
       .search-bar {
         justify-content: flex-end;
         gap: 20px;
+        .login-info{
+          .btn-danger {
+            height: 50px;
+            padding: 0 15px;
+          }
+        }
 
         .search {
           .input-search {
-            width: 804px;
+            width: 750px;
+            max-width: 780px;
           }
 
           .dropdown {

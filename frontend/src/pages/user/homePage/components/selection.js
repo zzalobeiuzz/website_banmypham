@@ -9,6 +9,75 @@ import "./componets.scss";
 // 🌟 Kích thước 1 item và số lượng item hiển thị
 const ITEM_WIDTH = 254;
 const VISIBLE_COUNT = 5;
+const CART_STORAGE_KEY = "cartItems";
+
+const getCartItemsFromStorage = () => {
+  try {
+    const raw = localStorage.getItem(CART_STORAGE_KEY);
+    const parsed = JSON.parse(raw || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    return [];
+  }
+};
+
+const saveCartItemsToStorage = (items) => {
+  localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+  window.dispatchEvent(new Event("cart-updated"));
+};
+
+// ✨ Hiệu ứng: clone ảnh sản phẩm và cho ảnh bay về icon giỏ hàng.
+const animateImageToCart = (sourceImage) => {
+  if (!sourceImage) return;
+
+  // Tìm icon giỏ hàng trên header (ưu tiên thẻ img trong wrapper).
+  const cartIcon = document.querySelector(".shopping-cart-icon-wrap img")
+    || document.querySelector(".shopping-cart-icon-wrap");
+  if (!cartIcon) return;
+
+  const sourceRect = sourceImage.getBoundingClientRect();
+  const targetRect = cartIcon.getBoundingClientRect();
+
+  if (!sourceRect.width || !sourceRect.height) return;
+
+  const clone = sourceImage.cloneNode(true);
+  clone.style.position = "fixed";
+  clone.style.left = `${sourceRect.left}px`;
+  clone.style.top = `${sourceRect.top}px`;
+  clone.style.width = `${sourceRect.width}px`;
+  clone.style.height = `${sourceRect.height}px`;
+  clone.style.objectFit = "cover";
+  clone.style.borderRadius = "8px";
+  clone.style.zIndex = "9999";
+  clone.style.pointerEvents = "none";
+  clone.style.transition = "transform 650ms cubic-bezier(0.22, 1, 0.36, 1), opacity 650ms ease";
+  clone.style.transformOrigin = "center center";
+
+  document.body.appendChild(clone);
+
+  const fromCenterX = sourceRect.left + sourceRect.width / 2;
+  const fromCenterY = sourceRect.top + sourceRect.height / 2;
+  const toCenterX = targetRect.left + targetRect.width / 2;
+  const toCenterY = targetRect.top + targetRect.height / 2;
+  const deltaX = toCenterX - fromCenterX;
+  const deltaY = toCenterY - fromCenterY;
+
+  // Chạy animation ở frame kế tiếp để browser kịp render vị trí ban đầu.
+  window.requestAnimationFrame(() => {
+    clone.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(0.12)`;
+    clone.style.opacity = "0.25";
+  });
+
+  // Dọn dẹp node tạm sau khi animation kết thúc, tránh rác DOM.
+  const cleanup = () => {
+    if (clone.parentNode) {
+      clone.parentNode.removeChild(clone);
+    }
+  };
+
+  clone.addEventListener("transitionend", cleanup, { once: true });
+  setTimeout(cleanup, 800);
+};
 
 const Select = ({ title }) => {
   const { request, loading, error } = useHttp();
@@ -177,6 +246,38 @@ const Select = ({ title }) => {
     setActiveIndexes(newActiveIndexes);
   };
 
+  const handleAddToCart = (event, product) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    // Lấy ảnh trong card hiện tại để tạo hiệu ứng bay vào giỏ.
+    const productCard = event.currentTarget.closest(".product-template");
+    const productImage = productCard?.querySelector("img");
+    animateImageToCart(productImage);
+
+    const productId = String(product?.ProductID || "").trim();
+    if (!productId) return;
+
+    const cartItems = getCartItemsFromStorage();
+    const foundIndex = cartItems.findIndex((item) => String(item?.productId) === productId);
+
+    if (foundIndex >= 0) {
+      const currentQty = Number(cartItems[foundIndex].quantity || 0);
+      cartItems[foundIndex] = {
+        ...cartItems[foundIndex],
+        quantity: currentQty + 1,
+      };
+    } else {
+      cartItems.push({
+        productId,
+        quantity: 1,
+      });
+    }
+
+    // Lưu lại giỏ và phát sự kiện để header cập nhật badge realtime.
+    saveCartItemsToStorage(cartItems);
+  };
+
   // ================== ✅ Render UI ==================
   if (loading) return <div className="loading">🔄 Đang tải sản phẩm...</div>;
   if (error) return <div className="error">❌ Lỗi: {error}</div>;
@@ -219,6 +320,16 @@ const Select = ({ title }) => {
                     to={`/${ROUTERS.USER.PRODUCT_DETAIL.replace(":id", String(product.ProductID || ""))}`}
                     className="product-template"
                   >
+                    <button
+                      type="button"
+                      className="add-cart-plus-btn"
+                      onClick={(event) => handleAddToCart(event, product)}
+                      title="Thêm vào giỏ hàng"
+                      aria-label="Thêm vào giỏ hàng"
+                    >
+                      +
+                    </button>
+
                     {product.sale_price && product.discountPercent > 0 && (
                       <div className="product-discount">
                         <span className="pe-1">{product.discountPercent}%</span>

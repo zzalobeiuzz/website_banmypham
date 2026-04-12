@@ -18,9 +18,14 @@ const getInitials = (fullName = "") => {
 };
 
 const resolveAvatarSrc = (avatar) => {
-  if (!avatar) return "";
-  if (/^https?:\/\//i.test(avatar) || avatar.startsWith("data:")) return avatar;
-  return `${UPLOAD_BASE}/${String(avatar).replace(/^\/+/, "")}`;
+  const value = String(avatar || "").trim();
+  if (!value) return "";
+  if (/^https?:\/\//i.test(value) || value.startsWith("data:")) return value;
+
+  const normalized = value
+    .replace(/^\/+/, "")
+    .replace(/^uploads\/?assets\/?/i, "");
+  return `${UPLOAD_BASE}/${normalized}`;
 };
 
 const isErrorText = (message = "") => {
@@ -43,6 +48,18 @@ const isErrorText = (message = "") => {
   ].some((keyword) => value.includes(keyword));
 };
 
+const PROFILE_FALLBACK_TEXT = "Chưa cập nhật";
+
+const normalizeDisplayValue = (value) => {
+  const raw = String(value || "").trim();
+  if (!raw) return PROFILE_FALLBACK_TEXT;
+
+  // Handle common mojibake text coming from legacy data/source.
+  if (/chưa\s*c\?p\s*nh\?t/i.test(raw)) return PROFILE_FALLBACK_TEXT;
+
+  return raw;
+};
+
 const ProfilePage = () => {
   const [user, setUser] = useState(null);
   const [avatarMessage, setAvatarMessage] = useState("");
@@ -53,7 +70,7 @@ const ProfilePage = () => {
   const [editingName, setEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState("");
   const [isEditingFields, setIsEditingFields] = useState(false);
-  const [editEmailValue, setEditEmailValue] = useState("");
+  const [, setEditEmailValue] = useState("");
   const [editPhoneValue, setEditPhoneValue] = useState("");
   const [editAddressValue, setEditAddressValue] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
@@ -95,9 +112,9 @@ const ProfilePage = () => {
   };
 
   const resetProfileFieldsToOriginal = () => {
-    const baseEmail = user?.email || "Chưa cập nhật";
-    const basePhone = user?.phoneNumber || user?.phone || "Chưa cập nhật";
-    const baseAddress = user?.address || "Chưa cập nhật";
+    const baseEmail = normalizeDisplayValue(user?.email);
+    const basePhone = normalizeDisplayValue(user?.phoneNumber || user?.phone);
+    const baseAddress = normalizeDisplayValue(user?.address);
 
     setEditEmailValue(baseEmail);
     setEditPhoneValue(basePhone);
@@ -220,9 +237,9 @@ const ProfilePage = () => {
   }, [avatarMessage, nameMessage, fieldMessage, passwordMessage, errorPopupMessage]);
 
   const displayName = user?.profileName || user?.name || "Người dùng";
-  const displayEmail = user?.email || "Chưa cập nhật";
-  const displayPhone = user?.phoneNumber || user?.phone || "Chưa cập nhật";
-  const displayAddress = user?.address || "Chưa cập nhật";
+  const displayEmail = normalizeDisplayValue(user?.email);
+  const displayPhone = normalizeDisplayValue(user?.phoneNumber || user?.phone);
+  const displayAddress = normalizeDisplayValue(user?.address);
 
   const refreshAccessToken = async () => {
     const refreshToken = localStorage.getItem("refreshToken");
@@ -490,11 +507,11 @@ const ProfilePage = () => {
   };
 
   const handleSaveProfileFields = async () => {
-    const nextEmail = (emailEditableRef.current?.textContent || "").trim();
+    const nextEmail = String(user?.email || "").trim();
     const nextPhone = (phoneEditableRef.current?.textContent || "").trim();
     const nextAddress = (addressEditableRef.current?.textContent || "").trim();
 
-    if (!nextEmail || !nextPhone || !nextAddress) {
+    if (!nextPhone || !nextAddress) {
       showErrorMessage(setFieldMessage, "Vui lòng điền đầy đủ thông tin.");
       return;
     }
@@ -709,11 +726,11 @@ const ProfilePage = () => {
                     <span>Email</span>
                     <strong
                       ref={emailEditableRef}
-                      className={`editable-strong ${isEditingFields ? "is-editing" : ""}`}
-                      contentEditable={isEditingFields}
+                      className="editable-strong"
+                      contentEditable={false}
                       suppressContentEditableWarning
                     >
-                      {isEditingFields ? editEmailValue : displayEmail}
+                      {displayEmail}
                     </strong>
                   </div>
 

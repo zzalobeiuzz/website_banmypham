@@ -1,81 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import ToolBar from "../../ToolBar";
+import useHttp from "../../../../../hooks/useHttp";
+import { API_BASE } from "../../../../../constants";
 import "./style.scss";
-
-const ordersData = [
-  {
-    id: "DH001",
-    customer: "Nguyễn Văn A",
-    date: "2025-09-25",
-    total: "1,200,000₫",
-    status: "Đang xử lý",
-    details: [
-      { name: "Sữa rửa mặt", qty: 2, price: "200,000₫" },
-      { name: "Kem chống nắng", qty: 1, price: "800,000₫" },
-    ],
-    address: "123 Đường A, Quận 1, TP.HCM",
-    phone: "0901234567",
-  },
-  {
-    id: "DH002",
-    customer: "Trần Thị B",
-    date: "2025-09-24",
-    total: "850,000₫",
-    status: "Hoàn thành",
-    details: [
-      { name: "Toner", qty: 1, price: "350,000₫" },
-      { name: "Serum", qty: 1, price: "500,000₫" },
-    ],
-    address: "456 Đường B, Quận 3, TP.HCM",
-    phone: "0912345678",
-  },
-  {
-    id: "DH003",
-    customer: "Lê Văn C",
-    date: "2025-09-26",
-    total: "2,300,000₫",
-    status: "Đang giao",
-    details: [
-      { name: "Kem dưỡng ẩm", qty: 2, price: "600,000₫" },
-      { name: "Mặt nạ", qty: 3, price: "350,000₫" },
-    ],
-    address: "789 Đường C, Quận 5, TP.HCM",
-    phone: "0923456789",
-  },
-  {
-    id: "DH004",
-    customer: "Phạm Thị D",
-    date: "2025-09-27",
-    total: "1,500,000₫",
-    status: "Chờ xác nhận",
-    details: [
-      { name: "Tẩy trang", qty: 1, price: "150,000₫" },
-      { name: "Kem chống nắng", qty: 2, price: "650,000₫" },
-    ],
-    address: "321 Đường D, Quận 7, TP.HCM",
-    phone: "0934567890",
-  },
-  {
-    id: "DH005",
-    customer: "Ngô Văn E",
-    date: "2025-09-28",
-    total: "900,000₫",
-    status: "Đã hủy",
-    details: [{ name: "Sữa tắm", qty: 3, price: "300,000₫" }],
-    address: "654 Đường E, Quận 2, TP.HCM",
-    phone: "0945678901",
-  },
-  {
-    id: "DH006",
-    customer: "Trần Văn F",
-    date: "2025-09-29",
-    total: "1,100,000₫",
-    status: "Trả hàng",
-    details: [{ name: "Serum dưỡng trắng", qty: 1, price: "1,100,000₫" }],
-    address: "987 Đường F, Quận 9, TP.HCM",
-    phone: "0956789012",
-  },
-];
 
 const COLLAPSED_WIDTH = "70%";
 const EXPANDED_WIDTH = "100%";
@@ -91,9 +18,29 @@ const ORDER_STATUSES = [
   "Trả hàng",
 ];
 
+const normalizeOrder = (raw) => ({
+  id: String(raw?.id || raw?.OrderID || raw?.BillID || ""),
+  customer: String(raw?.customer || raw?.CustomerName || "Khách hàng"),
+  date: String(raw?.date || raw?.OrderDate || ""),
+  total: String(raw?.total || raw?.TotalPrice || "0₫"),
+  status: String(raw?.status || raw?.Status || "Đang xử lý"),
+  details: Array.isArray(raw?.details)
+    ? raw.details.map((item) => ({
+        name: String(item?.name || item?.ProductName || "Sản phẩm"),
+        qty: Number(item?.qty || item?.Quantity || 0) || 0,
+        price: String(item?.price || item?.Price || "0₫"),
+      }))
+    : [],
+  address: String(raw?.address || raw?.CustomerAddress || ""),
+  phone: String(raw?.phone || raw?.CustomerPhone || ""),
+});
+
 const OrderPage = () => {
+  const { request } = useHttp();
   const [searchKeyword, setSearchKeyword] = useState("");
-  const [orders, setOrders] = useState(ordersData);
+  const [orders, setOrders] = useState([]);
+  const [initialStatusMap, setInitialStatusMap] = useState({});
+  const [loadingOrders, setLoadingOrders] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isCollapsed, setIsCollapsed] = useState(false); // Trạng thái co bảng
   const [pendingStatusChange, setPendingStatusChange] = useState(null);
@@ -144,10 +91,41 @@ const OrderPage = () => {
   // ---------------- helper parse/format ----------------
   const parsePrice = (p) => Number(String(p).replace(/[^\d]/g, "")) || 0;
   const formatPrice = (v) => (Number(v) || 0).toLocaleString("vi-VN") + "₫";
-  const originalStatusById = ordersData.reduce((acc, order) => {
-    acc[order.id] = order.status;
-    return acc;
-  }, {});
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchOrders = async () => {
+      try {
+        setLoadingOrders(true);
+        const res = await request("GET", `${API_BASE}/api/admin/orders`);
+        const data = Array.isArray(res?.data) ? res.data : [];
+        const normalized = data.map(normalizeOrder).filter((order) => order.id);
+
+        if (!mounted) return;
+
+        setOrders(normalized);
+        setInitialStatusMap(
+          normalized.reduce((acc, order) => {
+            acc[order.id] = order.status;
+            return acc;
+          }, {})
+        );
+      } catch (error) {
+        if (mounted) {
+          setOrders([]);
+          setInitialStatusMap({});
+        }
+      } finally {
+        if (mounted) setLoadingOrders(false);
+      }
+    };
+
+    fetchOrders();
+
+    return () => {
+      mounted = false;
+    };
+  }, [request]);
 
   //======================== Lọc theo search + trạng thái==================
   const filteredOrders = orders
@@ -251,7 +229,7 @@ const OrderPage = () => {
 
     if (nextStatus === order.status) return;
 
-    const originalStatus = originalStatusById[order.id];
+    const originalStatus = initialStatusMap[order.id];
 
     if (nextStatus !== originalStatus) {
       setPendingStatusChange({
@@ -453,7 +431,9 @@ const OrderPage = () => {
               </ul>
             </div>
             <div className="order-rows">
-              {filteredOrders.length === 0 ? (
+              {loadingOrders ? (
+                <div className="no-orders">Đang tải dữ liệu đơn hàng...</div>
+              ) : filteredOrders.length === 0 ? (
                 <div className="no-orders">Không có đơn hàng phù hợp</div>
               ) : (
                 filteredOrders.map((order, idx) => (

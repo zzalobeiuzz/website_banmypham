@@ -63,6 +63,29 @@
               display: block;
               background: #fff;
 
+              .add-cart-plus-btn {
+                position: absolute;
+                right: 18px;
+                bottom: 130px;
+                width: 28px;
+                height: 28px;
+                border-radius: 50%;
+                border: 0;
+                background: #111;
+                color: #fff;
+                font-size: 20px;
+                line-height: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                z-index: 2;
+              }
+
+              .add-cart-plus-btn:hover {
+                background: #c73030;
+              }
+
               .product-discount {
                 position: absolute;
                 top: 5px;

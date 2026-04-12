@@ -1,6 +1,7 @@
 const {
   login,
   loginWithGoogle,
+  loginWithFacebook,
   checkEmailAndGenerateCode,
   register,
   generateAndSendVerificationCode,
@@ -41,6 +42,17 @@ exports.googleLoginHandler = async (req, res) => {
   } catch (err) {
     console.error("❌ Lỗi đăng nhập Google:", err.message);
     return res.status(401).json({ message: err.message || "Đăng nhập Google thất bại." });
+  }
+};
+
+exports.facebookLoginHandler = async (req, res) => {
+  try {
+    const { accessToken, facebookProfile } = req.body || {};
+    const result = await loginWithFacebook({ accessToken, facebookProfile });
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error("❌ Lỗi đăng nhập Facebook:", err.message);
+    return res.status(401).json({ message: err.message || "Đăng nhập Facebook thất bại." });
   }
 };
 

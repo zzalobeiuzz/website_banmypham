@@ -1,25 +1,31 @@
 import React, { useState } from "react";
 
 const ResetPasswordForm = ({ onSubmit, goBack }) => {
+  // 🔒 Dữ liệu nhập mật khẩu mới
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  // ⚠️ Thông báo lỗi validate local
   const [error, setError] = useState("");
+  // 👁️ Điều khiển ẩn/hiện password để người dùng dễ kiểm tra
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
+    // ✅ Rule tối thiểu: 6 ký tự
     if (password.length < 6) {
       return setError("🔒 Mật khẩu phải có ít nhất 6 ký tự.");
     }
 
+    // ✅ Rule khớp xác nhận mật khẩu
     if (password !== confirm) {
       return setError("❌ Mật khẩu không khớp.");
     }
 
     setError("");
-    onSubmit(password); // Gửi mật khẩu mới lên
+    // 🚀 Gửi mật khẩu mới cho tầng xử lý của LoginPopup
+    onSubmit(password);
   };
 
   return (
@@ -38,7 +44,6 @@ const ResetPasswordForm = ({ onSubmit, goBack }) => {
             src={showPassword ? "/assets/icons/icons8-hide-64.png" : "/assets/icons/icons8-eye-48.png"}
             alt="toggle"
             onClick={() => setShowPassword(!showPassword)}
-
           />
         )}
       </div>
@@ -57,12 +62,12 @@ const ResetPasswordForm = ({ onSubmit, goBack }) => {
             src={showConfirm ? "/assets/icons/icons8-hide-64.png" : "/assets/icons/icons8-eye-48.png"}
             alt="toggle"
             onClick={() => setShowConfirm(!showConfirm)}
-
           />
         )}
       </div>
 
       {error && (
+        // 🚨 Khối hiển thị lỗi validate
         <p className="text-danger mb-2">
           <i className="text-danger me-2"></i>{error}
         </p>

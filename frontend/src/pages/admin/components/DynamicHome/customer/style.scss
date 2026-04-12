@@ -1,5 +1,4 @@
 ﻿.customer-page {
-  padding: 20px;
 
   .customer-container {
     background: #fff;
@@ -49,6 +48,15 @@
 
   .customer-list {
     overflow: auto;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    scrollbar-gutter: stable;
+
+    &::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+      display: none;
+    }
 
     .loading,
     .no-data {
@@ -296,6 +304,15 @@
     padding: 20px;
     flex: 1;
     overflow-y: auto;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    scrollbar-gutter: stable;
+
+    &::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+      display: none;
+    }
 
     .info-section {
       margin-bottom: 30px;
@@ -521,6 +538,15 @@
         border: 1px solid #e0e0e0;
         border-radius: 6px;
         overflow: auto;
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+        scrollbar-gutter: stable;
+
+        &::-webkit-scrollbar {
+          width: 0;
+          height: 0;
+          display: none;
+        }
 
         table {
           width: 100%;
@@ -814,6 +840,9 @@
   max-width: 1200px;
   max-height: 88vh;
   overflow-y: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  scrollbar-gutter: stable;
   border-radius: 28px;
   padding: 28px;
   border: 1px solid rgba(226, 232, 240, 0.95);
@@ -823,6 +852,12 @@
     linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
   position: relative;
   isolation: isolate;
+
+  &::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
 
   &::before {
     content: "";

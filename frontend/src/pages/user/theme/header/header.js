@@ -4,24 +4,42 @@ import {
   faPhoneVolume,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import React, { memo, useEffect, useState } from "react";
+import React, { memo, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import LoginPopup from "../../../../components/LoginPopup";
+import LoginPopup from "../../../../components/login/LoginPopup";
 import { API_BASE, UPLOAD_BASE } from "../../../../constants";
 import useHttp from "../../../../hooks/useHttp";
 import { ROUTERS } from "../../../../utils/router";
 import "./header.scss";
 
+const CART_STORAGE_KEY = "cartItems";
+
+const getCartCountFromStorage = () => {
+  try {
+    const raw = localStorage.getItem(CART_STORAGE_KEY);
+    const parsed = JSON.parse(raw || "[]");
+    const items = Array.isArray(parsed) ? parsed : [];
+
+    return items.reduce((sum, item) => {
+      const qty = Number(item?.quantity || 0);
+      return sum + (Number.isFinite(qty) && qty > 0 ? qty : 0);
+    }, 0);
+  } catch (error) {
+    return 0;
+  }
+};
+
 const Header = () => {
   const [user, setUser] = useState(null);
   const [isFixed, setIsFixed] = useState(false);
-  const [lastScrollY, setLastScrollY] = useState(0);
-  const [showCustomService, setShowCustomService] = useState(true);
   const [showLogin, setShowLogin] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
   const [categories, setCategories] = useState([]);
   const [activeCategoryId, setActiveCategoryId] = useState(null);
+  const isFixedRef = useRef(false);
+  const tickingRef = useRef(false);
 
   const location = useLocation();
   const { request } = useHttp();
@@ -29,9 +47,14 @@ const Header = () => {
   const normalizedPath = (location.pathname || "/").replace(/\/+$/, "") || "/";
   const isHomePage = normalizedPath === "/";
   const resolveAvatarSrc = (avatar) => {
-    if (!avatar) return `${UPLOAD_BASE}/icons/icons8-web-account.png`;
-    if (/^https?:\/\//i.test(avatar) || avatar.startsWith("data:")) return avatar;
-    return `${UPLOAD_BASE}/${String(avatar).replace(/^\/+/, "")}`;
+    const value = String(avatar || "").trim();
+    if (!value) return `${UPLOAD_BASE}/icons/icons8-web-account.png`;
+    if (/^https?:\/\//i.test(value) || value.startsWith("data:")) return value;
+
+    const normalized = value
+      .replace(/^\/+/, "")
+      .replace(/^uploads\/?assets\/?/i, "");
+    return `${UPLOAD_BASE}/${normalized}`;
   };
 
   // ✅ Load category khi mount
@@ -68,36 +91,56 @@ const Header = () => {
     hydrateUser();
 
     const handleUserUpdated = () => hydrateUser();
+    const hydrateCart = () => setCartCount(getCartCountFromStorage());
+    const handleCartUpdated = () => hydrateCart();
+    const handleStorage = (event) => {
+      if (!event?.key || event.key === CART_STORAGE_KEY) {
+        hydrateCart();
+      }
+    };
+
+    hydrateCart();
     window.addEventListener("user-updated", handleUserUpdated);
+    window.addEventListener("cart-updated", handleCartUpdated);
+    window.addEventListener("storage", handleStorage);
 
     if (location.state?.showLogin) {
       setShowLogin(true);
       window.history.replaceState({}, document.title);
     }
 
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      const isScrollingDown = currentScrollY > lastScrollY;
+    const ENTER_FIXED_AT = 90;
+    const EXIT_FIXED_AT = 10;
 
-      if (isScrollingDown && currentScrollY > 40 && !isFixed) {
-        setIsFixed(true);
-        setShowCustomService(false);
+    const updateHeaderState = () => {
+      const currentScrollY = Math.max(window.scrollY || 0, 0);
+      const nextIsFixed =
+        (isFixedRef.current && currentScrollY > EXIT_FIXED_AT) ||
+        (!isFixedRef.current && currentScrollY > ENTER_FIXED_AT);
+
+      if (nextIsFixed !== isFixedRef.current) {
+        isFixedRef.current = nextIsFixed;
+        setIsFixed(nextIsFixed);
       }
 
-      if (!isScrollingDown && currentScrollY <= 140 && isFixed) {
-        setIsFixed(false);
-        setShowCustomService(true);
-      }
-
-      setLastScrollY(currentScrollY);
+      tickingRef.current = false;
     };
 
-    window.addEventListener("scroll", handleScroll);
+    const handleScroll = () => {
+      if (tickingRef.current) return;
+      tickingRef.current = true;
+      window.requestAnimationFrame(updateHeaderState);
+    };
+
+    updateHeaderState();
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => {
       window.removeEventListener("scroll", handleScroll);
       window.removeEventListener("user-updated", handleUserUpdated);
+      window.removeEventListener("cart-updated", handleCartUpdated);
+      window.removeEventListener("storage", handleStorage);
     };
-  }, [location.pathname, location.state, isFixed, lastScrollY]);
+  }, [location.pathname, location.state]);
 
   // ✅ Toggle popup login
   const toggleLoginPopup = () => setShowLogin((prev) => !prev);
@@ -226,14 +269,17 @@ const Header = () => {
                 </form>
 
                 <Link className="shopping-cart">
-                  <img
-                    src={`${UPLOAD_BASE}/icons/shopping-cart-icon.png`}
-                    alt="icon-shopping-cart"
-                  />
+                  <div className="shopping-cart-icon-wrap">
+                    <img
+                      src={`${UPLOAD_BASE}/icons/shopping-cart-icon.png`}
+                      alt="icon-shopping-cart"
+                    />
+                    {cartCount > 0 && <span className="cart-count-badge">{cartCount}</span>}
+                  </div>
                   <span>Giỏ hàng</span>
                 </Link>
 
-                {showCustomService && (
+                {!isFixed && (
                   <Link className="custom-service">
                     <img
                       src={`${UPLOAD_BASE}/icons/hotline-icon.png`}
@@ -251,7 +297,7 @@ const Header = () => {
                         alt="user-avatar"
                         className={user.avatar ? "user-avatar-thumb" : ""}
                       />
-                      <span>{showCustomService ? `Xin chào, ${user.name}` : user.name}</span>
+                      <span>{!isFixed ? `Xin chào, ${user.name}` : user.name}</span>
                     </Link>
                     <button
                       className="btn btn-sm btn-danger p-10"

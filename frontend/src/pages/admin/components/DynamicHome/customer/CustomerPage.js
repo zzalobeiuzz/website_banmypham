@@ -166,6 +166,10 @@ const CustomerPage = () => {
     );
   });
 
+  const handleSearchChange = (keyword) => {
+    setSearchKeyword(String(keyword || ""));
+  };
+
   const formatPrice = (price) => {
     if (!price) return "0 ₫";
     const num = typeof price === "string" ? parseFloat(price) : price;
@@ -626,7 +630,7 @@ const CustomerPage = () => {
         message={notify.message}
         onClose={closePopup}
       />
-      <ToolBar title={TXT.title} />
+      <ToolBar title={TXT.title} onSearchChange={handleSearchChange} />
       <div className="customer-container">
         <div className="customer-top-actions">
           <button type="button" className="btn-action create-customer" onClick={openCreateCustomerPopup}>

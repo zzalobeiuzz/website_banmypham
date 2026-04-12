@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import "react-quill/dist/quill.snow.css";
 import { useNavigate } from "react-router-dom";
 import { API_BASE, UPLOAD_BASE } from "../../../../../constants";
@@ -34,6 +34,7 @@ const BrandPage = () => {
   const navigate = useNavigate();
   const { request } = useHttp();
   const [brands, setBrands] = useState([]);
+  const [searchKeyword, setSearchKeyword] = useState("");
   const [loading, setLoading] = useState(true);
   const showLoading = useMinimumLoading(loading, 500);
   const [error, setError] = useState("");
@@ -153,6 +154,29 @@ const BrandPage = () => {
   const closeNotification = () => {
     setNotify((prev) => ({ ...prev, visible: false }));
   };
+
+  const handleSearchChange = (keyword) => {
+    setSearchKeyword(String(keyword || ""));
+  };
+
+  const filteredBrands = useMemo(() => {
+    const keyword = String(searchKeyword || "").trim().toLowerCase();
+    if (!keyword) return brands;
+
+    return brands.filter((brand) => {
+      const idBrand = String(brand?.idBrand || "").toLowerCase();
+      const brandName = String(brand?.Brand || brand?.name || "").toLowerCase();
+      const description = String(brand?.description || "").toLowerCase();
+      const status = String(brand?.status || "").toLowerCase();
+
+      return (
+        idBrand.includes(keyword) ||
+        brandName.includes(keyword) ||
+        description.includes(keyword) ||
+        status.includes(keyword)
+      );
+    });
+  }, [brands, searchKeyword]);
 
   const openBrandDetail = (brand) => {
     setDetailBrand(brand || null);
@@ -299,7 +323,7 @@ const BrandPage = () => {
 
   return (
     <div className="brand-page">
-      <ToolBar title="Quản lý thương hiệu" />
+      <ToolBar title="Quản lý thương hiệu" onSearchChange={handleSearchChange} />
 
       {notify.visible && (
         <Notification
@@ -371,7 +395,7 @@ const BrandPage = () => {
           <div className="brand-page__state brand-page__state--error">
             {error}
           </div>
-        ) : brands.length === 0 ? (
+        ) : filteredBrands.length === 0 ? (
           <div className="brand-page__state">Không có thương hiệu nào.</div>
         ) : (
           <div className="brand-table-wrap">
@@ -386,7 +410,7 @@ const BrandPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {brands.map((brand) => {
+                {filteredBrands.map((brand) => {
                   const logoUrl = resolveBrandLogoUrl(brand.logo_url);
                   const isActive =
                     brand.status === 1 ||

@@ -1,24 +1,26 @@
 import React, { useEffect, useState } from "react";
 
-const VerifyCodeForm = ({ email, onSubmit, onResend, goBack }) => {
+const VerifyCodeForm = ({ onSubmit, onResend, goBack }) => {
+  // 🔢 Mã OTP người dùng nhập
   const [code, setCode] = useState("");
-  const [countdown, setCountdown] = useState(120); // 2 phút
+  // ⏱️ Countdown để hạn chế spam gửi lại mã
+  const [countdown, setCountdown] = useState(120);
   const [resending, setResending] = useState(false);
   const [error, setError] = useState("");
 
-  // ⏱️ Đếm ngược
+  // ⏲️ Đếm ngược mỗi giây đến khi về 0.
   useEffect(() => {
     if (countdown <= 0) return;
     const timer = setInterval(() => setCountdown((prev) => prev - 1), 1000);
     return () => clearInterval(timer);
   }, [countdown]);
 
-  // 📩 Gửi lại mã
   const handleResend = async () => {
+    // 🔁 Gửi lại mã và reset lại thời gian chờ
     setResending(true);
     try {
       await onResend();
-      setCountdown(120); // Reset lại thời gian đếm ngược
+      setCountdown(120);
       setError("");
     } catch (err) {
       setError("❌ Không thể gửi lại mã.");
@@ -26,8 +28,8 @@ const VerifyCodeForm = ({ email, onSubmit, onResend, goBack }) => {
     setResending(false);
   };
 
-  // ✅ Gửi mã xác thực
   const handleSubmit = async (e) => {
+    // ✅ Validate nhanh phía client trước khi gửi lên tầng xử lý tiếp theo
     e.preventDefault();
     if (code.length !== 6) {
       return setError("🔴 Mã xác thực phải gồm đúng 6 chữ số.");
@@ -51,6 +53,7 @@ const VerifyCodeForm = ({ email, onSubmit, onResend, goBack }) => {
           />
         </div>
 
+        {/* 🚨 Lỗi định dạng hoặc lỗi gửi lại mã */}
         {error && <p className="text-danger mb-2">❌ {error}</p>}
 
         <div className="mb-3 text-end">
@@ -60,11 +63,12 @@ const VerifyCodeForm = ({ email, onSubmit, onResend, goBack }) => {
             disabled={countdown > 0 || resending}
             className="btn btn-link text-decoration-none p-0"
           >
+            {/* 🧠 Hiển thị trạng thái động: chờ, đang gửi, hoặc sẵn sàng gửi lại */}
             {countdown > 0
               ? `Gửi lại mã sau ${countdown}s`
               : resending
-              ? "Đang gửi lại..."
-              : "🔁 Gửi lại mã"}
+                ? "Đang gửi lại..."
+                : "🔁 Gửi lại mã"}
           </button>
         </div>
 

@@ -1,5 +1,55 @@
 const { connectDB } = require("../../config/connect");
 const sql = require("mssql");
+const fs = require("fs");
+const path = require("path");
+
+const UPLOAD_ASSET_ROOT = path.join(__dirname, "../../../uploads/assets");
+
+const normalizeAvatarValue = (avatar) => {
+  const raw = String(avatar || "").trim();
+  if (!raw) return null;
+
+  // URL Facebook CDN thường rất dài, ưu tiên bỏ query string để giảm độ dài.
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const parsed = new URL(raw);
+      return `${parsed.origin}${parsed.pathname}`;
+    } catch (error) {
+      return raw.split("?")[0] || raw;
+    }
+  }
+
+  return raw;
+};
+
+const resolveLocalAvatarDiskPath = (avatar) => {
+  const raw = String(avatar || "").trim();
+  if (!raw || /^https?:\/\//i.test(raw) || raw.startsWith("data:")) return "";
+
+  const normalized = raw
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .replace(/^uploads\/?assets\/?/i, "");
+
+  if (!/^avatar\//i.test(normalized)) return "";
+  return path.join(UPLOAD_ASSET_ROOT, normalized.replace(/\//g, path.sep));
+};
+
+const removePreviousAvatarFile = async ({ previousAvatar, nextAvatar }) => {
+  const prev = String(previousAvatar || "").trim();
+  const next = String(nextAvatar || "").trim();
+
+  if (!prev || prev === next) return;
+
+  const previousDiskPath = resolveLocalAvatarDiskPath(prev);
+  if (!previousDiskPath) return;
+
+  try {
+    await fs.promises.unlink(previousDiskPath);
+  } catch (error) {
+    // Ignore file delete errors to avoid breaking avatar update flow.
+  }
+};
 
 // 🔍 Lấy user theo email
 exports.getUserByEmail = async (email) => {
@@ -71,7 +121,7 @@ exports.createUser = async (user) => {
         .input("email", sql.VarChar, email)
         .input("password", sql.VarChar, password)
         .input("displayName", sql.NVarChar, displayName)
-        .input("avatar", sql.NVarChar, avatar || null)
+        .input("avatar", sql.NVarChar, normalizeAvatarValue(avatar))
         .input("role", sql.Int, role)
         .query(`
           INSERT INTO ACCOUNT (
@@ -141,9 +191,20 @@ exports.resetPass = async (email, newPassword) => {
 exports.updateAvatarByEmail = async (email, avatar) => {
   try {
     const pool = await connectDB();
+    const normalizedAvatar = normalizeAvatarValue(avatar);
+
+    const beforeRes = await pool.request()
+      .input("email", sql.VarChar, email)
+      .query(`
+        SELECT TOP 1 Avatar
+        FROM ACCOUNT
+        WHERE Email = @email
+      `);
+    const previousAvatar = beforeRes.recordset?.[0]?.Avatar || "";
+
     const result = await pool.request()
       .input("email", sql.VarChar, email)
-      .input("avatar", sql.NVarChar, avatar)
+      .input("avatar", sql.NVarChar, normalizedAvatar)
       .query(`
         UPDATE ACCOUNT
         SET Avatar = @avatar
@@ -154,8 +215,45 @@ exports.updateAvatarByEmail = async (email, avatar) => {
       throw new Error("Khong tim thay tai khoan de cap nhat avatar");
     }
 
-    return { success: true, avatar };
+    await removePreviousAvatarFile({ previousAvatar, nextAvatar: normalizedAvatar });
+
+    return { success: true, avatar: normalizedAvatar };
   } catch (error) {
+    const message = String(error?.message || "").toLowerCase();
+    const canRetry = message.includes("would be truncated") && /^https?:\/\//i.test(String(avatar || ""));
+
+    if (canRetry) {
+      try {
+        const pool = await connectDB();
+        const tinyAvatar = String(avatar || "").split("?")[0];
+
+        const beforeRes = await pool.request()
+          .input("email", sql.VarChar, email)
+          .query(`
+            SELECT TOP 1 Avatar
+            FROM ACCOUNT
+            WHERE Email = @email
+          `);
+        const previousAvatar = beforeRes.recordset?.[0]?.Avatar || "";
+
+        const retryResult = await pool.request()
+          .input("email", sql.VarChar, email)
+          .input("avatar", sql.NVarChar, tinyAvatar)
+          .query(`
+            UPDATE ACCOUNT
+            SET Avatar = @avatar
+            WHERE Email = @email
+          `);
+
+        if (retryResult.rowsAffected[0] > 0) {
+            await removePreviousAvatarFile({ previousAvatar, nextAvatar: tinyAvatar });
+          return { success: true, avatar: tinyAvatar };
+        }
+      } catch (retryError) {
+        // Rơi xuống ném lỗi cũ bên dưới.
+      }
+    }
+
     console.error("❌ Lỗi updateAvatarByEmail:", error.message);
     throw error;
   }

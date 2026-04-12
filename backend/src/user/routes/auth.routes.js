@@ -5,6 +5,7 @@ const router = express.Router();
 const {
 	loginHandler,
 	googleLoginHandler,
+	facebookLoginHandler,
 	sendVerificationCode,
 	registerHandler,
 	resetPasswordHandler,
@@ -20,6 +21,7 @@ const upload = require("../../admin/middlewares/upload.middleware");
 // Định nghĩa route
 router.post("/login", validateLoginInput, loginHandler);
 router.post("/google-login", googleLoginHandler);
+router.post("/facebook-login", facebookLoginHandler);
 
 // Gửi thông tin đăng kí để tạo mới người dùng
 router.post("/register", registerHandler);

@@ -3,6 +3,7 @@ import React from "react";
 const ForgotForm = ({ email, setEmail, onSubmit, switchToLogin, message }) => {
   return (
     <section className="forgot-section">
+      {/* 📩 Bước 1 của flow quên mật khẩu: nhận email để gửi mã */}
       <form onSubmit={onSubmit}>
         <div className="form-outline mb-3">
           <input
@@ -19,7 +20,7 @@ const ForgotForm = ({ email, setEmail, onSubmit, switchToLogin, message }) => {
           Gửi mã khôi phục
         </button>
 
-        {/* 👇 Hiển thị lỗi nếu gửi thất bại */}
+        {/* ⚠️ Chỉ hiện lỗi khi server trả thất bại */}
         {message && message.success === false && (
           <p className="text-danger mt-2 mb-0">{message.message}</p>
         )}
@@ -29,6 +30,7 @@ const ForgotForm = ({ email, setEmail, onSubmit, switchToLogin, message }) => {
           onClick={switchToLogin}
           className="btn btn-link d-block p-0 text-decoration-none w-100 mt-2"
         >
+          {/* ↩️ Quay lại bước đăng nhập */}
           ← Quay lại đăng nhập
         </button>
       </form>
