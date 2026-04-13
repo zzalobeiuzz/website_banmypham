@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactQuill, { Quill } from "react-quill"; // 📝 Trình soạn thảo văn bản
 import "react-quill/dist/quill.snow.css";
 import JsBarcode from "jsbarcode";
-import { useNavigate } from "react-router-dom"; // 🔙 Điều hướng khi người dùng bấm Quay lại
+import { useLocation, useNavigate } from "react-router-dom"; // 🔙 Điều hướng khi người dùng bấm Quay lại
 import { API_BASE, UPLOAD_BASE } from "../../../../../constants"; // 🌍 Địa chỉ API gốc
 import useHttp from "../../../../../hooks/useHttp"; // 🌐 Custom hook gọi API
 import ImageUploader from "../../../../../utils/patchedUploader"; // 📷 Upload ảnh custom cho ReactQuill
@@ -200,6 +200,7 @@ const BarcodeDisplay = ({ value }) => {
 // ==================== 🧩 COMPONENT CHÍNH: AddProduct ====================
 const AddProduct = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { request } = useHttp(); // 🌐 Gọi API
   const isLookupRunningRef = useRef(false);
   const lastLookupKeyRef = useRef("");
@@ -253,6 +254,7 @@ const AddProduct = () => {
   const [allBatches, setAllBatches] = useState([]);
   const [selectedBatchId, setSelectedBatchId] = useState("");
   const [isBatchDropdownOpen, setIsBatchDropdownOpen] = useState(false);
+  const didApplyPrefillBrandRef = useRef(false);
 
   // ==================== 📥 LOAD DANH MỤC SẢN PHẨM ====================
   useEffect(() => {
@@ -279,6 +281,35 @@ const AddProduct = () => {
 
     fetchBrands();
   }, [request]);
+
+  useEffect(() => {
+    if (didApplyPrefillBrandRef.current) return;
+
+    const stateBrandId = String(location?.state?.prefillBrandId || "").trim();
+    const search = new URLSearchParams(location?.search || "");
+    const queryBrandId = String(search.get("brandId") || "").trim();
+    const prefillBrandId = stateBrandId || queryBrandId;
+
+    if (!prefillBrandId) {
+      didApplyPrefillBrandRef.current = true;
+      return;
+    }
+
+    const matchedBrand = brands.find(
+      (item) => String(item?.idBrand || "").trim() === prefillBrandId,
+    );
+
+    if (!matchedBrand && brands.length > 0) {
+      didApplyPrefillBrandRef.current = true;
+      return;
+    }
+
+    setProductData((prev) => ({
+      ...prev,
+      supplierID: prefillBrandId,
+    }));
+    didApplyPrefillBrandRef.current = true;
+  }, [brands, location?.search, location?.state]);
 
   useEffect(() => {
     const fetchAllBatches = async () => {

@@ -3,8 +3,10 @@ const {
   getAllCategories,
   getSaleProducts,
   getHotProducts,
+  getFeaturedBrands,
   getAllProducts,
   getProductDetailById,
+  getBrandDetailPage,
 } = require("../services/product.service");
 
 //============================ Gửi danh sách sản phẩm khuyến mãi=============================
@@ -38,6 +40,19 @@ exports.getHotProductsHandler = async (req, res) => {
   } catch (err) {
     console.error("Lỗi khi truy vấn sản phẩm theo ID:", err);
     res.status(500).json({ message: "Lỗi server." });
+  }
+};
+
+//============================= Gửi danh sách thương hiệu nổi bật =============================
+exports.getFeaturedBrandsHandler = async (req, res) => {
+  try {
+    const brands = await getFeaturedBrands();
+    res.status(200).json(brands);
+    console.log("Lấy thành công danh sách thương hiệu nổi bật");
+    console.log("======================================");
+  } catch (err) {
+    console.error("❌ Lỗi khi lấy thương hiệu nổi bật:", err.message);
+    res.status(500).json({ message: "Lỗi server khi lấy thương hiệu nổi bật." });
   }
 };
 // Handler để trả về toàn bộ danh sách category
@@ -98,6 +113,29 @@ exports.getProductDetailHandler = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Lỗi server khi lấy chi tiết sản phẩm.",
+    });
+  }
+};
+
+// ============================= Lấy dữ liệu trang chi tiết thương hiệu =============================
+exports.getBrandDetailPageHandler = async (req, res) => {
+  try {
+    const { idBrand } = req.params;
+    const result = await getBrandDetailPage(idBrand);
+
+    if (!result?.success) {
+      return res.status(404).json({
+        success: false,
+        message: result?.message || "Không tìm thấy thương hiệu.",
+      });
+    }
+
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error("❌ Lỗi khi lấy trang chi tiết thương hiệu:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server khi lấy trang chi tiết thương hiệu.",
     });
   }
 };

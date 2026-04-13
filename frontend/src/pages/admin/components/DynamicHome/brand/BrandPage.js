@@ -340,6 +340,17 @@ const BrandPage = () => {
         quillModules={quillModules}
         onSave={handleUpdateBrand}
         saving={updatingDetail}
+        onCreateProduct={(brand) => {
+          const brandId = encodeURIComponent(String(brand?.idBrand || "").trim());
+          const brandName = String(brand?.Brand || brand?.name || "").trim();
+          closeBrandDetail();
+          navigate(`/admin/product/add?brandId=${brandId}`, {
+            state: {
+              prefillBrandId: String(brand?.idBrand || "").trim(),
+              prefillBrandName: brandName,
+            },
+          });
+        }}
         onViewAllProducts={(brand) => {
           const id = encodeURIComponent(brand?.idBrand || "");
           if (!id) return;
@@ -405,6 +416,7 @@ const BrandPage = () => {
                   <th>ID Brand</th>
                   <th>Logo</th>
                   <th>Brand</th>
+                  <th>Số sản phẩm</th>
                   <th>Status</th>
                   <th>Thao tác</th>
                 </tr>
@@ -412,6 +424,7 @@ const BrandPage = () => {
               <tbody>
                 {filteredBrands.map((brand) => {
                   const logoUrl = resolveBrandLogoUrl(brand.logo_url);
+                  const brandProductCount = Number(brand?.productCount || 0);
                   const isActive =
                     brand.status === 1 ||
                     brand.status === "1" ||
@@ -436,6 +449,7 @@ const BrandPage = () => {
                         )}
                       </td>
                       <td>{brand.Brand ?? brand.name ?? "N/A"}</td>
+                      <td>{brandProductCount}</td>
                       <td>
                         <span
                           className={`brand-status ${isActive ? "active" : "inactive"}`}

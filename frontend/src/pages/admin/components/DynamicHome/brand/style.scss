@@ -1,5 +1,18 @@
 .brand-page {
 
+    &,
+    * {
+        -webkit-user-select: text;
+        user-select: text;
+    }
+
+    button,
+    .image-logo,
+    input[type="file"] {
+        -webkit-user-select: none;
+        user-select: none;
+    }
+
     .brand-page__actions {
         display: flex;
         justify-content: flex-end;
@@ -812,6 +825,12 @@
         margin-bottom: 10px;
     }
 
+    .brand-suggest-products__top-left {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
     .brand-btn-toggle-suggest {
         border: none;
         border-radius: 999px;
@@ -833,6 +852,32 @@
         &:hover {
             transform: translateY(-1px);
             box-shadow: 0 10px 18px rgba(2, 132, 199, 0.34);
+        }
+    }
+
+    .brand-btn-create-product {
+        border: none;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 700;
+        padding: 8px 12px;
+        cursor: pointer;
+        box-shadow: 0 8px 16px rgba(37, 99, 235, 0.25);
+
+        &.inline {
+            margin-left: 10px;
+        }
+
+        &.brand-btn-create-product--confirm {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            box-shadow: 0 8px 16px rgba(22, 163, 74, 0.25);
+        }
+
+        &:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
         }
     }
 

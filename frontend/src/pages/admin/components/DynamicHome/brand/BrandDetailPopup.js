@@ -35,6 +35,7 @@ const BrandDetailPopup = ({
   saving,
   onViewAllProducts,
   onViewProductDetail,
+  onCreateProduct,
 }) => {
   const { request } = useHttp();
   const detailModalBodyRef = useRef(null);
@@ -533,15 +534,26 @@ const BrandDetailPopup = ({
                 <label>Gợi ý thêm sản phẩm vào thương hiệu</label>
                 <div className="brand-suggest-products">
                   <div className="brand-suggest-products__top-actions">
-                    <button
-                      type="button"
-                      className="brand-btn-toggle-suggest"
-                      onClick={() => setShowSuggestPicker((prev) => !prev)}
-                      title={showSuggestPicker ? "Ẩn danh sách thêm sản phẩm" : "Thêm sản phẩm"}
-                      aria-label={showSuggestPicker ? "Ẩn danh sách thêm sản phẩm" : "Thêm sản phẩm"}
-                    >
-                      +
-                    </button>
+                    <div className="brand-suggest-products__top-left">
+                      <button
+                        type="button"
+                        className="brand-btn-toggle-suggest"
+                        onClick={() => setShowSuggestPicker((prev) => !prev)}
+                        title={showSuggestPicker ? "Ẩn danh sách thêm sản phẩm" : "Thêm sản phẩm"}
+                        aria-label={showSuggestPicker ? "Ẩn danh sách thêm sản phẩm" : "Thêm sản phẩm"}
+                      >
+                        +
+                      </button>
+                      <button
+                        type="button"
+                        className="brand-btn-create-product"
+                        onClick={() => onCreateProduct?.(brand)}
+                        title="Tạo mới sản phẩm theo thương hiệu này"
+                        aria-label="Tạo mới sản phẩm theo thương hiệu này"
+                      >
+                        Tạo mới sản phẩm
+                      </button>
+                    </div>
                     {selectedSuggestProductIds.length > 0 && (
                       <span className="brand-suggest-products__selected-count">
                         Đã chọn: {selectedSuggestProductIds.length}
@@ -552,7 +564,16 @@ const BrandDetailPopup = ({
                   {showSuggestPicker && (
                     <>
                       {suggestProducts.length === 0 ? (
-                        <div className="brand-related-products__state">Không còn sản phẩm gợi ý.</div>
+                        <div className="brand-related-products__state">
+                          Không còn sản phẩm gợi ý.
+                          <button
+                            type="button"
+                            className="brand-btn-create-product inline"
+                            onClick={() => onCreateProduct?.(brand)}
+                          >
+                            Tạo mới sản phẩm
+                          </button>
+                        </div>
                       ) : (
                         <>
                           <div className="brand-suggest-products__hint">

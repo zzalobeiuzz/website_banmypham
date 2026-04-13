@@ -5,13 +5,22 @@ exports.getAllBrands = async () => {
 
   const result = await pool.request().query(`
     SELECT
-      idBrand,
-      Brand,
-      description,
-      status,
-      logo_url
-    FROM BRAND
-    ORDER BY idBrand DESC
+      B.idBrand,
+      B.Brand,
+      B.description,
+      B.status,
+      B.logo_url,
+      ISNULL(P.productCount, 0) AS productCount
+    FROM BRAND B
+    LEFT JOIN (
+      SELECT
+        SupplierID,
+        COUNT(*) AS productCount
+      FROM PRODUCT
+      WHERE IsHidden = 0 OR IsHidden IS NULL
+      GROUP BY SupplierID
+    ) P ON P.SupplierID = B.idBrand
+    ORDER BY B.idBrand DESC
   `);
 
   return result.recordset || [];

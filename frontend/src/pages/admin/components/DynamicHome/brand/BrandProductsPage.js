@@ -227,6 +227,19 @@ const BrandProductsPage = () => {
     navigate(`/admin/product/detail/${pid}`);
   };
 
+  const goToCreateProductWithBrand = () => {
+    const prefillBrandId = String(brand?.idBrand || idBrand || "").trim();
+    const prefillBrandName = String(brand?.Brand || brand?.name || "").trim();
+    if (!prefillBrandId) return;
+
+    navigate(`/admin/product/add?brandId=${encodeURIComponent(prefillBrandId)}`, {
+      state: {
+        prefillBrandId,
+        prefillBrandName,
+      },
+    });
+  };
+
   return (
     <div className="brand-page">
       <ToolBar title={title} />
@@ -256,23 +269,32 @@ const BrandProductsPage = () => {
           <div className="brand-page__actions-right">
             <button
               type="button"
-              className="brand-btn-products"
-              onClick={() => setShowPicker((prev) => !prev)}
-              aria-label={showPicker ? "Ẩn chọn sản phẩm" : "Chọn sản phẩm thêm vào thương hiệu"}
-              title={showPicker ? "Ẩn chọn sản phẩm" : "Chọn sản phẩm thêm vào thương hiệu"}
+              className={`brand-btn-create-product ${showPicker ? "brand-btn-create-product--confirm" : ""}`}
+              onClick={() => {
+                if (!showPicker) {
+                  setShowPicker(true);
+                  return;
+                }
+
+                if (!savingAssign && selectedProductIds.length > 0) {
+                  assignSelectedProducts();
+                }
+              }}
+              disabled={showPicker && (savingAssign || selectedProductIds.length === 0)}
+              aria-label={showPicker ? `Xác nhận thêm ${selectedProductIds.length} sản phẩm` : "Thêm sản phẩm có sẵn"}
+              title={showPicker ? `Xác nhận thêm ${selectedProductIds.length} sản phẩm` : "Thêm sản phẩm có sẵn"}
             >
-              +
+              {showPicker ? `Xác nhận thêm ${selectedProductIds.length} sản phẩm` : "Thêm sản phẩm có sẵn"}
             </button>
-            {showPicker && (
-              <button
-                type="button"
-                className="brand-btn-submit"
-                disabled={savingAssign || selectedProductIds.length === 0}
-                onClick={assignSelectedProducts}
-              >
-                {savingAssign ? "Đang thêm..." : `Thêm ${selectedProductIds.length} sản phẩm`}
-              </button>
-            )}
+            <button
+              type="button"
+              className="brand-btn-create-product"
+              onClick={goToCreateProductWithBrand}
+              title="Tạo mới sản phẩm thuộc thương hiệu này"
+              aria-label="Tạo mới sản phẩm thuộc thương hiệu này"
+            >
+              Tạo mới sản phẩm
+            </button>
           </div>
         </div>
 

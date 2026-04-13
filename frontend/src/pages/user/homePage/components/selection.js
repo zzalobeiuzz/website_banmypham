@@ -26,6 +26,44 @@ const saveCartItemsToStorage = (items) => {
   window.dispatchEvent(new Event("cart-updated"));
 };
 
+const resolveBrandLogoSrc = (logoUrl) => {
+  const raw = String(logoUrl || "").trim();
+  if (!raw) return "";
+
+  if (/^https?:\/\//i.test(raw) || raw.startsWith("data:")) return raw;
+
+  if (raw.startsWith("/uploads/")) {
+    return `${API_BASE}${raw}`;
+  }
+
+  if (raw.startsWith("uploads/")) {
+    return `${API_BASE}/${raw}`;
+  }
+
+  if (raw.startsWith("icons/")) {
+    return `${UPLOAD_BASE}/${raw}`;
+  }
+
+  return `${UPLOAD_BASE}/${raw.replace(/^\/+/, "")}`;
+};
+
+const resolveBrandPreviewSrc = (image) => {
+  const raw = String(image || "").trim();
+  if (!raw) return "";
+
+  if (/^https?:\/\//i.test(raw) || raw.startsWith("data:")) return raw;
+
+  if (raw.startsWith("/uploads/")) {
+    return `${API_BASE}${raw}`;
+  }
+
+  if (raw.startsWith("uploads/")) {
+    return `${API_BASE}/${raw}`;
+  }
+
+  return `${UPLOAD_BASE}/pictures/${raw.replace(/^\/+/, "")}`;
+};
+
 // ✨ Hiệu ứng: clone ảnh sản phẩm và cho ảnh bay về icon giỏ hàng.
 const animateImageToCart = (sourceImage) => {
   if (!sourceImage) return;
@@ -81,6 +119,7 @@ const animateImageToCart = (sourceImage) => {
 
 const Select = ({ title }) => {
   const { request, loading, error } = useHttp();
+  const isTopBrandSection = title === "Thương hiệu nổi bật";
 
   // ================== 📌 STATE ==================
   const [products, setProducts] = useState([]);                 // Danh sách sản phẩm
@@ -113,6 +152,8 @@ const Select = ({ title }) => {
         url = `${API_BASE}/api/user/products/sale`;
       } else if (title === "Sản phẩm hot") {
         url = `${API_BASE}/api/user/products/hot`;
+      } else if (isTopBrandSection) {
+        url = `${API_BASE}/api/user/products/featured-brands`;
       }
 
       if (!url) return;
@@ -144,7 +185,7 @@ const Select = ({ title }) => {
     };
 
     fetchProducts();
-  }, [title, request]);
+  }, [title, request, isTopBrandSection]);
 
   // ================== ✅ Cập nhật countdown (Flash Sale) ==================
   useEffect(() => {
@@ -314,59 +355,79 @@ const Select = ({ title }) => {
                 <div
                   className={`owl-item ${activeIndexes.includes(index) ? "active" : ""}`}
                   style={{ width: `${ITEM_WIDTH}px`, flexShrink: 0 }}
-                  key={index}
+                  key={product?.ProductID || product?.idBrand || index}
                 >
                   <Link
-                    to={`/${ROUTERS.USER.PRODUCT_DETAIL.replace(":id", String(product.ProductID || ""))}`}
-                    className="product-template"
+                    to={
+                      isTopBrandSection
+                        ? `/${ROUTERS.USER.BRAND_DETAIL.replace(":idBrand", String(product.idBrand || "")).replace(/^\/+/, "")}`
+                        : `/${ROUTERS.USER.PRODUCT_DETAIL.replace(":id", String(product.ProductID || ""))}`
+                    }
+                    className={`product-template ${isTopBrandSection ? "brand-only-template" : ""}`}
                   >
-                    <button
-                      type="button"
-                      className="add-cart-plus-btn"
-                      onClick={(event) => handleAddToCart(event, product)}
-                      title="Thêm vào giỏ hàng"
-                      aria-label="Thêm vào giỏ hàng"
-                    >
-                      +
-                    </button>
+                    {!isTopBrandSection && (
+                      <button
+                        type="button"
+                        className="add-cart-plus-btn"
+                        onClick={(event) => handleAddToCart(event, product)}
+                        title="Thêm vào giỏ hàng"
+                        aria-label="Thêm vào giỏ hàng"
+                      >
+                        +
+                      </button>
+                    )}
 
-                    {product.sale_price && product.discountPercent > 0 && (
+                    {!isTopBrandSection && product.sale_price && product.discountPercent > 0 && (
                       <div className="product-discount">
                         <span className="pe-1">{product.discountPercent}%</span>
                       </div>
                     )}
 
-                    <img
-                      src={`${UPLOAD_BASE}/pictures/${product.Image}`}
-                      alt={`Hình ảnh của ${product.ProductName}`}
-                      loading="lazy"
-                      style={title !== "Flash Sale" ? { border: "none" } : {}}
-                    />
-
-                    <div className="product-price px-2">
-                      {product.sale_price ? (
-                        <>
-                          <div className="public-price">
-                            {product.sale_price.toLocaleString("vi-VN")}đ
-                          </div>
-                          <div className="origin-price">
-                            {product.Price.toLocaleString("vi-VN")}đ
-                          </div>
-                        </>
-                      ) : (
-                        <div className="public-price">
-                          {product.Price.toLocaleString("vi-VN")}đ
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="product-brand px-2">{product.SupplierID}</div>
-                    <div className="product-title px-2">{product.ProductName}</div>
-
-                    {title === "Flash Sale" && (
-                      <div className="product-progress-sale count-down">
-                        {product.discountTimeLeft}
+                    {isTopBrandSection ? (
+                      <div className="brand-only-wrap">
+                        <img
+                          src={resolveBrandPreviewSrc(product.previewImage) || resolveBrandLogoSrc(product.logoUrl)}
+                          alt={product.brandName || "Thương hiệu"}
+                          loading="lazy"
+                          className="brand-only-image"
+                        />
+                        <div className="brand-name-pill">{product.brandName || "Thương hiệu"}</div>
                       </div>
+                    ) : (
+                      <>
+                        <img
+                          src={`${UPLOAD_BASE}/pictures/${product.Image}`}
+                          alt={`Hình ảnh của ${product.ProductName}`}
+                          loading="lazy"
+                          style={title !== "Flash Sale" ? { border: "none" } : {}}
+                        />
+
+                        <div className="product-price px-2">
+                          {product.sale_price ? (
+                            <>
+                              <div className="public-price">
+                                {product.sale_price.toLocaleString("vi-VN")}đ
+                              </div>
+                              <div className="origin-price">
+                                {product.Price.toLocaleString("vi-VN")}đ
+                              </div>
+                            </>
+                          ) : (
+                            <div className="public-price">
+                              {product.Price.toLocaleString("vi-VN")}đ
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="product-brand px-2">{product.SupplierID}</div>
+                        <div className="product-title px-2">{product.ProductName}</div>
+
+                        {title === "Flash Sale" && (
+                          <div className="product-progress-sale count-down">
+                            {product.discountTimeLeft}
+                          </div>
+                        )}
+                      </>
                     )}
                   </Link>
                 </div>

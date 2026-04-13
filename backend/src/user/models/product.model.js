@@ -77,6 +77,33 @@ exports.findHotProducts = async () => {
   `);
   return result.recordset;
 };
+
+// ===============TRUY VẤN THƯƠNG HIỆU NỔI BẬT===============
+exports.findFeaturedBrands = async () => {
+  const pool = await connectDB();
+  const result = await pool.request().query(`
+    SELECT TOP 12
+      B.idBrand,
+      B.Brand,
+      B.logo_url,
+      PR.Image AS preview_image
+    FROM BRAND B
+    OUTER APPLY (
+      SELECT TOP 1
+        P.Image
+      FROM PRODUCT P
+      WHERE P.SupplierID = B.idBrand
+        AND (P.IsHidden = 0 OR P.IsHidden IS NULL)
+        AND ISNULL(NULLIF(LTRIM(RTRIM(CAST(P.Image AS NVARCHAR(MAX)))), ''), '') <> ''
+      ORDER BY NEWID()
+    ) PR
+    WHERE ISNULL(B.status, 0) = 1
+      AND ISNULL(NULLIF(LTRIM(RTRIM(CAST(PR.Image AS NVARCHAR(MAX)))), ''), '') <> ''
+    ORDER BY B.idBrand DESC
+  `);
+
+  return result.recordset || [];
+};
 // ===============TRUY VẤN DANH MỤC SẢN PHẨM===============
 exports.findCategories = async () => {
   try {
@@ -240,4 +267,65 @@ exports.findBatchDetailsByProductId = async (productId) => {
     console.error("❌ Lỗi findBatchDetailsByProductId:", error.message);
     return [];
   }
+};
+
+// ===============TRUY VẤN CHI TIẾT THƯƠNG HIỆU + DANH SÁCH SẢN PHẨM===============
+exports.findBrandDetailWithProducts = async (idBrand) => {
+  const pool = await connectDB();
+  const brandId = String(idBrand || "").trim();
+
+  if (!brandId) {
+    return {
+      brand: null,
+      products: [],
+    };
+  }
+
+  const brandResult = await pool
+    .request()
+    .input("idBrand", brandId)
+    .query(`
+      SELECT TOP 1
+        idBrand,
+        Brand,
+        description,
+        status,
+        logo_url
+      FROM BRAND
+      WHERE idBrand = @idBrand
+    `);
+
+  const productResult = await pool
+    .request()
+    .input("idBrand", brandId)
+    .query(`
+      SELECT
+        P.ProductID,
+        P.ProductName,
+        P.SupplierID,
+        P.Price,
+        P.Image,
+        P.isHot,
+        P.CategoryID,
+        P.SubCategoryID,
+        C.CategoryName,
+        SC.SubCategoryName,
+        PS.sale_price,
+        PS.start_date,
+        PS.end_date
+      FROM PRODUCT P
+      LEFT JOIN PRODUCT_SALE PS ON P.ProductID = PS.product_id
+      LEFT JOIN CATEGORY C ON P.CategoryID = C.CategoryID
+      LEFT JOIN SUB_CATEGORY SC ON P.SubCategoryID = SC.SubCategoryID
+      WHERE P.SupplierID = @idBrand
+        AND (P.IsHidden = 0 OR P.IsHidden IS NULL)
+        AND (C.IsHidden = 0 OR C.IsHidden IS NULL)
+        AND (SC.IsHidden = 0 OR SC.IsHidden IS NULL)
+      ORDER BY P.ProductID DESC
+    `);
+
+  return {
+    brand: brandResult.recordset?.[0] || null,
+    products: productResult.recordset || [],
+  };
 };

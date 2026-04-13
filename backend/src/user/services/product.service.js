@@ -1,11 +1,13 @@
 const {
   findSaleProducts,
   findHotProducts,
+  findFeaturedBrands,
   findCategories,
   findAllProducts,
   findProductDetailById,
   findBatchDetailsByProductId,
   syncExpiredBatchDetailsStatus,
+  findBrandDetailWithProducts,
 } = require("../models/product.model");
 const { calculateDiscountPercent, calculateTimeLeft } = require("../utils/productUtils");
 
@@ -46,6 +48,17 @@ exports.getHotProducts = async () => {
   return data.map(p => ({
     ...p,
     discountPercent: calculateDiscountPercent(p),
+  }));
+};
+
+// ================================ LẤY THƯƠNG HIỆU NỔI BẬT ==============================
+exports.getFeaturedBrands = async () => {
+  const data = await findFeaturedBrands();
+  return data.map((brand) => ({
+    idBrand: brand.idBrand,
+    brandName: brand.Brand,
+    logoUrl: brand.logo_url,
+    previewImage: brand.preview_image,
   }));
 };
 
@@ -112,4 +125,31 @@ exports.getProductDetailById = async (productId) => {
     console.error("❌ Lỗi getProductDetailById:", error);
     throw error;
   }
+};
+
+// ================================ LẤY TRANG CHI TIẾT THƯƠNG HIỆU ==============================
+exports.getBrandDetailPage = async (idBrand) => {
+  const result = await findBrandDetailWithProducts(idBrand);
+
+  if (!result?.brand) {
+    return {
+      success: false,
+      message: "Không tìm thấy thương hiệu.",
+      data: null,
+    };
+  }
+
+  const products = (result.products || []).map((product) => ({
+    ...product,
+    discountPercent: product.sale_price ? calculateDiscountPercent(product) : 0,
+    discountTimeLeft: product.end_date ? calculateTimeLeft(product.end_date) : null,
+  }));
+
+  return {
+    success: true,
+    data: {
+      brand: result.brand,
+      products,
+    },
+  };
 };
