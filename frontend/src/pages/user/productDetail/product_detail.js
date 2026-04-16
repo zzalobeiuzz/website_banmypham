@@ -4,6 +4,8 @@ import { API_BASE, UPLOAD_BASE } from "../../../constants";
 import useHttp from "../../../hooks/useHttp";
 import lottie from "lottie-web";
 import "./product_detail.scss";
+import { useLocation } from "react-router-dom";
+
 
 const productSections = [
   {
@@ -33,6 +35,8 @@ const productSections = [
 ];
 
 const ProductDetail = () => {
+  const location = useLocation();
+  const from = location.state?.from;
   const { id } = useParams();
   const { request } = useHttp();
   const navigate = useNavigate();
@@ -62,6 +66,7 @@ const ProductDetail = () => {
   }, [id, request]);
 
   useEffect(() => {
+
     if (loadingRef.current && loading) {
       const anim = lottie.loadAnimation({
         container: loadingRef.current,
@@ -73,6 +78,7 @@ const ProductDetail = () => {
       return () => anim.destroy();
     }
   }, [loading]);
+
 
   const scrollToSection = (sectionId) => {
     const el = document.getElementById(sectionId);
@@ -104,7 +110,13 @@ const ProductDetail = () => {
   if (!product) {
     return (
       <div className="product-detail-container">
-        <button className="back-button" onClick={() => navigate("/")}>
+        <button className="back-button" onClick={() => {
+          if (window.history.length > 1) {
+            navigate(-1);
+          } else {
+            navigate("/");
+          }
+        }}>
           ← Quay lại
         </button>
         <div className="not-found">Sản phẩm không tồn tại</div>
@@ -114,7 +126,18 @@ const ProductDetail = () => {
 
   return (
     <div className="product-detail-page">
-      <button className="back-button" onClick={() => navigate("/")}>
+      <button
+        className="back-button"
+        onClick={() => {
+          if (from) {
+            navigate(from);
+          } else if (window.history.length > 1) {
+            navigate(-1);
+          } else {
+            navigate("/");
+          }
+        }}
+      >
         ← Quay lại
       </button>
 

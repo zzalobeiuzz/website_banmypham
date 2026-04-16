@@ -1,5 +1,9 @@
 import React, { memo, useEffect, useMemo, useState } from "react";
+import lottie from "lottie-web";
+import noProductAnimation from "../../../animation/no_product.json";
 import Slider from "rc-slider";
+// import lottie from "lottie-web"; // Remove duplicate import
+// import noProductAnimation from "../../../animation/no_product.json"; // Remove duplicate import
 import "rc-slider/assets/index.css";
 import { useNavigate, useParams } from "react-router-dom";
 import { API_BASE, UPLOAD_BASE } from "../../../constants";
@@ -27,26 +31,34 @@ const saveCartItemsToStorage = (items) => {
 const handleAddToCart = (event, product) => {
     event.preventDefault();
     event.stopPropagation();
-    const productCard = event.currentTarget.closest(".brand-product-card");
-    const productImage = productCard?.querySelector("img");
-    flyToCart(productImage);
+
+    // 🔥 lấy img chuẩn hơn
+    const productImage = event.currentTarget
+        .closest(".brand-product-link")
+        ?.querySelector("img");
+
+    if (productImage) {
+        flyToCart(productImage);
+    }
+
     const productId = String(
-        product?.ProductID || product?.ProductId || product?.id || "",
+        product?.ProductID || product?.ProductId || product?.id || ""
     ).trim();
+
     if (!productId) return;
+
     const cartItems = getCartItemsFromStorage();
+
     const foundIndex = cartItems.findIndex(
-        (item) => String(item?.productId) === productId,
+        (item) => String(item?.productId) === productId
     );
+
     if (foundIndex >= 0) {
-        const currentQty = Number(cartItems[foundIndex].quantity || 0);
-        cartItems[foundIndex] = {
-            ...cartItems[foundIndex],
-            quantity: currentQty + 1,
-        };
+        cartItems[foundIndex].quantity += 1;
     } else {
         cartItems.push({ productId, quantity: 1 });
     }
+
     saveCartItemsToStorage(cartItems);
 };
 
@@ -101,16 +113,9 @@ const BrandDetailPage = () => {
     // State điều khiển panel bộ lọc
     const [filterPanelVisible, setFilterPanelVisible] = useState(true); // true: panel đang hiển thị hoặc đang hiệu ứng đóng
     const [isClosing, setIsClosing] = useState(false); // true: đang chạy hiệu ứng đóng
-    const [showPlaceholderDuringClose, setShowPlaceholderDuringClose] = useState(false);
+    // Đã loại bỏ showPlaceholderDuringClose
 
-    // DEBUG: Log state để kiểm tra
-    // eslint-disable-next-line
-    console.log(
-        "DEBUG filterPanelVisible",
-        filterPanelVisible,
-        "isClosing",
-        isClosing,
-    );
+
     // Bổ sung lại categories và filteredProducts
     const categories = useMemo(() => {
         const values = new Set();
@@ -269,7 +274,6 @@ const BrandDetailPage = () => {
 
                                     setFilterPanelVisible(false);
                                     setIsClosing(false);
-                                    setShowPlaceholderDuringClose(false);
                                 }}
                             >
                                 <div className="brand-filter-panel__content">
@@ -342,7 +346,9 @@ const BrandDetailPage = () => {
                                             checked={saleOnly}
                                             onChange={(e) => setSaleOnly(e.target.checked)}
                                         />
-                                        Chỉ hiển thị sản phẩm đang giảm giá
+                                        <span className="checkbox-text">
+                                            Chỉ hiển thị sản phẩm đang giảm giá
+                                        </span>
                                     </label>
                                 </div>
                                 <button
@@ -353,13 +359,12 @@ const BrandDetailPage = () => {
                                             setIsClosing(true);
 
                                             // show placeholder slightly before the full close finishes
-                                            setTimeout(() => setShowPlaceholderDuringClose(true), 260);
+                                            // Đã loại bỏ setShowPlaceholderDuringClose
 
                                             // fallback nếu transitionEnd không chạy
                                             setTimeout(() => {
                                                 setFilterPanelVisible(false);
                                                 setIsClosing(false);
-                                                setShowPlaceholderDuringClose(false);
                                             }, 350); // đúng bằng duration CSS
                                         }
                                     }}
@@ -400,19 +405,24 @@ const BrandDetailPage = () => {
                                 </button>
                             </div>
                         )}
-                        <main className="brand-product-center">
-                            <div className="brand-product-grid">
-                                {filteredProducts.map((item, index) => (
-                                    <ProductCard
-                                        key={item.ProductID}
-                                        item={item}
-                                        onAddToCart={handleAddToCart}
-                                        detailUrl={`/${ROUTERS.USER.PRODUCT_DETAIL.replace(":id", String(item.ProductID || ""))}`}
-                                        resolveProductImage={resolveProductImage}
-                                        cardIndex={index}
-                                    />
-                                ))}
-                            </div>
+
+                        <main className={`brand-product-center${filteredProducts.length === 0 ? ' no-products' : ''}`}>
+                            {filteredProducts.length === 0 ? (
+                                <NoProductLottie />
+                            ) : (
+                                <div className="brand-product-grid">
+                                    {filteredProducts.map((item, index) => (
+                                        <ProductCard
+                                            key={item.ProductID}
+                                            item={item}
+                                            onAddToCart={handleAddToCart}
+                                            detailUrl={`/${ROUTERS.USER.PRODUCT_DETAIL.replace(":id", String(item.ProductID || ""))}`}
+                                            resolveProductImage={resolveProductImage}
+                                            cardIndex={index}
+                                        />
+                                    ))}
+                                </div>
+                            )}
                         </main>
 
                         <aside className="brand-info-panel">
@@ -441,4 +451,44 @@ const BrandDetailPage = () => {
     );
 };
 
+
 export default memo(BrandDetailPage);
+
+function NoProductLottie() {
+    const containerRef = React.useRef(null);
+    React.useEffect(() => {
+        let anim = null;
+        if (containerRef.current) {
+            anim = lottie.loadAnimation({
+                container: containerRef.current,
+                renderer: "svg",
+                loop: false,
+                autoplay: true,
+                animationData: noProductAnimation,
+            });
+        }
+        return () => {
+            if (anim) anim.destroy();
+        };
+    }, []);
+    return (
+        <div style={{width: '100%', minHeight: '40vh', background: 'transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
+            <div
+                ref={containerRef}
+                style={{
+                    width: '100%',
+                    maxWidth: 450,
+                    height: 450,
+                    background: 'transparent',
+                    marginBottom: 16,
+                    borderRadius: 24,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                }}
+            />
+            <div style={{color: '#64748b', fontWeight: 600, fontSize: 18, textAlign: 'center'}}>Không có sản phẩm phù hợp</div>
+        </div>
+    );
+}

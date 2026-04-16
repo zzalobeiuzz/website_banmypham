@@ -1,6 +1,6 @@
 import lottie from "lottie-web";
 import React, { useEffect, useRef, useState } from "react";
-import animationData from "./robot.json";
+import animationData from "../../animation/robot.json";
 import "./style.scss";
 
 const LostPage = () => {
