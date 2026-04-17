@@ -19,7 +19,7 @@ export default function ProductCard({ item, onAddToCart, detailUrl, resolveProdu
       style={{ "--card-index": cardIndex }}
     >
       <Link
-           to={detailUrl} // 👈 dùng đúng biến destructuring
+        to={detailUrl} // 👈 dùng đúng biến destructuring
         state={{ from: location.pathname }} // 👈 lưu trang trước
         className="brand-product-link"
         style={{ display: "block", position: "relative" }}

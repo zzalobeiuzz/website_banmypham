@@ -1,3 +1,68 @@
+// Hiệu ứng mở rộng chi tiết thương hiệu
+.brand-expand-desc-wrapper {
+  position: relative;
+  width: 100%;
+  min-width: 200px;
+  max-width: 320px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 16px #0001;
+  margin: 0 auto 0 auto;
+  overflow: visible;
+  padding: 0 0 0 0;
+  transition:
+    max-width 0.4s,
+    width 0.4s,
+    padding 0.4s,
+    box-shadow 0.3s;
+
+  .brand-info-panel__desc {
+    max-height: 60px;
+    overflow: hidden;
+    transition: max-height 0.3s;
+    position: relative;
+    padding: 16px 16px 16px 16px;
+    font-size: 15px;
+    background: transparent;
+    border-radius: 0;
+    margin: 0;
+
+    p {
+     line-height: 1.6;
+     margin-bottom: 16px;
+    }
+  }
+
+  .brand-expand-desc-fade {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 36px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #fff 90%);
+    pointer-events: none;
+  }
+}
+
+.brand-expand-desc-wrapper {
+  height: auto;
+  max-width: 700px;
+  width: 100%;
+  box-shadow: 0 8px 32px #0002;
+
+  .brand-info-panel__desc {
+    max-height: 100%;
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px 24px 24px 24px;
+    margin: 0 auto;
+  }
+
+  .brand-expand-desc-fade {
+    display: none;
+  }
+}
+
 @media (max-width: 600px) {
   .brand-filter-panel {
     min-width: unset;
@@ -314,6 +379,27 @@
 
     &.brand-detail-user-layout--no-filter {
       grid-template-columns: minmax(0, 60px) minmax(0, 1fr) minmax(240px, 290px);
+    }
+
+    /* 👉 OVERRIDE mạnh hơn */
+    &.brand-detail-user-layout--expand-infobrand {
+      grid-template-columns: minmax(0, 250px) minmax(0, 1fr) minmax(240px,
+          500px);
+
+      .brand-info-panel {
+        grid-column: 3 / 4; // 👈 KHÔNG span full nữa
+        margin-top: 0;
+      }
+    }
+
+    /* 👉 CASE COMBINE 2 STATE */
+    &.no-filter.expand-infobrand,
+    &.brand-detail-user-layout--no-filter.brand-detail-user-layout--expand-infobrand {
+      grid-template-columns: minmax(0, 60px) minmax(0, 1fr) minmax(240px, 500px);
+
+      .brand-info-panel {
+        grid-column: 3 / 4;
+      }
     }
 
     .brand-filter-placeholder {
@@ -908,6 +994,7 @@
           border-radius: 18px;
           overflow: hidden;
           background: #fff;
+          height: 300px;
 
           /* 🎯 viền mềm (không bị cứng) */
           border: 1px solid rgba(148, 163, 184, 0.2);
@@ -952,7 +1039,6 @@
 
             z-index: 2;
           }
-
 
           img {
             width: 100%;
@@ -1054,8 +1140,8 @@
       }
     }
 
-
     .brand-info-panel {
+      position: relative;
       background: #fff;
       border-radius: 14px;
       box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
@@ -1076,6 +1162,25 @@
         margin-bottom: 10px;
         padding: 6px;
         box-sizing: border-box;
+      }
+
+      .brand-expand-toggle-btn {
+        position: absolute;
+        top: 8px;
+        left: 0px;
+        background: none;
+        border: none;
+        padding: 4px;
+        cursor: pointer;
+        z-index: 2;
+        outline: none;
+        display: flex;
+        align-items: center;
+      }
+
+      .brand-expand-toggle-icon {
+        transition: transform 0.2s;
+        filter: drop-shadow(0 1px 2px #0002);
       }
 
       h3 {

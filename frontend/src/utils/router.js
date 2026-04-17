@@ -6,6 +6,7 @@ export const ROUTERS = {
       PRODUCT_DETAIL: "product/:id", // Chi tiết sản phẩm: /product/123
       BRAND_DETAIL: "brand/:idBrand", // Chi tiết thương hiệu: /brand/BR001
       SIGNUP: "signup",              // Trang đăng ký: /signup
+      ALL_PRODUCTS: "all-products/:type", // Trang tất cả sản phẩm: /all-products/flash-sale
     },
   
     // Các đường dẫn của ADMIN

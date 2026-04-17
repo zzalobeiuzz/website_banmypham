@@ -1,10 +1,10 @@
 import React from "react";
 import Select from './selection';
 const hot_product = () => {
-    const brandTitle = "Sản phẩm hot";
+    const Title = "Sản phẩm hot";
 
     return (
-        <Select title={brandTitle} />
+        <Select title={Title} />
     );
 };
 

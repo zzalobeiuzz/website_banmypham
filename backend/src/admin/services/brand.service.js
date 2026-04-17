@@ -5,7 +5,10 @@ const path = require("path");
 const { processHtmlWithPrefix } = require("../utils/processHtmlWithPrefix");
 const { downloadImage } = require("../utils/imageDownloader");
 
-const BRAND_ICON_DIR = path.join(__dirname, "../../../uploads/assets/icons");
+const BRAND_LOGO_DIR = path.join(
+  __dirname,
+  "../../../uploads/assets/pictures/Brands",
+);
 const BRAND_DESCRIPTION_FOLDER = "BrandDescription";
 
 const sanitizeFileBaseName = (value) =>
@@ -18,8 +21,8 @@ const sanitizeFileBaseName = (value) =>
     .toLowerCase() || "brand";
 
 const ensureBrandIconDir = () => {
-  if (!fs.existsSync(BRAND_ICON_DIR)) {
-    fs.mkdirSync(BRAND_ICON_DIR, { recursive: true });
+  if (!fs.existsSync(BRAND_LOGO_DIR)) {
+    fs.mkdirSync(BRAND_LOGO_DIR, { recursive: true });
   }
 };
 
@@ -29,12 +32,14 @@ const saveBrandLogoFromFile = ({ file, idBrand }) => {
   ensureBrandIconDir();
 
   const ext = path.extname(file.originalname || "").toLowerCase() || ".png";
-  const safeExt = /^\.(png|jpg|jpeg|webp|gif|svg|avif)$/.test(ext) ? ext : ".png";
+  const safeExt = /^\.(png|jpg|jpeg|webp|gif|svg|avif)$/.test(ext)
+    ? ext
+    : ".png";
   const filename = `brand_${sanitizeFileBaseName(idBrand)}_${Date.now()}${safeExt}`;
-  const savePath = path.join(BRAND_ICON_DIR, filename);
+  const savePath = path.join(BRAND_LOGO_DIR, filename);
 
   fs.writeFileSync(savePath, file.buffer);
-  return `/uploads/assets/icons/${filename}`;
+  return filename;
 };
 
 const saveBrandLogoFromUrl = async ({ url, idBrand }) => {
@@ -49,8 +54,13 @@ const saveBrandLogoFromUrl = async ({ url, idBrand }) => {
 
   ensureBrandIconDir();
 
-  const response = await axios.get(raw, { responseType: "arraybuffer", timeout: 15000 });
-  const contentType = String(response.headers?.["content-type"] || "").toLowerCase();
+  const response = await axios.get(raw, {
+    responseType: "arraybuffer",
+    timeout: 15000,
+  });
+  const contentType = String(
+    response.headers?.["content-type"] || "",
+  ).toLowerCase();
 
   let ext = ".png";
   if (contentType.includes("jpeg")) ext = ".jpg";
@@ -60,14 +70,17 @@ const saveBrandLogoFromUrl = async ({ url, idBrand }) => {
   else if (contentType.includes("avif")) ext = ".avif";
 
   const filename = `brand_${sanitizeFileBaseName(idBrand)}_${Date.now()}${ext}`;
-  const savePath = path.join(BRAND_ICON_DIR, filename);
+  const savePath = path.join(BRAND_LOGO_DIR, filename);
 
   fs.writeFileSync(savePath, response.data);
-  return `/uploads/assets/icons/${filename}`;
+  return filename;
 };
 
 const saveBase64ImageByMappedSrc = ({ oldSrc, newSrc }) => {
-  const relativePath = String(newSrc || "").replace("http://localhost:5000", "");
+  const relativePath = String(newSrc || "").replace(
+    "http://localhost:5000",
+    "",
+  );
   const fullPath = path.join(__dirname, "../../../", relativePath);
 
   if (fs.existsSync(fullPath)) return;
@@ -103,7 +116,9 @@ exports.createBrand = async (req) => {
   const payload = req?.body || {};
   const idBrand = String(payload?.idBrand || "").trim();
   const Brand = String(payload?.Brand || payload?.name || "").trim();
-  let description = payload?.description ? String(payload.description).trim() : "";
+  let description = payload?.description
+    ? String(payload.description).trim()
+    : "";
 
   if (!idBrand) {
     throw new Error("idBrand không được để trống.");
@@ -141,7 +156,10 @@ exports.createBrand = async (req) => {
   if (req?.file) {
     resolvedLogoUrl = saveBrandLogoFromFile({ file: req.file, idBrand });
   } else if (payload?.logo_url) {
-    resolvedLogoUrl = await saveBrandLogoFromUrl({ url: payload.logo_url, idBrand });
+    resolvedLogoUrl = await saveBrandLogoFromUrl({
+      url: payload.logo_url,
+      idBrand,
+    });
   }
 
   const data = await brandModel.createBrand({
@@ -161,7 +179,10 @@ exports.createBrand = async (req) => {
           await downloadImage(oldSrc, newSrc);
         }
       } catch (err) {
-        console.error(`❌ Không thể lưu ảnh mô tả brand ${oldSrc}:`, err.message);
+        console.error(
+          `❌ Không thể lưu ảnh mô tả brand ${oldSrc}:`,
+          err.message,
+        );
       }
     }
   }
@@ -177,7 +198,9 @@ exports.updateBrand = async (req) => {
   const payload = req?.body || {};
   const idBrand = String(req?.params?.idBrand || payload?.idBrand || "").trim();
   const Brand = String(payload?.Brand || payload?.name || "").trim();
-  let description = payload?.description ? String(payload.description).trim() : "";
+  let description = payload?.description
+    ? String(payload.description).trim()
+    : "";
 
   if (!idBrand) {
     const error = new Error("idBrand không hợp lệ.");
@@ -220,7 +243,10 @@ exports.updateBrand = async (req) => {
     resolvedLogoUrl = saveBrandLogoFromFile({ file: req.file, idBrand });
   } else if (payload?.logo_url !== undefined) {
     if (String(payload.logo_url || "").trim()) {
-      resolvedLogoUrl = await saveBrandLogoFromUrl({ url: payload.logo_url, idBrand });
+      resolvedLogoUrl = await saveBrandLogoFromUrl({
+        url: payload.logo_url,
+        idBrand,
+      });
     } else {
       resolvedLogoUrl = null;
     }
@@ -243,7 +269,10 @@ exports.updateBrand = async (req) => {
           await downloadImage(oldSrc, newSrc);
         }
       } catch (err) {
-        console.error(`❌ Không thể lưu ảnh mô tả brand ${oldSrc}:`, err.message);
+        console.error(
+          `❌ Không thể lưu ảnh mô tả brand ${oldSrc}:`,
+          err.message,
+        );
       }
     }
   }

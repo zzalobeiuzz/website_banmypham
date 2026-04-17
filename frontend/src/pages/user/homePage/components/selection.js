@@ -1,3 +1,6 @@
+
+ 
+
 import PropTypes from "prop-types";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
@@ -5,6 +8,8 @@ import { API_BASE, UPLOAD_BASE } from "../../../../constants";
 import useHttp from "../../../../hooks/useHttp";
 import { ROUTERS } from "../../../../utils/router";
 import "./componets.scss";
+
+
 
 // 🌟 Kích thước 1 item và số lượng item hiển thị
 const ITEM_WIDTH = 254;
@@ -118,6 +123,11 @@ const animateImageToCart = (sourceImage) => {
 };
 
 const Select = ({ title }) => {
+
+
+  
+
+   
   const { request, loading, error } = useHttp();
   const isTopBrandSection = title === "Thương hiệu nổi bật";
 
@@ -212,6 +222,59 @@ const Select = ({ title }) => {
     const interval = setInterval(updateCountdown, 1000);
     return () => clearInterval(interval);
   }, [products, title]);
+
+   // ================== ✅ Auto-slide ==================
+  useEffect(() => {
+    if (!products.length || products.length <= VISIBLE_COUNT) return;
+    let autoSlideTimer = null;
+    let paused = false;
+
+    const startAutoSlide = () => {
+      if (autoSlideTimer) clearInterval(autoSlideTimer);
+      autoSlideTimer = setInterval(() => {
+        if (paused) return;
+        scrolledItemsCount.current++;
+        if (scrolledItemsCount.current > products.length - VISIBLE_COUNT) {
+          scrolledItemsCount.current = 0;
+        }
+        const finalTranslateX = -scrolledItemsCount.current * ITEM_WIDTH;
+        setTranslateX(finalTranslateX);
+        currentTranslateX.current = finalTranslateX;
+        // Cập nhật activeIndexes
+        const newActiveIndexes = [];
+        for (let i = 0; i < VISIBLE_COUNT; i++) {
+          const idx = scrolledItemsCount.current + i;
+          if (idx < products.length) newActiveIndexes.push(idx);
+        }
+        setActiveIndexes(newActiveIndexes);
+      }, 3000);
+    };
+
+    startAutoSlide();
+
+    // Khi người dùng kéo chuột thì tạm dừng auto-slide
+    const pauseAutoSlide = () => { paused = true; };
+    const resumeAutoSlide = () => { paused = false; };
+    const slider = containerRef.current;
+    if (slider) {
+      slider.addEventListener("mousedown", pauseAutoSlide);
+      slider.addEventListener("touchstart", pauseAutoSlide);
+      slider.addEventListener("mouseup", resumeAutoSlide);
+      slider.addEventListener("touchend", resumeAutoSlide);
+      slider.addEventListener("mouseleave", resumeAutoSlide);
+    }
+
+    return () => {
+      if (autoSlideTimer) clearInterval(autoSlideTimer);
+      if (slider) {
+        slider.removeEventListener("mousedown", pauseAutoSlide);
+        slider.removeEventListener("touchstart", pauseAutoSlide);
+        slider.removeEventListener("mouseup", resumeAutoSlide);
+        slider.removeEventListener("touchend", resumeAutoSlide);
+        slider.removeEventListener("mouseleave", resumeAutoSlide);
+      }
+    };
+  }, [products]);
 
   // ================== ✅ Xử lý kéo ngang slider ==================
   const handleMouseMove = useCallback((e) => {
@@ -319,20 +382,78 @@ const Select = ({ title }) => {
     saveCartItemsToStorage(cartItems);
   };
 
+  // ================== ✅ Auto-slide ==================
+  useEffect(() => {
+    if (!products.length || products.length <= VISIBLE_COUNT) return;
+    let autoSlideTimer = null;
+    let paused = false;
+
+    const startAutoSlide = () => {
+      if (autoSlideTimer) clearInterval(autoSlideTimer);
+      autoSlideTimer = setInterval(() => {
+        if (paused) return;
+        scrolledItemsCount.current++;
+        if (scrolledItemsCount.current > products.length - VISIBLE_COUNT) {
+          scrolledItemsCount.current = 0;
+        }
+        const finalTranslateX = -scrolledItemsCount.current * ITEM_WIDTH;
+        setTranslateX(finalTranslateX);
+        currentTranslateX.current = finalTranslateX;
+        // Cập nhật activeIndexes
+        const newActiveIndexes = [];
+        for (let i = 0; i < VISIBLE_COUNT; i++) {
+          const idx = scrolledItemsCount.current + i;
+          if (idx < products.length) newActiveIndexes.push(idx);
+        }
+        setActiveIndexes(newActiveIndexes);
+      }, 3000);
+    };
+
+    startAutoSlide();
+
+    // Khi người dùng kéo chuột thì tạm dừng auto-slide
+    const pauseAutoSlide = () => { paused = true; };
+    const resumeAutoSlide = () => { paused = false; };
+    const slider = containerRef.current;
+    if (slider) {
+      slider.addEventListener("mousedown", pauseAutoSlide);
+      slider.addEventListener("touchstart", pauseAutoSlide);
+      slider.addEventListener("mouseup", resumeAutoSlide);
+      slider.addEventListener("touchend", resumeAutoSlide);
+      slider.addEventListener("mouseleave", resumeAutoSlide);
+    }
+
+    return () => {
+      if (autoSlideTimer) clearInterval(autoSlideTimer);
+      if (slider) {
+        slider.removeEventListener("mousedown", pauseAutoSlide);
+        slider.removeEventListener("touchstart", pauseAutoSlide);
+        slider.removeEventListener("mouseup", resumeAutoSlide);
+        slider.removeEventListener("touchend", resumeAutoSlide);
+        slider.removeEventListener("mouseleave", resumeAutoSlide);
+      }
+    };
+  }, [products]);
+
   // ================== ✅ Render UI ==================
   if (loading) return <div className="loading">🔄 Đang tải sản phẩm...</div>;
   if (error) return <div className="error">❌ Lỗi: {error}</div>;
+
+  // Xác định type cho route all-products
+  let allProductsType = "flash-sale";
+  if (title === "Sản phẩm hot") allProductsType = "hot-products";
+  else if (title === "Thương hiệu nổi bật") allProductsType = "featured-brands";
 
   return (
     <div className="section-flash-mobile d-block slide-template bg-white mb-4 pt-1">
       <div className="slide-top">
         <div className="slide-title d-flex align-items-center gap-2">
           <a href="/" className="d-flex align-items-center gap-2">
-            <img className="img-fluid" src={icon_select} alt="Icon sản phẩm"  loading="lazy"/>
+            {title !== "Thương hiệu nổi bật" && <img className="img-fluid" src={icon_select} alt="Icon sản phẩm" loading="lazy" />}
             <h2>{title}</h2>
           </a>
         </div>
-        <a href="/" className="slide-more">Xem tất cả</a>
+        <Link to={`/all-products/${allProductsType}`} className="slide-more">Xem tất cả</Link>
       </div>
 
       <div className="slide-main">
@@ -340,6 +461,8 @@ const Select = ({ title }) => {
           className="slide-template-slide"
           ref={containerRef}
           onMouseDown={handleMouseDown}
+
+          onDragStart={e => e.preventDefault()}
         >
           <div className="owl-stage-outer">
             <div
@@ -364,6 +487,8 @@ const Select = ({ title }) => {
                         : `/${ROUTERS.USER.PRODUCT_DETAIL.replace(":id", String(product.ProductID || ""))}`
                     }
                     className={`product-template ${isTopBrandSection ? "brand-only-template" : ""}`}
+                    draggable={false}
+                    onDragStart={e => e.preventDefault()}
                   >
                     {!isTopBrandSection && (
                       <button
@@ -390,6 +515,8 @@ const Select = ({ title }) => {
                           alt={product.brandName || "Thương hiệu"}
                           loading="lazy"
                           className="brand-only-image"
+                          draggable={false}
+                          onDragStart={e => e.preventDefault()}
                         />
                         <div className="brand-name-pill">{product.brandName || "Thương hiệu"}</div>
                       </div>
@@ -400,6 +527,8 @@ const Select = ({ title }) => {
                           alt={`Hình ảnh của ${product.ProductName}`}
                           loading="lazy"
                           style={title !== "Flash Sale" ? { border: "none" } : {}}
+                          draggable={false}
+                          onDragStart={e => e.preventDefault()}
                         />
 
                         <div className="product-price px-2">
@@ -419,7 +548,7 @@ const Select = ({ title }) => {
                           )}
                         </div>
 
-                        <div className="product-brand px-2">{product.SupplierID}</div>
+                        <div className="product-id px-2">{product.ProductID}</div>
                         <div className="product-title px-2">{product.ProductName}</div>
 
                         {title === "Flash Sale" && (

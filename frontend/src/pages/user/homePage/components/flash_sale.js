@@ -2,10 +2,10 @@ import React from 'react';
 import Select from './selection';
 
 const FlashSale = () => {
-    const brandTitle = "Flash Sale";
+    const Title = "Flash Sale";
 
     return (
-        <Select title={brandTitle} />
+        <Select title={Title} />
     );
 };
 

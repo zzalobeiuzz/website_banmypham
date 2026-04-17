@@ -27,7 +27,7 @@ const resolveBrandLogoUrl = (value) => {
   if (/^https?:\/\//i.test(raw) || raw.startsWith("data:")) return raw;
   if (raw.startsWith("/uploads/")) return `${API_BASE}${raw}`;
   if (raw.startsWith("/")) return `${UPLOAD_BASE}${raw}`;
-  return `${UPLOAD_BASE}/icons/${raw}`;
+  return `${UPLOAD_BASE}/pictures/Brands/${raw}`;
 };
 
 const BrandPage = () => {

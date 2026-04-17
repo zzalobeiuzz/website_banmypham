@@ -2,10 +2,10 @@ import React from 'react';
 import Select from './selection';
 
 const top_brand = () => {
-    const brandTitle = "Thương hiệu nổi bật";
+    const Title = "Thương hiệu nổi bật";
 
     return (
-        <Select title={brandTitle} />
+        <Select title={Title} />
     );
 };
 

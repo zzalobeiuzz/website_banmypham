@@ -13,86 +13,87 @@ import "./brand_detail.scss";
 import { flyToCart } from "../homePage/components/FlyToCart";
 import ProductCard from "../homePage/components/ProductCard";
 
-// Thêm hàm addToCart và hiệu ứng fly to cart
-const getCartItemsFromStorage = () => {
-    try {
-        const raw = localStorage.getItem("cartItems");
-        return Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
-    } catch {
-        return [];
-    }
-};
+const NoProductLottie = () => {
+    const containerRef = React.useRef(null);
 
-const saveCartItemsToStorage = (items) => {
-    localStorage.setItem("cartItems", JSON.stringify(items));
-    window.dispatchEvent(new Event("cart-updated"));
-};
+    React.useEffect(() => {
+        let anim = null;
 
-const handleAddToCart = (event, product) => {
-    event.preventDefault();
-    event.stopPropagation();
+        if (containerRef.current) {
+            anim = lottie.loadAnimation({
+                container: containerRef.current,
+                renderer: "svg",
+                loop: false,
+                autoplay: true,
+                animationData: noProductAnimation,
+            });
+        }
 
-    // 🔥 lấy img chuẩn hơn
-    const productImage = event.currentTarget
-        .closest(".brand-product-link")
-        ?.querySelector("img");
+        return () => {
+            if (anim) anim.destroy();
+        };
+    }, []);
 
-    if (productImage) {
-        flyToCart(productImage);
-    }
-
-    const productId = String(
-        product?.ProductID || product?.ProductId || product?.id || ""
-    ).trim();
-
-    if (!productId) return;
-
-    const cartItems = getCartItemsFromStorage();
-
-    const foundIndex = cartItems.findIndex(
-        (item) => String(item?.productId) === productId
+    return (
+        <div
+            style={{
+                width: "100%",
+                minHeight: "40vh",
+                background: "transparent",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+            }}
+        >
+            <div
+                ref={containerRef}
+                style={{
+                    width: "100%",
+                    maxWidth: 450,
+                    height: 450,
+                    background: "transparent",
+                    marginBottom: 16,
+                    borderRadius: 24,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                }}
+            />
+            <div
+                style={{
+                    color: "#64748b",
+                    fontWeight: 600,
+                    fontSize: 18,
+                    textAlign: "center",
+                }}
+            >
+                Không có sản phẩm phù hợp
+            </div>
+        </div>
     );
+};
 
-    if (foundIndex >= 0) {
-        cartItems[foundIndex].quantity += 1;
-    } else {
-        cartItems.push({ productId, quantity: 1 });
+const ExpandBrandDesc = ({ brand, open, setOpen }) => {
+    if (!brand?.description) {
+        return <p>Chưa có mô tả thương hiệu.</p>;
     }
 
-    saveCartItemsToStorage(cartItems);
+    return (
+        <div className="brand-expand-desc-wrapper">
+            <div
+                className={`brand-info-panel__desc ${open ? "expanded" : "collapsed"}`}
+                dangerouslySetInnerHTML={{ __html: brand.description }}
+            />
+
+            {!open && <div className="brand-expand-desc-fade" />}
+        </div>
+    );
 };
-
-const PRICE_MIN_LIMIT = 0;
-const PRICE_MAX_LIMIT = 10000000;
-const PRICE_STEP = 100000;
-
-const formatVndShort = (value) => {
-    const numeric = Number(value || 0);
-    if (numeric >= 1000000) {
-        return `${(numeric / 1000000).toLocaleString("vi-VN")} triệu`;
-    }
-    return `${numeric.toLocaleString("vi-VN")}đ`;
-};
-
-const resolveBrandLogo = (value) => {
-    const raw = String(value || "").trim();
-    if (!raw) return "";
-    if (/^https?:\/\//i.test(raw) || raw.startsWith("data:")) return raw;
-    if (raw.startsWith("/uploads/")) return `${API_BASE}${raw}`;
-    if (raw.startsWith("uploads/")) return `${API_BASE}/${raw}`;
-    return `${UPLOAD_BASE}/icons/${raw.replace(/^\/+/, "")}`;
-};
-
-const resolveProductImage = (value) => {
-    const raw = String(value || "").trim();
-    if (!raw) return `${UPLOAD_BASE}/pictures/no_image.jpg`;
-    if (/^https?:\/\//i.test(raw) || raw.startsWith("data:")) return raw;
-    if (raw.startsWith("/uploads/")) return `${API_BASE}${raw}`;
-    if (raw.startsWith("uploads/")) return `${API_BASE}/${raw}`;
-    return `${UPLOAD_BASE}/pictures/${raw.replace(/^\/+/, "")}`;
-};
-
 const BrandDetailPage = () => {
+    const [open, setOpen] = React.useState(false);
+    // Lấy idBrand từ URL
     const { idBrand } = useParams();
     const navigate = useNavigate();
     const { request } = useHttp();
@@ -104,10 +105,7 @@ const BrandDetailPage = () => {
 
     const [searchText, setSearchText] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("all");
-    const [selectedPriceRange, setSelectedPriceRange] = useState([
-        PRICE_MIN_LIMIT,
-        PRICE_MAX_LIMIT,
-    ]);
+
     const [saleOnly, setSaleOnly] = useState(false);
     const [sortBy, setSortBy] = useState("default");
     // State điều khiển panel bộ lọc
@@ -115,6 +113,94 @@ const BrandDetailPage = () => {
     const [isClosing, setIsClosing] = useState(false); // true: đang chạy hiệu ứng đóng
     // Đã loại bỏ showPlaceholderDuringClose
 
+    // Thêm hàm addToCart và hiệu ứng fly to cart
+    const getCartItemsFromStorage = () => {
+        try {
+            const raw = localStorage.getItem("cartItems");
+            return Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
+        } catch {
+            return [];
+        }
+    };
+
+    // Hàm lưu giỏ hàng và dispatch event để các component khác có thể cập nhật khi giỏ hàng thay đổi
+    const saveCartItemsToStorage = (items) => {
+        localStorage.setItem("cartItems", JSON.stringify(items));
+        window.dispatchEvent(new Event("cart-updated"));
+    };
+
+    // Hàm xử lý khi người dùng click thêm vào giỏ hàng
+    const handleAddToCart = (event, product) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        // 🔥 lấy img chuẩn hơn
+        const productImage = event.currentTarget
+            .closest(".brand-product-link")
+            ?.querySelector("img");
+
+        if (productImage) {
+            flyToCart(productImage);
+        }
+
+        const productId = String(
+            product?.ProductID || product?.ProductId || product?.id || "",
+        ).trim();
+
+        if (!productId) return;
+
+        const cartItems = getCartItemsFromStorage();
+
+        const foundIndex = cartItems.findIndex(
+            (item) => String(item?.productId) === productId,
+        );
+
+        if (foundIndex >= 0) {
+            cartItems[foundIndex].quantity += 1;
+        } else {
+            cartItems.push({ productId, quantity: 1 });
+        }
+
+        saveCartItemsToStorage(cartItems);
+    };
+
+    // Các hằng số và hàm hỗ trợ cho bộ lọc giá
+    const PRICE_MIN_LIMIT = 0;
+    const PRICE_MAX_LIMIT = 10000000;
+    const PRICE_STEP = 100000;
+    const [selectedPriceRange, setSelectedPriceRange] = useState([
+        PRICE_MIN_LIMIT,
+        PRICE_MAX_LIMIT,
+    ]);
+
+    // Hàm định dạng số thành chuỗi tiền tệ ngắn gọn
+    const formatVndShort = (value) => {
+        const numeric = Number(value || 0);
+        if (numeric >= 1000000) {
+            return `${(numeric / 1000000).toLocaleString("vi-VN")} triệu`;
+        }
+        return `${numeric.toLocaleString("vi-VN")}đ`;
+    };
+
+    // Hàm xử lý hiển thị logo thương hiệu
+    const resolveBrandLogo = (value) => {
+        const raw = String(value || "").trim();
+        if (!raw) return "";
+        if (/^https?:\/\//i.test(raw) || raw.startsWith("data:")) return raw;
+        if (raw.startsWith("/uploads/")) return `${API_BASE}${raw}`;
+        if (raw.startsWith("uploads/")) return `${API_BASE}/${raw}`;
+        return `${UPLOAD_BASE}/pictures/Brands/${raw.replace(/^\/+/, "")}`;
+    };
+
+    // Hàm xử lý hiển thị ảnh sản phẩm
+    const resolveProductImage = (value) => {
+        const raw = String(value || "").trim();
+        if (!raw) return `${UPLOAD_BASE}/pictures/no_image.jpg`;
+        if (/^https?:\/\//i.test(raw) || raw.startsWith("data:")) return raw;
+        if (raw.startsWith("/uploads/")) return `${API_BASE}${raw}`;
+        if (raw.startsWith("uploads/")) return `${API_BASE}/${raw}`;
+        return `${UPLOAD_BASE}/pictures/${raw.replace(/^\/+/, "")}`;
+    };
 
     // Bổ sung lại categories và filteredProducts
     const categories = useMemo(() => {
@@ -126,6 +212,7 @@ const BrandDetailPage = () => {
         return ["all", ...Array.from(values)];
     }, [products]);
 
+    // Hàm lọc và sắp xếp sản phẩm dựa trên các tiêu chí đã chọn
     const filteredProducts = useMemo(() => {
         const query = String(searchText || "")
             .trim()
@@ -172,6 +259,7 @@ const BrandDetailPage = () => {
         sortBy,
     ]);
 
+    // Cuộn lên đầu trang khi idBrand thay đổi
     useEffect(() => {
         window.scrollTo({
             top: 0,
@@ -179,6 +267,7 @@ const BrandDetailPage = () => {
         });
     }, [idBrand]);
 
+    //
     useEffect(() => {
         let mounted = true;
 
@@ -261,7 +350,9 @@ const BrandDetailPage = () => {
                     )}
 
                     <div
-                        className={`brand-detail-user-layout${!filterPanelVisible && !isClosing ? " brand-detail-user-layout--no-filter" : ""}`}
+                        className={`brand-detail-user-layout
+  ${!filterPanelVisible && !isClosing ? "brand-detail-user-layout--no-filter" : ""}
+  ${open ? "brand-detail-user-layout--expand-infobrand" : ""}`}
                     >
                         {filterPanelVisible || isClosing ? (
                             <aside
@@ -377,12 +468,10 @@ const BrandDetailPage = () => {
                                         alt="Đóng bộ lọc"
                                         width="18"
                                         height="18"
-
                                     />
                                 </button>
                             </aside>
                         ) : (
-
                             <div
                                 className={`brand-filter-placeholder ${!filterPanelVisible && !isClosing ? "show" : ""
                                     }`}
@@ -401,12 +490,17 @@ const BrandDetailPage = () => {
                                         }, 10);
                                     }}
                                 >
-                                    <img src={`${UPLOAD_BASE}/icons/icons-arrow-down.png`} alt="Mở bộ lọc" />
+                                    <img
+                                        src={`${UPLOAD_BASE}/icons/icons-arrow-down.png`}
+                                        alt="Mở bộ lọc"
+                                    />
                                 </button>
                             </div>
                         )}
 
-                        <main className={`brand-product-center${filteredProducts.length === 0 ? ' no-products' : ''}`}>
+                        <main
+                            className={`brand-product-center${filteredProducts.length === 0 ? " no-products" : ""}`}
+                        >
                             {filteredProducts.length === 0 ? (
                                 <NoProductLottie />
                             ) : (
@@ -425,7 +519,7 @@ const BrandDetailPage = () => {
                             )}
                         </main>
 
-                        <aside className="brand-info-panel">
+                        {/* <aside className="brand-info-panel">
                             {brand?.logo_url && (
                                 <img
                                     className="brand-info-panel__logo"
@@ -435,14 +529,45 @@ const BrandDetailPage = () => {
                                 />
                             )}
                             <h3>{brand?.Brand || "Thương hiệu"}</h3>
-                            {brand?.description ? (
-                                <div
-                                    className="brand-info-panel__desc"
-                                    dangerouslySetInnerHTML={{ __html: brand.description }}
-                                />
-                            ) : (
-                                <p>Chưa có mô tả thương hiệu.</p>
+                            {/* Nút mở rộng/collapse mô tả thương hiệu */}
+                        {/* <ExpandBrandDesc brand={brand} />
+                         </aside>  */}
+                        <aside className={"brand-info-panel"}>
+                            {brand?.logo_url && (
+                                <>
+                                    <img
+                                        className="brand-info-panel__logo"
+                                        src={resolveBrandLogo(brand.logo_url)}
+                                        alt={brand?.Brand || "brand"}
+                                        loading="lazy"
+                                    />
+                                    <button
+                                        type="button"
+                                        aria-label={open ? "Thu gọn mô tả" : "Mở rộng mô tả"}
+                                        title={open ? "Thu gọn mô tả" : "Mở rộng mô tả"}
+                                        onClick={() => setOpen((prev) => !prev)}
+                                        className="brand-expand-toggle-btn"
+                                    >
+                                        <img
+                                            src={open ?  `${UPLOAD_BASE}/icons/icons8-minimize.png` : `${UPLOAD_BASE}/icons/icons8-full-screen.png`}
+                                            alt={open ? "Thu gọn" : "Mở rộng"}
+                                            width={24}
+                                            height={24}
+                                            className="brand-expand-toggle-icon"
+                                            style={{
+                                                transform: open ? "rotate(90deg)" : "rotate(0deg)",
+                                                transition: "transform 0.2s",
+                                                filter: "drop-shadow(0 1px 2px #0002)",
+                                            }}
+                                            onError={(e) => {
+                                                e.currentTarget.style.display = "none";
+                                            }}
+                                        />
+                                    </button>
+                                </>
                             )}
+
+                            <ExpandBrandDesc brand={brand} open={open} setOpen={setOpen} />
                         </aside>
                     </div>
                 </>
@@ -451,44 +576,4 @@ const BrandDetailPage = () => {
     );
 };
 
-
 export default memo(BrandDetailPage);
-
-function NoProductLottie() {
-    const containerRef = React.useRef(null);
-    React.useEffect(() => {
-        let anim = null;
-        if (containerRef.current) {
-            anim = lottie.loadAnimation({
-                container: containerRef.current,
-                renderer: "svg",
-                loop: false,
-                autoplay: true,
-                animationData: noProductAnimation,
-            });
-        }
-        return () => {
-            if (anim) anim.destroy();
-        };
-    }, []);
-    return (
-        <div style={{width: '100%', minHeight: '40vh', background: 'transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
-            <div
-                ref={containerRef}
-                style={{
-                    width: '100%',
-                    maxWidth: 450,
-                    height: 450,
-                    background: 'transparent',
-                    marginBottom: 16,
-                    borderRadius: 24,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    overflow: 'hidden',
-                }}
-            />
-            <div style={{color: '#64748b', fontWeight: 600, fontSize: 18, textAlign: 'center'}}>Không có sản phẩm phù hợp</div>
-        </div>
-    );
-}

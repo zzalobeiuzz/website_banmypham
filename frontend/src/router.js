@@ -8,6 +8,7 @@ import HomePage from "./pages/user/homePage/home_page.js";
 import ProfilePage from "./pages/user/profilePage/profile_page.js";
 import ProductDetail from "./pages/user/productDetail/product_detail.js";
 import BrandDetailPage from "./pages/user/brandDetail/brand_detail.js";
+import AllProductsPage from "./pages/user/allProducts/AllProductsPage.js";
 import MasterLayout from "./pages/user/theme/masterLayout/masterLayout.js";
 
 // ========== 🛠️ ADMIN IMPORTS ==========
@@ -35,6 +36,7 @@ const userRoutes = [
   { path: ROUTERS.USER.PROFILE, element: <ProfilePage />, showHeaderFooter: true },
   { path: ROUTERS.USER.PRODUCT_DETAIL, element: <ProductDetail />, showHeaderFooter: true },
   { path: ROUTERS.USER.BRAND_DETAIL, element: <BrandDetailPage />, showHeaderFooter: true },
+  { path: ROUTERS.USER.ALL_PRODUCTS, element: <AllProductsPage />, showHeaderFooter: true },
   { path: ROUTERS.USER.SIGNUP, element: <SignUp />, showHeaderFooter: false },
 ];
 
