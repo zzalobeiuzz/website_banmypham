@@ -60,3 +60,13 @@ export const ROUTERS = {
       NOTFOUNDPAGE: "*",                // Trang 404: bất kỳ đường dẫn không khớp
     },
   };
+
+// // Mảng breadcrumb cho các page user
+// export const USER_BREADCRUMBS = [
+//   { title: "Trang chủ", url: "/" },
+//   { title: "Tất cả sản phẩm", url: "/all-products/flash-sale" },
+//   { title: "Chi tiết sản phẩm", url: "/product/:id" },
+//   { title: "Chi tiết thương hiệu", url: "/brand/:idBrand" },
+//   { title: "Profile", url: "/profile" },
+//   { title: "Đăng ký", url: "/signup" },
+// ];

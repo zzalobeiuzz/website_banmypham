@@ -1,0 +1,125 @@
+/* Bố cục 2 cột hiện đại cho trang sản phẩm */
+.all-products-page-2col {
+  padding: 32px 0 48px 0;
+}
+.all-products-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 24px;
+  text-align: center;
+  letter-spacing: 1px;
+}
+.all-products-layout {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+}
+.all-products-filter {
+  width: 260px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 16px 0 rgba(0,0,0,0.06);
+  padding: 24px 20px 20px 20px;
+  min-height: 400px;
+}
+.filter-block h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 18px;
+}
+.filter-group {
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.filter-input {
+  padding: 7px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 1rem;
+  background: #f9fafb;
+  outline: none;
+  transition: border 0.2s;
+}
+.filter-input:focus {
+  border: 1.5px solid #3b82f6;
+}
+.filter-btn {
+  background: linear-gradient(90deg, #3b82f6 60%, #6366f1 100%);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 0;
+  font-size: 1rem;
+  font-weight: 600;
+  width: 100%;
+  cursor: pointer;
+  margin-top: 8px;
+  box-shadow: 0 2px 8px 0 rgba(59,130,246,0.08);
+  transition: background 0.2s;
+}
+.filter-btn:hover {
+  background: linear-gradient(90deg, #2563eb 60%, #6366f1 100%);
+}
+.all-products-main {
+  flex: 1;
+  min-width: 0;
+}
+.all-products-loading,
+.all-products-error,
+.all-products-empty {
+  text-align: center;
+  font-size: 1.1rem;
+  color: #64748b;
+  margin-top: 40px;
+}
+.all-products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 24px;
+  margin-top: 8px;
+}
+.all-product-card {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.06);
+  padding: 18px 14px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: box-shadow 0.2s, transform 0.2s;
+  cursor: pointer;
+}
+.all-product-card:hover {
+  box-shadow: 0 4px 24px 0 rgba(59,130,246,0.13);
+  transform: translateY(-4px) scale(1.03);
+}
+.all-product-img {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  background: #f3f4f6;
+}
+.all-product-name {
+  font-weight: 600;
+  margin: 8px 0 4px 0;
+  text-align: center;
+  font-size: 1.05rem;
+  color: #22223b;
+}
+.all-product-sale-price {
+  color: #ef4444;
+  font-weight: 700;
+  font-size: 1.08rem;
+  margin-bottom: 2px;
+}
+.all-product-origin-price {
+  color: #64748b;
+  font-size: 0.98rem;
+}
+.strikethrough {
+  text-decoration: line-through;
+}
