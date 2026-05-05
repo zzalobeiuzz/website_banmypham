@@ -1,0 +1,1 @@
+Folder context dùng để chứa global state (dữ liệu dùng chung toàn app).

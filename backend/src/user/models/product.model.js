@@ -195,77 +195,127 @@ exports.findAllProducts = async () => {
   }
 };
 
-// ===============TRUY VẤN CHI TIẾT SẢN PHẨM THEO PRODUCTID===============
-exports.findProductDetailById = async (productId) => {
+// ===============TRUY VẤN CHI TIẾT 1 MẢNG SẢN PHẨM THEO PRODUCTID===============
+exports.findProductDetailById = async (productIds) => {
   try {
     const pool = await connectDB();
-    const result = await pool.request()
-      .input("ProductID", productId)
-      .query(`
-        SELECT
-          P.*,
-          ISNULL(BDQ.StockQuantity, 0) AS StockQuantity,
-          C.CategoryName,
-          SC.SubCategoryName,
-          D.Usage,
-          D.Ingredient,
-          D.ProductDescription,
-          D.HowToUse
-        FROM PRODUCT P
-        LEFT JOIN CATEGORY C ON P.CategoryID = C.CategoryID
-        LEFT JOIN SUB_CATEGORY SC ON P.SubCategoryID = SC.SubCategoryID
-        LEFT JOIN (
-          SELECT ProductID, SUM(CAST(Quantity AS INT)) AS StockQuantity
-          FROM BATCH_DETAIL BD
-          LEFT JOIN BATCHES B ON B.ID = BD.BatchID
-          WHERE ISNULL(BD.IsActive, 1) = 1
-            AND (B.IsActive = 1 OR B.IsActive IS NULL)
-          GROUP BY ProductID
-        ) BDQ ON BDQ.ProductID = P.ProductID
-        LEFT JOIN Product_Detail D ON P.DetailID = D.IDDetail
-        WHERE P.ProductID = @ProductID
-          AND (P.IsHidden = 0 OR P.IsHidden IS NULL)
-          AND (C.IsHidden = 0 OR C.IsHidden IS NULL)
-          AND (SC.IsHidden = 0 OR SC.IsHidden IS NULL)
-      `);
 
-    return result.recordset[0] || null;
+    // 👉 luôn đảm bảo là array
+    const ids = Array.isArray(productIds) ? productIds : [productIds];
+
+    // 👉 tạo list param @id0, @id1, @id2...
+    const request = pool.request();
+
+    const idParams = ids.map((id, index) => {
+      const paramName = `id${index}`;
+      request.input(paramName, id);
+      return `@${paramName}`;
+    });
+
+    const query = `
+      SELECT
+        P.*,
+        ISNULL(BDQ.StockQuantity, 0) AS StockQuantity,
+        C.CategoryName,
+        SC.SubCategoryName,
+        D.Usage,
+        D.Ingredient,
+        D.ProductDescription,
+        D.HowToUse
+      FROM PRODUCT P
+      LEFT JOIN CATEGORY C ON P.CategoryID = C.CategoryID
+      LEFT JOIN SUB_CATEGORY SC ON P.SubCategoryID = SC.SubCategoryID
+      LEFT JOIN (
+        SELECT ProductID, SUM(CAST(Quantity AS INT)) AS StockQuantity
+        FROM BATCH_DETAIL BD
+        LEFT JOIN BATCHES B ON B.ID = BD.BatchID
+        WHERE ISNULL(BD.IsActive, 1) = 1
+          AND (B.IsActive = 1 OR B.IsActive IS NULL)
+        GROUP BY ProductID
+      ) BDQ ON BDQ.ProductID = P.ProductID
+      LEFT JOIN Product_Detail D ON P.DetailID = D.IDDetail
+      WHERE P.ProductID IN (${idParams.join(",")})
+        AND (P.IsHidden = 0 OR P.IsHidden IS NULL)
+        AND (C.IsHidden = 0 OR C.IsHidden IS NULL)
+        AND (SC.IsHidden = 0 OR SC.IsHidden IS NULL)
+    `;
+
+    const result = await request.query(query);
+
+    return result.recordset || [];
   } catch (error) {
     console.error("❌ Lỗi findProductDetailById:", error.message);
     throw error;
   }
 };
 
-// ===============TRUY VẤN DANH SÁCH LÔ HÀNG THEO PRODUCTID===============
-exports.findBatchDetailsByProductId = async (productId) => {
+// ===============TRUY VẤN BATCH THEO PRODUCT ID (SINGLE & MULTIPLE)===============
+exports.findBatchDetailsByProductId = async (input) => {
   try {
     const pool = await connectDB();
-    const result = await pool.request()
-      .input("ProductID", productId)
-      .query(`
-        SELECT
-          BD.*,
-          B.CreatedAt AS BatchCreatedAt,
-          B.Note AS BatchNote
-        FROM BATCH_DETAIL BD
-        LEFT JOIN BATCHES B ON B.ID = BD.BatchID
-        WHERE BD.ProductID = @ProductID
-          AND ISNULL(BD.IsActive, 1) = 1
-          AND (B.IsActive = 1 OR B.IsActive IS NULL)
-        ORDER BY B.CreatedAt DESC
-      `);
 
-    return (result.recordset || []).map((row, index) => ({
-      batchId: row.BatchID || row.BatchId || row.IDBatch || row.BatchDetailID || row.ID || row.Id || `ROW_${index + 1}`,
-      barcode: row.Barcode || "",
-      quantity: Number(row.Quantity || 0),
-      createdAt: row.BatchCreatedAt || row.CreatedAt || null,
-      expiryDate: row.ExpiryDate || row.ExpiredDate || row.ExpireDate || null,
-      note: row.BatchNote || row.Note || "",
-    }));
+    // 👉 luôn convert về array
+    const ids = Array.isArray(input) ? input : [input];
+
+    if (!ids.length) return {};
+
+    const request = pool.request();
+
+    // 👉 tạo param @id0, @id1...
+    const idParams = ids.map((id, index) => {
+      const key = `id${index}`;
+      request.input(key, id);
+      return `@${key}`;
+    });
+
+    const result = await request.query(`
+      SELECT
+        BD.*,
+        B.CreatedAt AS BatchCreatedAt,
+        B.Note AS BatchNote
+      FROM BATCH_DETAIL BD
+      LEFT JOIN BATCHES B ON B.ID = BD.BatchID
+      WHERE BD.ProductID IN (${idParams.join(",")})
+        AND ISNULL(BD.IsActive, 1) = 1
+        AND (B.IsActive = 1 OR B.IsActive IS NULL)
+      ORDER BY B.CreatedAt DESC
+    `);
+
+    // 👉 group theo ProductID
+    const grouped = {};
+
+    (result.recordset || []).forEach((row, index) => {
+      const productId = row.ProductID;
+
+      if (!grouped[productId]) {
+        grouped[productId] = [];
+      }
+
+      grouped[productId].push({
+        batchId:
+          row.BatchID ||
+          row.BatchId ||
+          row.IDBatch ||
+          row.BatchDetailID ||
+          row.ID ||
+          row.Id ||
+          `ROW_${index + 1}`,
+        barcode: row.Barcode || "",
+        quantity: Number(row.Quantity || 0),
+        createdAt: row.BatchCreatedAt || row.CreatedAt || null,
+        expiryDate:
+          row.ExpiryDate ||
+          row.ExpiredDate ||
+          row.ExpireDate ||
+          null,
+        note: row.BatchNote || row.Note || "",
+      });
+    });
+
+    return grouped;
   } catch (error) {
     console.error("❌ Lỗi findBatchDetailsByProductId:", error.message);
-    return [];
+    return {};
   }
 };
 

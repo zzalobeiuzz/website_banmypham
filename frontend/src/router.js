@@ -10,6 +10,8 @@ import ProductDetail from "./pages/user/productDetail/product_detail.js";
 import BrandDetailPage from "./pages/user/brandDetail/brand_detail.js";
 import AllProductsPage from "./pages/user/allProducts/AllProductsPage.js";
 import MasterLayout from "./pages/user/theme/masterLayout/masterLayout.js";
+import CartDetail from "./pages/user/CartPage/CartDetail.js"
+import PaymentCallback from "./pages/user/component/checkout/PaymentCallback.js";
 
 // ========== 🛠️ ADMIN IMPORTS ==========
 import AddProduct from "./pages/admin/components/DynamicHome/product/AddProduct.js";
@@ -38,6 +40,10 @@ const userRoutes = [
   { path: ROUTERS.USER.BRAND_DETAIL, element: <BrandDetailPage />, showHeaderFooter: true },
   { path: ROUTERS.USER.ALL_PRODUCTS, element: <AllProductsPage />, showHeaderFooter: true },
   { path: ROUTERS.USER.SIGNUP, element: <SignUp />, showHeaderFooter: false },
+  { path: ROUTERS.USER.CARTDETAIL, element: <CartDetail />, showHeaderFooter: true },
+  { path: "payment/success", element: <PaymentCallback />, showHeaderFooter: false },
+  { path: "payment/error", element: <PaymentCallback />, showHeaderFooter: false },
+  { path: "payment/cancel", element: <PaymentCallback />, showHeaderFooter: false },
 ];
 
 // ========== 🛠️ ADMIN ROUTES ==========

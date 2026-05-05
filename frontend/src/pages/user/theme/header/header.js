@@ -11,41 +11,31 @@ import { API_BASE, UPLOAD_BASE } from "../../../../constants";
 import useHttp from "../../../../hooks/useHttp";
 import { ROUTERS } from "../../../../utils/router";
 import "./header.scss";
-
-const CART_STORAGE_KEY = "cartItems";
-
-const getCartCountFromStorage = () => {
-  try {
-    const raw = localStorage.getItem(CART_STORAGE_KEY);
-    const parsed = JSON.parse(raw || "[]");
-    const items = Array.isArray(parsed) ? parsed : [];
-
-    return items.reduce((sum, item) => {
-      const qty = Number(item?.quantity || 0);
-      return sum + (Number.isFinite(qty) && qty > 0 ? qty : 0);
-    }, 0);
-  } catch (error) {
-    return 0;
-  }
-};
+import { useCart } from "../../context/CartContext";
+import { useAuth } from "../../context/AuthContext";
 
 const Header = () => {
-  const [user, setUser] = useState(null);
+  const { user, logout, login } = useAuth(); // 👈 thêm login
   const [isFixed, setIsFixed] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [cartCount, setCartCount] = useState(0);
+
+  const { cartCount } = useCart();
+
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
   const [categories, setCategories] = useState([]);
   const [activeCategoryId, setActiveCategoryId] = useState(null);
+
   const isFixedRef = useRef(false);
   const tickingRef = useRef(false);
 
   const location = useLocation();
   const { request } = useHttp();
+
   const isProfilePage = location.pathname === `/${ROUTERS.USER.PROFILE}`;
   const normalizedPath = (location.pathname || "/").replace(/\/+$/, "") || "/";
   const isHomePage = normalizedPath === "/";
+
   const resolveAvatarSrc = (avatar) => {
     const value = String(avatar || "").trim();
     if (!value) return `${UPLOAD_BASE}/icons/icons8-web-account.png`;
@@ -57,113 +47,87 @@ const Header = () => {
     return `${UPLOAD_BASE}/${normalized}`;
   };
 
-  // ✅ Load category khi mount
+  // ================= CATEGORY =================
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const res = await request("GET", `${API_BASE}/api/user/products/loadCategory`);
-        if (res.success) {
-          setCategories(res.data);
-        }
-      } catch (error) {
-        console.error("Lỗi khi load categories:", error);
+        const res = await request(
+          "GET",
+          `${API_BASE}/api/user/products/loadCategory`,
+        );
+        if (res.success) setCategories(res.data);
+      } catch (err) {
+        console.error(err);
       }
     };
     fetchCategories();
   }, [request]);
 
-  // ✅ Xử lý scroll header
+  // ================= USER + SCROLL =================
   useEffect(() => {
-    const hydrateUser = () => {
-      const storedUser = localStorage.getItem("user");
-      if (!storedUser) {
-        setUser(null);
-        return;
-      }
-
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        setUser(null);
-      }
-    };
-
-    hydrateUser();
-
-    const handleUserUpdated = () => hydrateUser();
-    const hydrateCart = () => setCartCount(getCartCountFromStorage());
-    const handleCartUpdated = () => hydrateCart();
-    const handleStorage = (event) => {
-      if (!event?.key || event.key === CART_STORAGE_KEY) {
-        hydrateCart();
-      }
-    };
-
-    hydrateCart();
-    window.addEventListener("user-updated", handleUserUpdated);
-    window.addEventListener("cart-updated", handleCartUpdated);
-    window.addEventListener("storage", handleStorage);
-
-    if (location.state?.showLogin) {
-      setShowLogin(true);
-      window.history.replaceState({}, document.title);
-    }
-
     const ENTER_FIXED_AT = 90;
     const EXIT_FIXED_AT = 10;
 
-    const updateHeaderState = () => {
-      const currentScrollY = Math.max(window.scrollY || 0, 0);
-      const nextIsFixed =
-        (isFixedRef.current && currentScrollY > EXIT_FIXED_AT) ||
-        (!isFixedRef.current && currentScrollY > ENTER_FIXED_AT);
+    const updateHeader = () => {
+      const y = window.scrollY || 0;
 
-      if (nextIsFixed !== isFixedRef.current) {
-        isFixedRef.current = nextIsFixed;
-        setIsFixed(nextIsFixed);
+      const next =
+        (isFixedRef.current && y > EXIT_FIXED_AT) ||
+        (!isFixedRef.current && y > ENTER_FIXED_AT);
+
+      if (next !== isFixedRef.current) {
+        isFixedRef.current = next;
+        setIsFixed(next);
       }
 
       tickingRef.current = false;
     };
 
-    const handleScroll = () => {
+    const onScroll = () => {
       if (tickingRef.current) return;
       tickingRef.current = true;
-      window.requestAnimationFrame(updateHeaderState);
+      requestAnimationFrame(updateHeader);
     };
 
-    updateHeaderState();
-    window.addEventListener("scroll", handleScroll, { passive: true });
+    updateHeader();
+    window.addEventListener("scroll", onScroll, { passive: true });
+
     return () => {
-      window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("user-updated", handleUserUpdated);
-      window.removeEventListener("cart-updated", handleCartUpdated);
-      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("scroll", onScroll);
     };
   }, [location.pathname, location.state]);
 
-  // ✅ Toggle popup login
-  const toggleLoginPopup = () => setShowLogin((prev) => !prev);
+  // ================= LOGIN =================
+  const toggleLoginPopup = () => setShowLogin((p) => !p);
 
-  // ✅ Toggle dropdown tìm kiếm
-  const toggleDropdown = () => setDropdownOpen((prev) => !prev);
+  const toggleDropdown = () => setDropdownOpen((p) => !p);
+
   const openCategoryMenu = () => setCategoryMenuOpen(true);
+
   const closeCategoryMenu = () => {
-    if (isHomePage) {
-      setCategoryMenuOpen(true);
-      return;
-    }
+    if (isHomePage) return setCategoryMenuOpen(true);
     setCategoryMenuOpen(false);
     setActiveCategoryId(null);
   };
+  // Mở Popup Login
+  useEffect(() => {
+    const openLogin = () => setShowLogin(true);
+
+    window.addEventListener("open-login", openLogin);
+
+    return () => window.removeEventListener("open-login", openLogin);
+  }, []);
 
   useEffect(() => {
     setCategoryMenuOpen(isHomePage);
   }, [isHomePage]);
 
+  // ================= UI =================
   return (
     <>
-      <div className={`header ${isFixed ? "fixed-elements" : ""} ${isProfilePage ? "profile-hover-menu" : ""}`}>
+      <div
+        className={`header ${isFixed ? "fixed-elements" : ""} ${isProfilePage ? "profile-hover-menu" : ""}`}
+      >
         {/* ---------- Header top ---------- */}
         <div className="header-top">
           <div className="container">
@@ -202,33 +166,42 @@ const Header = () => {
                       <div
                         key={category.CategoryID}
                         className="menu_subcategory"
-                        onMouseEnter={() => setActiveCategoryId(category.CategoryID)}
+                        onMouseEnter={() =>
+                          setActiveCategoryId(category.CategoryID)
+                        }
                         onMouseLeave={() => setActiveCategoryId(null)}
                       >
                         <a href="/" className="category-name">
                           {category.CategoryName}
-                          <FontAwesomeIcon icon={faAngleRight} className="angle-icon" />
+                          <FontAwesomeIcon
+                            icon={faAngleRight}
+                            className="angle-icon"
+                          />
                         </a>
-                        {category.SubCategories && category.SubCategories.length > 0 && (
-                          <div
-                            className={`menu-content ${activeCategoryId === category.CategoryID ? "active" : ""}`}
-                          >
-                            <div className="menu-group-top">
-                              <a href="/">Nổi bật</a>
-                              <a href="/">Bán chạy</a>
-                              <a href="/">Hàng mới</a>
+                        {category.SubCategories &&
+                          category.SubCategories.length > 0 && (
+                            <div
+                              className={`menu-content ${activeCategoryId === category.CategoryID ? "active" : ""}`}
+                            >
+                              <div className="menu-group-top">
+                                <a href="/">Nổi bật</a>
+                                <a href="/">Bán chạy</a>
+                                <a href="/">Hàng mới</a>
+                              </div>
+                              <div className="menu-group-bottom">
+                                {category.SubCategories.map((sub) => (
+                                  <div
+                                    className="menu-col-item"
+                                    key={sub.SubCategoryID}
+                                  >
+                                    <a href="/" className="item-parent">
+                                      {sub.SubCategoryName}
+                                    </a>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                            <div className="menu-group-bottom">
-                              {category.SubCategories.map((sub) => (
-                                <div className="menu-col-item" key={sub.SubCategoryID}>
-                                  <a href="/" className="item-parent">
-                                    {sub.SubCategoryName}
-                                  </a>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
+                          )}
                       </div>
                     ))}
                   </div>
@@ -236,7 +209,11 @@ const Header = () => {
               )}
 
               <div className="search-bar">
-                <form className="search" tabIndex={0} onBlur={() => setDropdownOpen(false)}>
+                <form
+                  className="search"
+                  tabIndex={0}
+                  onBlur={() => setDropdownOpen(false)}
+                >
                   <button
                     type="button"
                     className="btn btn-secondary dropdown-toggle dropdown"
@@ -248,33 +225,46 @@ const Header = () => {
 
                   {dropdownOpen && (
                     <ul className="dropdown-menu show">
-                      {["Action", "Another action", "Something else here"].map((text, i) => (
-                        <li key={i}>
-                          <a
-                            className="dropdown-item"
-                            href="/"
-                            onClick={(e) => e.preventDefault()}
-                          >
-                            {text}
-                          </a>
-                        </li>
-                      ))}
+                      {["Action", "Another action", "Something else here"].map(
+                        (text, i) => (
+                          <li key={i}>
+                            <a
+                              className="dropdown-item"
+                              href="/"
+                              onClick={(e) => e.preventDefault()}
+                            >
+                              {text}
+                            </a>
+                          </li>
+                        ),
+                      )}
                     </ul>
                   )}
 
-                  <input className="input-search" placeholder="Tìm kiếm sản phẩm bạn mong muốn...." />
+                  <input
+                    className="input-search"
+                    placeholder="Tìm kiếm sản phẩm bạn mong muốn...."
+                  />
                   <button className="btn search-icon" type="submit">
-                    <img src={`${UPLOAD_BASE}/icons/search-icon.png`} alt="icon-search" />
+                    <img
+                      src={`${UPLOAD_BASE}/icons/search-icon.png`}
+                      alt="icon-search"
+                    />
                   </button>
                 </form>
 
-                <Link className="shopping-cart">
+                <Link
+                  to={`/${ROUTERS.USER.CARTDETAIL}`}
+                  className="shopping-cart"
+                >
                   <div className="shopping-cart-icon-wrap">
                     <img
                       src={`${UPLOAD_BASE}/icons/shopping-cart-icon.png`}
                       alt="icon-shopping-cart"
                     />
-                    {cartCount > 0 && <span className="cart-count-badge">{cartCount}</span>}
+                    {cartCount > 0 && (
+                      <span className="cart-count-badge">{cartCount}</span>
+                    )}
                   </div>
                   <span>Giỏ hàng</span>
                 </Link>
@@ -291,21 +281,22 @@ const Header = () => {
 
                 {user ? (
                   <div className="login-info d-flex align-items-center gap-3">
-                    <Link to={`/${ROUTERS.USER.PROFILE}`} className="login-button">
+                    <Link
+                      to={`/${ROUTERS.USER.PROFILE}`}
+                      className="login-button"
+                    >
                       <img
                         src={resolveAvatarSrc(user.avatar)}
                         alt="user-avatar"
                         className={user.avatar ? "user-avatar-thumb" : ""}
                       />
-                      <span>{!isFixed ? `Xin chào, ${user.name}` : user.name}</span>
+                      <span>
+                        {!isFixed ? `Xin chào, ${user.name}` : user.name}
+                      </span>
                     </Link>
                     <button
                       className="btn btn-sm btn-danger p-10"
-                      onClick={() => {
-                        localStorage.clear();
-                        setUser(null);
-                        window.location.reload();
-                      }}
+                      onClick={logout}
                     >
                       Đăng xuất
                     </button>
@@ -341,33 +332,42 @@ const Header = () => {
                   <div
                     key={category.CategoryID}
                     className="menu_subcategory"
-                    onMouseEnter={() => setActiveCategoryId(category.CategoryID)}
+                    onMouseEnter={() =>
+                      setActiveCategoryId(category.CategoryID)
+                    }
                     onMouseLeave={() => setActiveCategoryId(null)}
                   >
                     <a href="/" className="category-name">
                       {category.CategoryName}
-                      <FontAwesomeIcon icon={faAngleRight} className="angle-icon" />
+                      <FontAwesomeIcon
+                        icon={faAngleRight}
+                        className="angle-icon"
+                      />
                     </a>
-                    {category.SubCategories && category.SubCategories.length > 0 && (
-                      <div
-                        className={`menu-content ${activeCategoryId === category.CategoryID ? "active" : ""}`}
-                      >
-                        <div className="menu-group-top">
-                          <a href="/">Nổi bật</a>
-                          <a href="/">Bán chạy</a>
-                          <a href="/">Hàng mới</a>
+                    {category.SubCategories &&
+                      category.SubCategories.length > 0 && (
+                        <div
+                          className={`menu-content ${activeCategoryId === category.CategoryID ? "active" : ""}`}
+                        >
+                          <div className="menu-group-top">
+                            <a href="/">Nổi bật</a>
+                            <a href="/">Bán chạy</a>
+                            <a href="/">Hàng mới</a>
+                          </div>
+                          <div className="menu-group-bottom">
+                            {category.SubCategories.map((sub) => (
+                              <div
+                                className="menu-col-item"
+                                key={sub.SubCategoryID}
+                              >
+                                <a href="/" className="item-parent">
+                                  {sub.SubCategoryName}
+                                </a>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <div className="menu-group-bottom">
-                          {category.SubCategories.map((sub) => (
-                            <div className="menu-col-item" key={sub.SubCategoryID}>
-                              <a href="/" className="item-parent">
-                                {sub.SubCategoryName}
-                              </a>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                      )}
                   </div>
                 ))}
               </div>
@@ -400,7 +400,10 @@ const Header = () => {
       {showLogin && (
         <LoginPopup
           toggleLoginPopup={toggleLoginPopup}
-          onLoginSuccess={(userData) => setUser(userData)}
+          onLoginSuccess={(userData) => {
+            login(userData);
+            setShowLogin(false);
+          }}
         />
       )}
     </>

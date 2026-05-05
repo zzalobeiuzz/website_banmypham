@@ -7,6 +7,7 @@ export const ROUTERS = {
       BRAND_DETAIL: "brand/:idBrand", // Chi tiết thương hiệu: /brand/BR001
       SIGNUP: "signup",              // Trang đăng ký: /signup
       ALL_PRODUCTS: "all-products/:type", // Trang tất cả sản phẩm: /all-products/flash-sale
+      CARTDETAIL: "cart-detail",     // Trang chi tiết giỏ hàng: /cart-detail
     },
   
     // Các đường dẫn của ADMIN

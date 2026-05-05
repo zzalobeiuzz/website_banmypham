@@ -1,11 +1,68 @@
-
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import lottie from "lottie-web";
 import { useParams } from "react-router-dom";
 import { API_BASE, UPLOAD_BASE } from "../../../constants";
 import useHttp from "../../../hooks/useHttp";
 import "./AllProductsPage.scss";
-import BrandProductFilter from "../../../components/ProductFilter";
-import TitleBanner from "../../../components/TitleBanner";
+import BrandProductFilter from "../homePage/components/ProductFilter";
+import TitleBanner from "../homePage/components/TitleBanner";
+import ProductCard from "../homePage/components/ProductCard";
+import noProductAnimation from "../../../animation/no_product.json";
+
+const NoProductLottie = () => {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    let anim = null;
+
+    if (containerRef.current) {
+      anim = lottie.loadAnimation({
+        container: containerRef.current,
+        renderer: "svg",
+        loop: false,
+        autoplay: true,
+        animationData: noProductAnimation,
+      });
+    }
+
+    return () => {
+      if (anim) anim.destroy();
+    };
+  }, []);
+
+  return (
+    <div
+      style={{
+        width: "100%",
+        minHeight: "42vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <div
+        ref={containerRef}
+        style={{
+          width: "100%",
+          maxWidth: 440,
+          height: 440,
+          overflow: "hidden",
+        }}
+      />
+      <div
+        style={{
+          color: "#64748b",
+          fontWeight: 600,
+          fontSize: 18,
+          textAlign: "center",
+        }}
+      >
+        Không có sản phẩm phù hợp
+      </div>
+    </div>
+  );
+};
 
 const TITLE_MAP = {
   "flash-sale": {
@@ -42,7 +99,7 @@ export default function AllProductsPage() {
   // Lấy danh sách category từ products
   const categories = React.useMemo(() => {
     const cats = new Set(["all"]);
-    products.forEach(p => {
+    products.forEach((p) => {
       if (p.CategoryName) cats.add(p.CategoryName);
     });
     return Array.from(cats);
@@ -51,7 +108,10 @@ export default function AllProductsPage() {
   const PRICE_MIN_LIMIT = 0;
   const PRICE_MAX_LIMIT = 10000000;
   const PRICE_STEP = 100000;
-  const formatVndShort = (v) => (v >= 1000000 ? (v/1000000).toFixed(1) + "tr" : v.toLocaleString("vi-VN") + "đ");
+  const formatVndShort = (v) =>
+    v >= 1000000
+      ? (v / 1000000).toFixed(1) + "tr"
+      : v.toLocaleString("vi-VN") + "đ";
 
   const config = TITLE_MAP[type] || TITLE_MAP["flash-sale"];
 
@@ -79,25 +139,47 @@ export default function AllProductsPage() {
 
   // Lọc sản phẩm theo filter
   const filteredProducts = React.useMemo(() => {
-    return products.filter(item => {
+    return products.filter((item) => {
       // Lọc theo search
-      if (searchText && !(item.ProductName || "").toLowerCase().includes(searchText.toLowerCase())) return false;
+      if (
+        searchText &&
+        !(item.ProductName || "")
+          .toLowerCase()
+          .includes(searchText.toLowerCase())
+      )
+        return false;
       // Lọc theo category
-      if (selectedCategory !== "all" && item.CategoryName !== selectedCategory) return false;
+      if (selectedCategory !== "all" && item.CategoryName !== selectedCategory)
+        return false;
       // Lọc theo khoảng giá
       const price = item.sale_price || item.Price || 0;
-      if (price < selectedPriceRange[0] || price > selectedPriceRange[1]) return false;
+      if (price < selectedPriceRange[0] || price > selectedPriceRange[1])
+        return false;
       // Lọc sale only
       if (saleOnly && !item.sale_price) return false;
       return true;
     });
   }, [products, searchText, selectedCategory, selectedPriceRange, saleOnly]);
+  
+  //Xử lý đường dẫn ảnh trước khi đưa vào <img>
+  const resolveProductImage = (img) => {
+    if (!img) return "";
+    return `${UPLOAD_BASE}/pictures/${img}`;
+  };
 
   // Sắp xếp
   const sortedProducts = React.useMemo(() => {
     let arr = [...filteredProducts];
-    if (sortBy === "price-asc") arr.sort((a, b) => (a.sale_price || a.Price || 0) - (b.sale_price || b.Price || 0));
-    else if (sortBy === "price-desc") arr.sort((a, b) => (b.sale_price || b.Price || 0) - (a.sale_price || a.Price || 0));
+    if (sortBy === "price-asc")
+      arr.sort(
+        (a, b) =>
+          (a.sale_price || a.Price || 0) - (b.sale_price || b.Price || 0),
+      );
+    else if (sortBy === "price-desc")
+      arr.sort(
+        (a, b) =>
+          (b.sale_price || b.Price || 0) - (a.sale_price || a.Price || 0),
+      );
     return arr;
   }, [filteredProducts, sortBy]);
 
@@ -136,37 +218,22 @@ export default function AllProductsPage() {
           ) : (
             <div className="all-products-grid">
               {sortedProducts.length === 0 ? (
-                <div className="all-products-empty">Không có sản phẩm phù hợp.</div>
+                <div className="all-products-empty-state">
+                  <NoProductLottie />
+                </div>
               ) : (
-                sortedProducts.map((item) => (
-                  <div key={item.ProductID || item.idBrand} className="all-product-card">
-                    <img
-                      src={
-                        item.Image
-                          ? `${UPLOAD_BASE}/pictures/${item.Image}`
-                          : item.previewImage
-                          ? `${UPLOAD_BASE}/pictures/${item.previewImage}`
-                          : item.logoUrl
-                          ? `${UPLOAD_BASE}/icons/${item.logoUrl}`
-                          : ""
-                      }
-                      alt={item.ProductName || item.brandName || "Sản phẩm"}
-                      className="all-product-img"
-                    />
-                    <div className="all-product-name">
-                      {item.ProductName || item.brandName || "Sản phẩm"}
-                    </div>
-                    {item.sale_price && (
-                      <div className="all-product-sale-price">
-                        {item.sale_price.toLocaleString("vi-VN")}đ
-                      </div>
-                    )}
-                    {item.Price && (
-                      <div className={item.sale_price ? "all-product-origin-price strikethrough" : "all-product-origin-price"}>
-                        {item.Price.toLocaleString("vi-VN")}đ
-                      </div>
-                    )}
-                  </div>
+                sortedProducts.map((item, index) => (
+                  <ProductCard
+                    key={item.ProductID || item.idBrand}
+                    item={item}
+                    cardIndex={index}
+                    detailUrl={`/product/${item.ProductID}`} // 👈 sửa theo route của bạn
+                    resolveProductImage={resolveProductImage}
+                    onAddToCart={(e, item) => {
+                      console.log("Add to cart:", item);
+                      // 👉 sau này gắn redux / context / api
+                    }}
+                  />
                 ))
               )}
             </div>

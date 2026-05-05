@@ -97,6 +97,7 @@ exports.getProductsHandler = async (req, res) => {
 // ============================= Lấy chi tiết sản phẩm theo ProductID =============================
 exports.getProductDetailHandler = async (req, res) => {
   try {
+    console.log(req.data)
     const { id } = req.params;
     const result = await getProductDetailById(id);
 
@@ -136,6 +137,52 @@ exports.getBrandDetailPageHandler = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Lỗi server khi lấy trang chi tiết thương hiệu.",
+    });
+  }
+};
+
+//================================= Lấy thông tin sản phẩm có trong giỏ hàng =================================
+exports.getCartProductsHandler = async (req, res) => {
+  try {
+    const { ids } = req.body;
+
+    // ❌ Validate input
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Danh sách sản phẩm không hợp lệ.",
+      });
+    }
+
+    // 👉 gọi service (bạn tự có hoặc mình gợi ý dưới)
+    const result = await getProductDetailById(ids);
+
+    if (!result?.success || !result?.data) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy sản phẩm.",
+      });
+    }
+
+    // 🔥 Giữ đúng thứ tự theo cart (quan trọng)
+    const sortedProducts = ids
+      .map((id) =>
+        result.data.find(
+          (p) => String(p.ProductID) === String(id)
+        )
+      )
+      .filter(Boolean);
+
+    return res.status(200).json({
+      success: true,
+      data: sortedProducts,
+    });
+
+  } catch (error) {
+    console.error("❌ Lỗi khi lấy sản phẩm giỏ hàng:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server khi lấy sản phẩm giỏ hàng.",
     });
   }
 };

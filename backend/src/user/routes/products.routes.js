@@ -9,6 +9,7 @@ const {
   getProductsHandler,
   getProductDetailHandler,
   getBrandDetailPageHandler,
+  getCartProductsHandler
 } = require("../controllers/products.controller");
 
 // Định nghĩa các route trong Express Router
@@ -19,5 +20,9 @@ router.get("/loadCategory", getCategoryHandler);
 router.get("/loadAllProducts", getProductsHandler);
 router.get("/brand/:idBrand", getBrandDetailPageHandler);
 router.get("/detail/:id", getProductDetailHandler);
+
+//========API giỏ hàng===============
+// Lấy thông tin sản phẩm dựa trên id
+router.post("/cart", getCartProductsHandler);
 
 module.exports = router;

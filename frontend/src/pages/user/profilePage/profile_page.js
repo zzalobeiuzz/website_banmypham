@@ -2,15 +2,12 @@ import { memo, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { API_BASE, UPLOAD_BASE } from "../../../constants";
 import useHttp from "../../../hooks/useHttp";
+import { useAuth } from "../context/AuthContext";
 import { ROUTERS } from "../../../utils/router";
 import "./profile_page.scss";
 
 const getInitials = (fullName = "") => {
-  const parts = String(fullName)
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-
+  const parts = String(fullName).trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "U";
   if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
 
@@ -61,7 +58,6 @@ const normalizeDisplayValue = (value) => {
 };
 
 const ProfilePage = () => {
-  const [user, setUser] = useState(null);
   const [avatarMessage, setAvatarMessage] = useState("");
   const [passwordMessage, setPasswordMessage] = useState("");
   const [nameMessage, setNameMessage] = useState("");
@@ -70,7 +66,6 @@ const ProfilePage = () => {
   const [editingName, setEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState("");
   const [isEditingFields, setIsEditingFields] = useState(false);
-  const [, setEditEmailValue] = useState("");
   const [editPhoneValue, setEditPhoneValue] = useState("");
   const [editAddressValue, setEditAddressValue] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
@@ -84,10 +79,11 @@ const ProfilePage = () => {
   const [showErrorPopup, setShowErrorPopup] = useState(false);
   const [errorPopupMessage, setErrorPopupMessage] = useState("");
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const emailEditableRef = useRef(null);
   const phoneEditableRef = useRef(null);
   const addressEditableRef = useRef(null);
+  const didFetchProfileRef = useRef(false);
   const navigate = useNavigate();
+  const { user, logout, updateUser } = useAuth();
   const { request, loading } = useHttp();
 
   const showErrorMessage = (setter, message) => {
@@ -112,17 +108,16 @@ const ProfilePage = () => {
   };
 
   const resetProfileFieldsToOriginal = () => {
-    const baseEmail = normalizeDisplayValue(user?.email);
     const basePhone = normalizeDisplayValue(user?.phoneNumber || user?.phone);
     const baseAddress = normalizeDisplayValue(user?.address);
 
-    setEditEmailValue(baseEmail);
     setEditPhoneValue(basePhone);
     setEditAddressValue(baseAddress);
 
-    if (emailEditableRef.current) emailEditableRef.current.textContent = baseEmail;
-    if (phoneEditableRef.current) phoneEditableRef.current.textContent = basePhone;
-    if (addressEditableRef.current) addressEditableRef.current.textContent = baseAddress;
+    if (phoneEditableRef.current)
+      phoneEditableRef.current.textContent = basePhone;
+    if (addressEditableRef.current)
+      addressEditableRef.current.textContent = baseAddress;
   };
 
   const closeErrorPopup = () => {
@@ -150,40 +145,57 @@ const ProfilePage = () => {
   };
 
   useEffect(() => {
-    const hydrateLocalUser = () => {
-      const saved = localStorage.getItem("user");
-      if (!saved) {
-        setUser(null);
-        return null;
-      }
+    const normalizedUser = user
+      ? {
+          ...user,
+          email: user.email || "",
+          phoneNumber: user.phoneNumber || user.phone || "",
+          address: user.address || "",
+          profileName: user.profileName || user.name || "Người dùng",
+        }
+      : null;
 
-      try {
-        const userData = JSON.parse(saved);
-        setUser(userData);
-        setEditNameValue(userData.profileName || userData.name || "Người dùng");
-        setEditEmailValue(userData.email || "");
-        setEditPhoneValue(userData.phoneNumber || userData.phone || "");
-        setEditAddressValue(userData.address || "");
-        return userData;
-      } catch (error) {
-        console.error("Không thể đọc thông tin người dùng từ localStorage", error);
-        setUser(null);
-        return null;
-      }
-    };
+    if (!normalizedUser) {
+      setIsInitialLoading(false);
+      return;
+    }
+
+    setEditNameValue(normalizedUser.profileName || "Người dùng");
+    setEditPhoneValue(normalizedUser.phoneNumber || "");
+    setEditAddressValue(normalizedUser.address || "");
+    if (phoneEditableRef.current)
+      phoneEditableRef.current.textContent = normalizeDisplayValue(
+        normalizedUser.phoneNumber,
+      );
+    if (addressEditableRef.current)
+      addressEditableRef.current.textContent = normalizeDisplayValue(
+        normalizedUser.address,
+      );
 
     const fetchLatestProfile = async () => {
+      if (didFetchProfileRef.current) {
+        setIsInitialLoading(false);
+        return;
+      }
+
+      didFetchProfileRef.current = true;
+
       const token = localStorage.getItem("accessToken");
       if (!token) return;
 
       try {
-        const response = await request("GET", `${API_BASE}/api/user/auth/profile`, null, {
-          Authorization: `Bearer ${token}`,
-        });
+        const response = await request(
+          "GET",
+          `${API_BASE}/api/user/auth/profile`,
+          null,
+          {
+            Authorization: `Bearer ${token}`,
+          },
+        );
 
         if (response?.success && response?.data) {
           const updatedUser = {
-            ...(JSON.parse(localStorage.getItem("user") || "{}") || {}),
+            ...(normalizedUser || {}),
             email: response.data.email,
             name: response.data.displayName || "",
             profileName: response.data.name || response.data.displayName || "",
@@ -193,13 +205,18 @@ const ProfilePage = () => {
             role: response.data.role,
           };
 
-          setUser(updatedUser);
+          updateUser(updatedUser);
           setEditNameValue(updatedUser.profileName || "Người dùng");
-          setEditEmailValue(updatedUser.email || "");
           setEditPhoneValue(updatedUser.phoneNumber || "");
           setEditAddressValue(updatedUser.address || "");
-          localStorage.setItem("user", JSON.stringify(updatedUser));
-          window.dispatchEvent(new Event("user-updated"));
+          if (phoneEditableRef.current)
+            phoneEditableRef.current.textContent = normalizeDisplayValue(
+              updatedUser.phoneNumber,
+            );
+          if (addressEditableRef.current)
+            addressEditableRef.current.textContent = normalizeDisplayValue(
+              updatedUser.address,
+            );
         }
       } catch (error) {
         // Bỏ qua lỗi fetch profile để không chặn màn hình
@@ -208,33 +225,41 @@ const ProfilePage = () => {
 
     const initProfileData = async () => {
       try {
-        const localUser = hydrateLocalUser();
-        if (localUser) {
-          await fetchLatestProfile();
-        }
+        await fetchLatestProfile();
       } finally {
         setIsInitialLoading(false);
       }
     };
 
     initProfileData();
-  }, [request]);
+  }, [request, updateUser, user]);
 
   useEffect(() => {
     if (isEditingFields) {
-      placeCaretAtEnd(emailEditableRef.current);
+      placeCaretAtEnd(phoneEditableRef.current);
     }
   }, [isEditingFields]);
 
   useEffect(() => {
-    const messages = [avatarMessage, nameMessage, fieldMessage, passwordMessage].filter(Boolean);
+    const messages = [
+      avatarMessage,
+      nameMessage,
+      fieldMessage,
+      passwordMessage,
+    ].filter(Boolean);
     const latestError = messages.find((message) => isErrorText(message));
 
     if (latestError && latestError !== errorPopupMessage) {
       setErrorPopupMessage(latestError);
       setShowErrorPopup(true);
     }
-  }, [avatarMessage, nameMessage, fieldMessage, passwordMessage, errorPopupMessage]);
+  }, [
+    avatarMessage,
+    nameMessage,
+    fieldMessage,
+    passwordMessage,
+    errorPopupMessage,
+  ]);
 
   const displayName = user?.profileName || user?.name || "Người dùng";
   const displayEmail = normalizeDisplayValue(user?.email);
@@ -247,9 +272,13 @@ const ProfilePage = () => {
       throw new Error("Phiên đăng nhập đã hết hạn.");
     }
 
-    const refreshRes = await request("POST", `${API_BASE}/api/admin/refresh-token`, {
-      refreshToken,
-    });
+    const refreshRes = await request(
+      "POST",
+      `${API_BASE}/api/admin/refresh-token`,
+      {
+        refreshToken,
+      },
+    );
 
     if (!refreshRes?.accessToken) {
       throw new Error("Không thể làm mới access token.");
@@ -260,18 +289,7 @@ const ProfilePage = () => {
   };
 
   const updateLocalUserAvatar = (avatar) => {
-    setUser((prev) => ({ ...(prev || {}), avatar }));
-    const saved = localStorage.getItem("user");
-    if (!saved) return;
-
-    try {
-      const parsed = JSON.parse(saved);
-      parsed.avatar = avatar;
-      localStorage.setItem("user", JSON.stringify(parsed));
-      window.dispatchEvent(new Event("user-updated"));
-    } catch (error) {
-      console.error("Không thể cập nhật localStorage user avatar", error);
-    }
+    updateUser({ ...(user || {}), avatar });
   };
 
   const uploadAvatar = async ({ file }) => {
@@ -286,18 +304,29 @@ const ProfilePage = () => {
       const formData = new FormData();
       formData.append("avatar", file);
 
-      const response = await request("PUT", `${API_BASE}/api/user/auth/avatar`, formData, {
-        Authorization: `Bearer ${token}`,
-      });
+      const response = await request(
+        "PUT",
+        `${API_BASE}/api/user/auth/avatar`,
+        formData,
+        {
+          Authorization: `Bearer ${token}`,
+        },
+      );
 
       if (response?.avatar) {
         updateLocalUserAvatar(response.avatar);
-        showSuccessMessage(setAvatarMessage, "Cập nhật ảnh đại diện thành công.");
+        showSuccessMessage(
+          setAvatarMessage,
+          "Cập nhật ảnh đại diện thành công.",
+        );
       }
     } catch (error) {
       const isAuthError = error?.status === 401;
       if (!isAuthError) {
-        showErrorMessage(setAvatarMessage, error?.message || "Cập nhật ảnh đại diện thất bại.");
+        showErrorMessage(
+          setAvatarMessage,
+          error?.message || "Cập nhật ảnh đại diện thất bại.",
+        );
         return;
       }
 
@@ -306,19 +335,33 @@ const ProfilePage = () => {
         const retryFormData = new FormData();
         retryFormData.append("avatar", file);
 
-        const retryRes = await request("PUT", `${API_BASE}/api/user/auth/avatar`, retryFormData, {
-          Authorization: `Bearer ${newAccessToken}`,
-        });
+        const retryRes = await request(
+          "PUT",
+          `${API_BASE}/api/user/auth/avatar`,
+          retryFormData,
+          {
+            Authorization: `Bearer ${newAccessToken}`,
+          },
+        );
 
         if (retryRes?.avatar) {
           updateLocalUserAvatar(retryRes.avatar);
-          showSuccessMessage(setAvatarMessage, "Cập nhật ảnh đại diện thành công.");
+          showSuccessMessage(
+            setAvatarMessage,
+            "Cập nhật ảnh đại diện thành công.",
+          );
           return;
         }
 
-        showErrorMessage(setAvatarMessage, "Không nhận được dữ liệu ảnh đại diện mới.");
+        showErrorMessage(
+          setAvatarMessage,
+          "Không nhận được dữ liệu ảnh đại diện mới.",
+        );
       } catch (refreshError) {
-        showErrorMessage(setAvatarMessage, "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.");
+        showErrorMessage(
+          setAvatarMessage,
+          "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.",
+        );
       }
     }
   };
@@ -332,12 +375,18 @@ const ProfilePage = () => {
     }
 
     if (newPassword.length < 6) {
-      showErrorMessage(setPasswordMessage, "Mật khẩu mới phải có ít nhất 6 ký tự.");
+      showErrorMessage(
+        setPasswordMessage,
+        "Mật khẩu mới phải có ít nhất 6 ký tự.",
+      );
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      showErrorMessage(setPasswordMessage, "Mật khẩu mới và xác nhận mật khẩu không khớp.");
+      showErrorMessage(
+        setPasswordMessage,
+        "Mật khẩu mới và xác nhận mật khẩu không khớp.",
+      );
       return;
     }
 
@@ -354,7 +403,7 @@ const ProfilePage = () => {
         "PUT",
         `${API_BASE}/api/user/auth/change-password`,
         { currentPassword, newPassword },
-        { Authorization: `Bearer ${authToken}` }
+        { Authorization: `Bearer ${authToken}` },
       );
     };
 
@@ -368,13 +417,17 @@ const ProfilePage = () => {
         setShowCurrentPassword(false);
         setShowNewPassword(false);
         setShowConfirmPassword(false);
+        setShowChangePassword(false); // ✅ thêm dòng này
         return;
       }
 
       setPasswordMessage(response?.message || "Đổi mật khẩu thất bại.");
     } catch (error) {
       if (error?.status !== 401) {
-        showErrorMessage(setPasswordMessage, error?.message || "Đổi mật khẩu thất bại.");
+        showErrorMessage(
+          setPasswordMessage,
+          error?.message || "Đổi mật khẩu thất bại.",
+        );
         return;
       }
 
@@ -390,12 +443,21 @@ const ProfilePage = () => {
           setShowCurrentPassword(false);
           setShowNewPassword(false);
           setShowConfirmPassword(false);
+          setTimeout(() => {
+            setShowChangePassword(false);
+          }, 800);
           return;
         }
 
-        showErrorMessage(setPasswordMessage, retryResponse?.message || "Đổi mật khẩu thất bại.");
+        showErrorMessage(
+          setPasswordMessage,
+          retryResponse?.message || "Đổi mật khẩu thất bại.",
+        );
       } catch (refreshError) {
-        showErrorMessage(setPasswordMessage, "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.");
+        showErrorMessage(
+          setPasswordMessage,
+          "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.",
+        );
       }
     }
   };
@@ -417,6 +479,7 @@ const ProfilePage = () => {
 
   const handleLogout = () => {
     localStorage.clear();
+    logout();
     navigate(`/${ROUTERS.USER.HOME}`);
     window.location.reload();
   };
@@ -442,33 +505,28 @@ const ProfilePage = () => {
           "PUT",
           `${API_BASE}/api/user/auth/update-profile`,
           { name: editNameValue.trim() },
-          { Authorization: `Bearer ${accessToken}` }
+          { Authorization: `Bearer ${accessToken}` },
         );
       };
 
       const response = await submitRequest(token);
       if (response?.success) {
-        setUser((prev) => ({ ...(prev || {}), profileName: editNameValue.trim() }));
-        const saved = localStorage.getItem("user");
-        if (saved) {
-          try {
-            const parsed = JSON.parse(saved);
-            parsed.profileName = editNameValue.trim();
-            localStorage.setItem("user", JSON.stringify(parsed));
-            window.dispatchEvent(new Event("user-updated"));
-          } catch (e) {
-            console.error("Không thể cập nhật localStorage user name", e);
-          }
-        }
+        updateUser({ ...(user || {}), profileName: editNameValue.trim() });
         setEditingName(false);
         showSuccessMessage(setNameMessage, "Cập nhật tên thành công.");
         return;
       }
 
-      showErrorMessage(setNameMessage, response?.message || "Cập nhật tên thất bại.");
+      showErrorMessage(
+        setNameMessage,
+        response?.message || "Cập nhật tên thất bại.",
+      );
     } catch (error) {
       if (error?.status !== 401) {
-        showErrorMessage(setNameMessage, error?.message || "Cập nhật tên thất bại.");
+        showErrorMessage(
+          setNameMessage,
+          error?.message || "Cập nhật tên thất bại.",
+        );
         return;
       }
 
@@ -478,30 +536,25 @@ const ProfilePage = () => {
           "PUT",
           `${API_BASE}/api/user/auth/update-profile`,
           { name: editNameValue.trim() },
-          { Authorization: `Bearer ${newAccessToken}` }
+          { Authorization: `Bearer ${newAccessToken}` },
         );
 
         if (retryResponse?.success) {
-          setUser((prev) => ({ ...(prev || {}), profileName: editNameValue.trim() }));
-          const saved = localStorage.getItem("user");
-          if (saved) {
-            try {
-              const parsed = JSON.parse(saved);
-              parsed.profileName = editNameValue.trim();
-              localStorage.setItem("user", JSON.stringify(parsed));
-              window.dispatchEvent(new Event("user-updated"));
-            } catch (e) {
-              console.error("Không thể cập nhật localStorage user name", e);
-            }
-          }
+          updateUser({ ...(user || {}), profileName: editNameValue.trim() });
           setEditingName(false);
           showSuccessMessage(setNameMessage, "Cập nhật tên thành công.");
           return;
         }
 
-        showErrorMessage(setNameMessage, retryResponse?.message || "Cập nhật tên thất bại.");
+        showErrorMessage(
+          setNameMessage,
+          retryResponse?.message || "Cập nhật tên thất bại.",
+        );
       } catch (refreshError) {
-        showErrorMessage(setNameMessage, "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.");
+        showErrorMessage(
+          setNameMessage,
+          "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.",
+        );
       }
     }
   };
@@ -536,7 +589,7 @@ const ProfilePage = () => {
           "PUT",
           `${API_BASE}/api/user/auth/update-profile`,
           payload,
-          { Authorization: `Bearer ${accessToken}` }
+          { Authorization: `Bearer ${accessToken}` },
         );
       };
 
@@ -550,7 +603,10 @@ const ProfilePage = () => {
       }
 
       if (!response?.success) {
-        showErrorMessage(setFieldMessage, response?.message || "Cập nhật thông tin thất bại.");
+        showErrorMessage(
+          setFieldMessage,
+          response?.message || "Cập nhật thông tin thất bại.",
+        );
         return;
       }
 
@@ -561,12 +617,9 @@ const ProfilePage = () => {
         address: payload.address,
       };
 
-      setUser(updatedUser);
-      setEditEmailValue(payload.email);
       setEditPhoneValue(payload.phoneNumber);
       setEditAddressValue(payload.address);
-      localStorage.setItem("user", JSON.stringify(updatedUser));
-      window.dispatchEvent(new Event("user-updated"));
+      updateUser(updatedUser);
       setIsEditingFields(false);
       showSuccessMessage(setFieldMessage, "Cập nhật thông tin thành công.");
 
@@ -584,7 +637,11 @@ const ProfilePage = () => {
   if (isInitialLoading) {
     return (
       <section className="profile-page">
-        <div className="profile-card profile-loading-card" aria-busy="true" aria-live="polite">
+        <div
+          className="profile-card profile-loading-card"
+          aria-busy="true"
+          aria-live="polite"
+        >
           <div className="profile-loading-header" />
           <div className="profile-loading-body">
             <div className="profile-loading-left">
@@ -598,7 +655,9 @@ const ProfilePage = () => {
             </div>
           </div>
           <div className="profile-loading-spinner" />
-          <p className="profile-loading-text">Đang tải thông tin tài khoản...</p>
+          <p className="profile-loading-text">
+            Đang tải thông tin tài khoản...
+          </p>
         </div>
       </section>
     );
@@ -621,7 +680,11 @@ const ProfilePage = () => {
               disabled={loading}
             >
               {user?.avatar ? (
-                <img src={resolveAvatarSrc(user.avatar)} alt="avatar" className="profile-avatar-image" />
+                <img
+                  src={resolveAvatarSrc(user.avatar)}
+                  alt="avatar"
+                  className="profile-avatar-image"
+                />
               ) : (
                 <div className="profile-avatar">{getInitials(displayName)}</div>
               )}
@@ -653,7 +716,11 @@ const ProfilePage = () => {
                     autoFocus
                   />
                   <div className="name-edit-buttons">
-                    <button type="submit" className="btn-save" disabled={loading}>
+                    <button
+                      type="submit"
+                      className="btn-save"
+                      disabled={loading}
+                    >
                       Lưu
                     </button>
                     <button
@@ -671,7 +738,9 @@ const ProfilePage = () => {
                 </form>
               )}
               {nameMessage && (
-                <div className={`name-message ${isErrorText(nameMessage) ? "message-error" : "message-success"}`}>
+                <div
+                  className={`name-message ${isErrorText(nameMessage) ? "message-error" : "message-success"}`}
+                >
                   {nameMessage}
                 </div>
               )}
@@ -680,7 +749,9 @@ const ProfilePage = () => {
 
           <div className="profile-right-column">
             {avatarMessage && (
-              <div className={`avatar-message ${isErrorText(avatarMessage) ? "message-error" : "message-success"}`}>
+              <div
+                className={`avatar-message ${isErrorText(avatarMessage) ? "message-error" : "message-success"}`}
+              >
                 {avatarMessage}
               </div>
             )}
@@ -725,7 +796,6 @@ const ProfilePage = () => {
                   <div className="profile-item">
                     <span>Email</span>
                     <strong
-                      ref={emailEditableRef}
                       className="editable-strong"
                       contentEditable={false}
                       suppressContentEditableWarning
@@ -776,13 +846,20 @@ const ProfilePage = () => {
               >
                 {showChangePassword ? "Ẩn đổi mật khẩu" : "Đổi mật khẩu"}
               </button>
-              <button type="button" className="btn-danger" onClick={handleLogout}>
+              <button
+                type="button"
+                className="btn-danger"
+                onClick={handleLogout}
+              >
                 Đăng xuất
               </button>
             </div>
 
             {showChangePassword && (
-              <form className="change-password-box" onSubmit={handleChangePassword}>
+              <form
+                className="change-password-box"
+                onSubmit={handleChangePassword}
+              >
                 <h3>Đổi mật khẩu</h3>
 
                 <div className="change-password-field">
@@ -843,12 +920,18 @@ const ProfilePage = () => {
                 </div>
 
                 {passwordMessage && (
-                  <div className={`password-message ${isErrorText(passwordMessage) ? "message-error" : "message-success"}`}>
+                  <div
+                    className={`password-message ${isErrorText(passwordMessage) ? "message-error" : "message-success"}`}
+                  >
                     {passwordMessage}
                   </div>
                 )}
 
-                <button type="submit" className="change-password-btn" disabled={loading}>
+                <button
+                  type="submit"
+                  className="change-password-btn"
+                  disabled={loading}
+                >
                   Đổi mật khẩu
                 </button>
               </form>
@@ -878,7 +961,10 @@ const ProfilePage = () => {
 
       {showErrorPopup && (
         <div className="profile-popup-overlay" onClick={closeErrorPopup}>
-          <div className="profile-popup error" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="profile-popup error"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3>Có lỗi xảy ra</h3>
             <p>{errorPopupMessage || "Có lỗi xảy ra."}</p>
             <button type="button" onClick={closeErrorPopup}>

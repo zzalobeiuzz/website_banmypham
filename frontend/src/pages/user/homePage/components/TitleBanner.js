@@ -12,6 +12,7 @@ const USER_BREADCRUMBS = [
   { title: "Chi tiết thương hiệu", url: "/brand/:idBrand" },
   { title: "Profile", url: "/profile" },
   { title: "Đăng ký", url: "/signup" },
+   { title: "Giỏ hàng", url: "/cart-detail" },
 ];
 
 export default function TitleBanner({ option, bannerUrl, bannerAlt }) {

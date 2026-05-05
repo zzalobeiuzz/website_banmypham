@@ -1,26 +1,65 @@
-// ProductCard.js
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
+import "./ProductCard.scss";
+import { flyToCart } from "../components/FlyToCart";
+import { useCart } from "../../context/CartContext";
 
 /**
- * ProductCard - Card sản phẩm dùng chung cho trang chủ và trang thương hiệu
- * @param {object} props
- * @param {object} props.item - Thông tin sản phẩm
- * @param {function} props.onAddToCart - Hàm xử lý thêm vào giỏ hàng
- * @param {string} props.detailUrl - Đường dẫn chi tiết sản phẩm
- * @param {function} props.resolveProductImage - Hàm lấy link ảnh sản phẩm
- * @param {number} [props.cardIndex] - Index để animation
+ * ProductCard - Card sản phẩm dùng chung
  */
-export default function ProductCard({ item, onAddToCart, detailUrl, resolveProductImage, cardIndex }) {
-  const location = useLocation(); // 👈 thêm dòng này
+
+export default function ProductCard({
+  item,
+  detailUrl,
+  resolveProductImage,
+  cardIndex,
+}) {
+  const location = useLocation();
+  const { addToCart } = useCart(); // ✅ dùng context
+
+  // 👉 xử lý thêm vào giỏ hàng
+  // const handleAddToCart = (event, product) => {
+  //   event.preventDefault();
+  //   event.stopPropagation();
+
+  //   // 🔥 hiệu ứng bay vào giỏ
+  //   const productImage = event.currentTarget
+  //     .closest(".brand-product-link")
+  //     ?.querySelector("img");
+
+  //   if (productImage) {
+  //     flyToCart(productImage);
+  //   }
+
+  //   // 🔥 add vào cart context
+  //   addToCart({
+  //     id: product.ProductID || product.id,
+  //     name: product.ProductName,
+  //     price: product.Price,
+  //     sale_price: product.sale_price,
+  //     image: product.Image,
+  //   });
+  // };
+  const handleAddToCart = (event, product) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const productImage = event.currentTarget
+      .closest(".brand-product-link")
+      ?.querySelector("img");
+
+    if (productImage) {
+      flyToCart(productImage);
+    }
+
+    // ✅ CHỈ gửi ID + quantity
+    addToCart(product.ProductID || product.id, 1);
+  };
   return (
-    <div
-      className="brand-product-card"
-      style={{ "--card-index": cardIndex }}
-    >
+    <div className="product-card" style={{ "--card-index": cardIndex }}>
       <Link
-        to={detailUrl} // 👈 dùng đúng biến destructuring
-        state={{ from: location.pathname }} // 👈 lưu trang trước
+        to={detailUrl}
+        state={{ from: location.pathname }}
         className="brand-product-link"
         style={{ display: "block", position: "relative" }}
       >
@@ -29,36 +68,45 @@ export default function ProductCard({ item, onAddToCart, detailUrl, resolveProdu
           alt={item.ProductName || "product"}
           loading="lazy"
         />
-        <div className="brand-product-card__code">
-          Mã: {String(item?.ProductCode || item?.code || item?.product_code || item?.ProductID || "")}
+
+        <div className="product-card__code">
+          Mã:{" "}
+          {String(
+            item?.ProductCode ||
+              item?.code ||
+              item?.product_code ||
+              item?.ProductID ||
+              "",
+          )}
         </div>
-        <div
-          className="brand-product-card__name"
-          title={item.ProductName}
-        >
+
+        <div className="product-card__name" title={item.ProductName}>
           {item.ProductName}
         </div>
-        <div className="brand-product-card__price">
+
+        <div className="product-card__price">
           {Number(item?.sale_price || 0) > 0 ? (
             <>
-              <strong>{Number(item.sale_price).toLocaleString("vi-VN")}đ</strong>
+              <strong>
+                {Number(item.sale_price).toLocaleString("vi-VN")}đ
+              </strong>
               <span>{Number(item.Price || 0).toLocaleString("vi-VN")}đ</span>
             </>
           ) : (
             <strong>{Number(item.Price || 0).toLocaleString("vi-VN")}đ</strong>
           )}
         </div>
+
+        {/* 👉 button add cart */}
         <button
           className="add-cart-plus-btn"
           title="Thêm vào giỏ hàng"
-          style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}
-          onClick={e => {
-            e.preventDefault();
-            e.stopPropagation();
-            onAddToCart(e, item);
-          }}
+          style={{ position: "absolute", top: 8, right: 8, zIndex: 2 }}
+          onClick={(e) => handleAddToCart(e, item)}
         >
-          <span style={{ fontSize: 20, fontWeight: 700, lineHeight: 1 }}>+</span>
+          <span style={{ fontSize: 20, fontWeight: 700, lineHeight: 1 }}>
+            +
+          </span>
         </button>
       </Link>
     </div>

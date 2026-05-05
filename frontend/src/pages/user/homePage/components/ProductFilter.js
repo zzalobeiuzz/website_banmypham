@@ -1,7 +1,7 @@
 import React from "react";
 import Slider from "rc-slider";
 import "rc-slider/assets/index.css";
-import { UPLOAD_BASE } from "../constants";
+import { UPLOAD_BASE } from "../../../../constants";
 import "./productFilter.scss";
 
 export default function BrandProductFilter({

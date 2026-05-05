@@ -9,16 +9,22 @@ const config = {
   database: process.env.DB_DATABASE,
   port: parseInt(process.env.DB_PORT, 10) || 1433,
   options: {
-    encrypt: process.env.DB_ENCRYPT === "true",                // ⚡ Đọc từ env (true/false)
-    trustServerCertificate: process.env.DB_TRUST_CERT === "true", // ⚡ Đọc từ env (true/false)
+    encrypt: process.env.DB_ENCRYPT === "true",
+    trustServerCertificate: process.env.DB_TRUST_CERT === "true",
   },
 };
+
+// Global pool để tái sử dụng
+let pool = null;
 
 // Hàm kết nối
 async function connectDB() {
   try {
-    let pool = await sql.connect(config);
-    console.log("✅ Kết nối SQL Server thành công!");
+    if (!pool || !pool.connected) {
+      pool = new sql.ConnectionPool(config);
+      await pool.connect();
+      console.log("✅ Kết nối SQL Server thành công!");
+    }
     return pool;
   } catch (err) {
     console.error("❌ Lỗi kết nối SQL Server:", err);

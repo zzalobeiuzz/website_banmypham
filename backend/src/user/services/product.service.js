@@ -92,35 +92,54 @@ exports.getAllProducts = async () => {
   }
 };
 
-// ================================ LẤY CHI TIẾT 1 SẢN PHẨM ==============================
-exports.getProductDetailById = async (productId) => {
+// ================================ LẤY CHI TIẾT 1 MẢNG SẢN PHẨM ==============================
+exports.getProductDetailById = async (input) => {
   try {
-    if (!productId) {
+    if (!input) {
       return {
         success: false,
         message: "Thiếu mã sản phẩm.",
       };
     }
 
+    // 👉 luôn convert về array
+    const ids = Array.isArray(input) ? input : [input];
+
     triggerBatchSyncInBackground();
 
-    const product = await findProductDetailById(productId);
-    if (!product) {
+    // 🔥 lấy nhiều sản phẩm
+    const products = await findProductDetailById(ids);
+
+    if (!products || products.length === 0) {
       return {
         success: false,
         message: "Không tìm thấy sản phẩm.",
       };
     }
 
-    const batchDetails = await findBatchDetailsByProductId(productId);
+     // 🔥 ✅ LẤY BATCH 1 LẦN DUY NHẤT
+    const batchMap = await findBatchDetailsByProductId(ids);
 
+    // 🔥 merge lại
+    const result = products.map((product) => ({
+      ...product,
+      batchDetails: batchMap[product.ProductID] || [],
+    }));
+
+    // 👉 nếu là 1 id → trả object
+    if (!Array.isArray(input)) {
+      return {
+        success: true,
+        data: result[0],
+      };
+    }
+
+    // 👉 nếu là nhiều id → trả array
     return {
       success: true,
-      data: {
-        ...product,
-        batchDetails,
-      },
+      data: result,
     };
+
   } catch (error) {
     console.error("❌ Lỗi getProductDetailById:", error);
     throw error;

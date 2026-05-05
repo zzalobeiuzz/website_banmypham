@@ -2,8 +2,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 0 18px 0;
+  padding: 18px 20px 18px 20px;
   gap: 24px;
+  background-color: #f2f5f8;
 }
 
 .title-banner-breadcrumb {
@@ -14,15 +15,19 @@
   font-weight: 500;
   gap: 8px;
 }
-
+.breadcrumb-home,
+.breadcrumb-option,
+.breadcrumb-sep {
+  font-size: 17px;
+}
 .breadcrumb-home {
-  color: #2563eb;
+  color: #334155;
   cursor: pointer;
   font-weight: 700;
 }
 
 .breadcrumb-sep {
-  color: #64748b;
+  color: #334155;
 }
 
 .breadcrumb-option {

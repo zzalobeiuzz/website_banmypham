@@ -1,16 +1,13 @@
 import React, { memo, useEffect, useMemo, useState } from "react";
 import lottie from "lottie-web";
 import noProductAnimation from "../../../animation/no_product.json";
-import BrandProductFilter from "../../../components/ProductFilter";
-// import lottie from "lottie-web"; // Remove duplicate import
-// import noProductAnimation from "../../../animation/no_product.json"; // Remove duplicate import
+import BrandProductFilter from "../homePage/components/ProductFilter";
 import "rc-slider/assets/index.css";
 import { useNavigate, useParams } from "react-router-dom";
 import { API_BASE, UPLOAD_BASE } from "../../../constants";
 import useHttp from "../../../hooks/useHttp";
 import { ROUTERS } from "../../../utils/router";
 import "./brand_detail.scss";
-import { flyToCart } from "../homePage/components/FlyToCart";
 import ProductCard from "../homePage/components/ProductCard";
 
 const NoProductLottie = () => {
@@ -112,57 +109,6 @@ const BrandDetailPage = () => {
   const [filterPanelVisible, setFilterPanelVisible] = useState(true); // true: panel đang hiển thị hoặc đang hiệu ứng đóng
   const [isClosing, setIsClosing] = useState(false); // true: đang chạy hiệu ứng đóng
   // Đã loại bỏ showPlaceholderDuringClose
-
-  // Thêm hàm addToCart và hiệu ứng fly to cart
-  const getCartItemsFromStorage = () => {
-    try {
-      const raw = localStorage.getItem("cartItems");
-      return Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  };
-
-  // Hàm lưu giỏ hàng và dispatch event để các component khác có thể cập nhật khi giỏ hàng thay đổi
-  const saveCartItemsToStorage = (items) => {
-    localStorage.setItem("cartItems", JSON.stringify(items));
-    window.dispatchEvent(new Event("cart-updated"));
-  };
-
-  // Hàm xử lý khi người dùng click thêm vào giỏ hàng
-  const handleAddToCart = (event, product) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    // 🔥 lấy img chuẩn hơn
-    const productImage = event.currentTarget
-      .closest(".brand-product-link")
-      ?.querySelector("img");
-
-    if (productImage) {
-      flyToCart(productImage);
-    }
-
-    const productId = String(
-      product?.ProductID || product?.ProductId || product?.id || "",
-    ).trim();
-
-    if (!productId) return;
-
-    const cartItems = getCartItemsFromStorage();
-
-    const foundIndex = cartItems.findIndex(
-      (item) => String(item?.productId) === productId,
-    );
-
-    if (foundIndex >= 0) {
-      cartItems[foundIndex].quantity += 1;
-    } else {
-      cartItems.push({ productId, quantity: 1 });
-    }
-
-    saveCartItemsToStorage(cartItems);
-  };
 
   // Các hằng số và hàm hỗ trợ cho bộ lọc giá
   const PRICE_MIN_LIMIT = 0;
@@ -321,7 +267,7 @@ const BrandDetailPage = () => {
             <button
               type="button"
               className="brand-detail-back-btn"
-              onClick={() => navigate(-1)}
+              onClick={() => navigate("/")}
             >
               Quay lại
             </button>
@@ -348,178 +294,32 @@ const BrandDetailPage = () => {
               </div>
             </div>
           )}
-
           <div
             className={`brand-detail-user-layout
-  ${!filterPanelVisible && !isClosing ? "brand-detail-user-layout--no-filter" : ""}
-  ${open ? "brand-detail-user-layout--expand-infobrand" : ""}`}
+            ${!filterPanelVisible && !isClosing ? "brand-detail-user-layout--no-filter" : ""}
+            ${open ? "brand-detail-user-layout--expand-infobrand" : ""}`}
           >
-            {/* {filterPanelVisible || isClosing ? ( */}
-               {/* <aside
-                 className={`brand-filter-panel ${isClosing ? "closing" : ""} ${!filterPanelVisible ? "hidden" : ""}`}
-                 onTransitionEnd={(e) => {
-                   if (!isClosing) return;
-
-                    chỉ bắt transition của chính panel
-                   if (e.target !== e.currentTarget) return;
-
-                  setFilterPanelVisible(false);
-                   setIsClosing(false);
-                 }}
-               > */}
-                {/* <div className="brand-filter-panel__content">
-                                    <div className="brand-filter-panel__head">
-                                        <h3>Bộ lọc</h3>
-                                    </div>
-                                    <label>
-                                        Sắp xếp theo giá
-                                        <select
-                                            value={sortBy}
-                                            onChange={(e) => setSortBy(e.target.value)}
-                                        >
-                                            <option value="default">Mặc định</option>
-                                            <option value="price-asc">Giá thấp đến cao</option>
-                                            <option value="price-desc">Giá cao đến thấp</option>
-                                        </select>
-                                    </label>
-                                    <label>
-                                        Tìm sản phẩm
-                                        <input
-                                            type="text"
-                                            value={searchText}
-                                            onChange={(e) => setSearchText(e.target.value)}
-                                            placeholder="Nhập tên sản phẩm"
-                                        />
-                                    </label>
-                                    <label>
-                                        Danh mục
-                                        <select
-                                            value={selectedCategory}
-                                            onChange={(e) => setSelectedCategory(e.target.value)}
-                                        >
-                                            {categories.map((category) => (
-                                                <option key={category} value={category}>
-                                                    {category === "all" ? "Tất cả" : category}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </label>
-                                    <div className="brand-filter-price">
-                                        <label>Khoảng giá</label>
-                                        <div className="brand-filter-price-slider">
-                                            <div className="brand-filter-price-slider__values">
-                                                <span>{formatVndShort(selectedPriceRange[0])}</span>
-                                                <span>{formatVndShort(selectedPriceRange[1])}</span>
-                                            </div>
-                                            <Slider
-                                                range
-                                                min={PRICE_MIN_LIMIT}
-                                                max={PRICE_MAX_LIMIT}
-                                                step={PRICE_STEP}
-                                                value={selectedPriceRange}
-                                                onChange={setSelectedPriceRange}
-                                                allowCross={false}
-                                                pushable={PRICE_STEP}
-                                                marks={{
-                                                    0: "0",
-                                                    2000000: "2tr",
-                                                    4000000: "4tr",
-                                                    6000000: "6tr",
-                                                    8000000: "8tr",
-                                                    10000000: "10tr",
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
-                                    <label className="brand-filter-checkbox">
-                                        <input
-                                            type="checkbox"
-                                            checked={saleOnly}
-                                            onChange={(e) => setSaleOnly(e.target.checked)}
-                                        />
-                                        <span className="checkbox-text">
-                                            Chỉ hiển thị sản phẩm đang giảm giá
-                                        </span>
-                                    </label>
-                                </div> */}
-                <BrandProductFilter
-                  sortBy={sortBy}
-                  setSortBy={setSortBy}
-                  searchText={searchText}
-                  setSearchText={setSearchText}
-                  selectedCategory={selectedCategory}
-                  setSelectedCategory={setSelectedCategory}
-                  categories={categories}
-                  selectedPriceRange={selectedPriceRange}
-                  setSelectedPriceRange={setSelectedPriceRange}
-                  saleOnly={saleOnly}
-                  setSaleOnly={setSaleOnly}
-                  PRICE_MIN_LIMIT={PRICE_MIN_LIMIT}
-                  PRICE_MAX_LIMIT={PRICE_MAX_LIMIT}
-                  PRICE_STEP={PRICE_STEP}
-                  formatVndShort={formatVndShort}
-                  filterPanelVisible={filterPanelVisible}
-                  setFilterPanelVisible={setFilterPanelVisible}
-                  isClosing={isClosing}
-                  setIsClosing={setIsClosing}
-                />
-                {/* <button
-                  type="button"
-                  className="brand-filter-close-icon"
-                  onClick={() => {
-                    if (!isClosing) {
-                      setIsClosing(true);
-
-                      // show placeholder slightly before the full close finishes
-                      // Đã loại bỏ setShowPlaceholderDuringClose
-
-                      // fallback nếu transitionEnd không chạy
-                      setTimeout(() => {
-                        setFilterPanelVisible(false);
-                        setIsClosing(false);
-                      }, 350); // đúng bằng duration CSS
-                    }
-                  }}
-                  aria-label="Đóng bộ lọc"
-                  title="Đóng bộ lọc"
-                >
-                  <img
-                    className="brand-filter-close-icon__arrow"
-                    src={`${UPLOAD_BASE}/icons/icons-arrow-down.png`}
-                    alt="Đóng bộ lọc"
-                    width="18"
-                    height="18"
-                  />
-                </button>
-              </aside>
-            ) : (
-              <div
-                className={`brand-filter-placeholder ${
-                  !filterPanelVisible && !isClosing ? "show" : ""
-                }`}
-              >
-                <div className="brand-filter-overflow"></div>
-                <button
-                  title="Mở bộ lọc"
-                  type="button"
-                  className="brand-filter-toggle-btn"
-                  onClick={() => {
-                    setFilterPanelVisible(true);
-
-                    // delay nhỏ để animation chạy
-                    setTimeout(() => {
-                      setIsClosing(false);
-                    }, 10);
-                  }}
-                >
-                  <img
-                    src={`${UPLOAD_BASE}/icons/icons-arrow-down.png`}
-                    alt="Mở bộ lọc"
-                  />
-                </button>
-              </div>
-            )} */}
-
+            <BrandProductFilter
+              sortBy={sortBy}
+              setSortBy={setSortBy}
+              searchText={searchText}
+              setSearchText={setSearchText}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+              categories={categories}
+              selectedPriceRange={selectedPriceRange}
+              setSelectedPriceRange={setSelectedPriceRange}
+              saleOnly={saleOnly}
+              setSaleOnly={setSaleOnly}
+              PRICE_MIN_LIMIT={PRICE_MIN_LIMIT}
+              PRICE_MAX_LIMIT={PRICE_MAX_LIMIT}
+              PRICE_STEP={PRICE_STEP}
+              formatVndShort={formatVndShort}
+              filterPanelVisible={filterPanelVisible}
+              setFilterPanelVisible={setFilterPanelVisible}
+              isClosing={isClosing}
+              setIsClosing={setIsClosing}
+            />
             <main
               className={`brand-product-center${filteredProducts.length === 0 ? " no-products" : ""}`}
             >
@@ -531,7 +331,7 @@ const BrandDetailPage = () => {
                     <ProductCard
                       key={item.ProductID}
                       item={item}
-                      onAddToCart={handleAddToCart}
+                      // onAddToCart={handleAddToCart}
                       detailUrl={`/${ROUTERS.USER.PRODUCT_DETAIL.replace(":id", String(item.ProductID || ""))}`}
                       resolveProductImage={resolveProductImage}
                       cardIndex={index}
@@ -540,20 +340,6 @@ const BrandDetailPage = () => {
                 </div>
               )}
             </main>
-
-            {/* <aside className="brand-info-panel">
-                            {brand?.logo_url && (
-                                <img
-                                    className="brand-info-panel__logo"
-                                    src={resolveBrandLogo(brand.logo_url)}
-                                    alt={brand?.Brand || "brand"}
-                                    loading="lazy"
-                                />
-                            )}
-                            <h3>{brand?.Brand || "Thương hiệu"}</h3>
-                            {/* Nút mở rộng/collapse mô tả thương hiệu */}
-            {/* <ExpandBrandDesc brand={brand} />
-                         </aside>  */}
             <aside className={"brand-info-panel"}>
               {brand?.logo_url && (
                 <>
