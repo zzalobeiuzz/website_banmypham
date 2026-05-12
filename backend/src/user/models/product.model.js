@@ -1,10 +1,8 @@
-const { connectDB } = require("../../config/connect");
+const { connectDB, resetDBPool } = require("../../config/connect");
 
 // ===============ĐỒNG BỘ LÔ HẾT HẠN===============
 exports.syncExpiredBatchDetailsStatus = async () => {
-  try {
-    const pool = await connectDB();
-    const result = await pool.request().query(`
+  const syncQuery = `
       DECLARE @expiryColumn SYSNAME = NULL;
 
       IF COL_LENGTH('BATCH_DETAIL', 'ExpiryDate') IS NOT NULL SET @expiryColumn = 'ExpiryDate';
@@ -29,10 +27,30 @@ exports.syncExpiredBatchDetailsStatus = async () => {
       ';
 
       EXEC sp_executesql @sql;
-    `);
+    `;
+
+  try {
+    const pool = await connectDB();
+    const result = await pool.request().query(syncQuery);
 
     return Number(result.recordset?.[0]?.UpdatedRows || 0);
   } catch (error) {
+    const message = String(error?.message || "");
+    const isClosedConnection = /connection\s+is\s+closed|connection\s+not\s+yet\s+open|pool\s+is\s+not\s+open/i.test(message);
+
+    if (isClosedConnection) {
+      try {
+        console.warn("⚠️ Pool đang đóng, thử reconnect để đồng bộ lô hết hạn...");
+        await resetDBPool();
+        const retryPool = await connectDB();
+        const retryResult = await retryPool.request().query(syncQuery);
+        return Number(retryResult.recordset?.[0]?.UpdatedRows || 0);
+      } catch (retryError) {
+        console.error("❌ Retry đồng bộ lô hết hạn thất bại:", retryError.message);
+        return 0;
+      }
+    }
+
     console.error("❌ Lỗi đồng bộ lô hết hạn phía user:", error.message);
     return 0;
   }
@@ -48,11 +66,19 @@ exports.findSaleProducts = async () => {
       P.SupplierID,
       P.Price,
       P.Image,
+      -- 📦 Tồn kho = tổng số lượng còn lại của tất cả lô trong BATCH_DETAIL
+      ISNULL(BDQ.StockQuantity, 0) AS StockQuantity,
       PS.sale_price,
       PS.start_date,
       PS.end_date
     FROM PRODUCT_SALE PS
     JOIN PRODUCT P ON PS.product_id = P.ProductID
+    LEFT JOIN (
+      SELECT ProductID, SUM(CAST(Quantity AS INT)) AS StockQuantity
+      FROM BATCH_DETAIL
+      WHERE ISNULL(IsActive, 1) = 1
+      GROUP BY ProductID
+    ) BDQ ON BDQ.ProductID = P.ProductID
     WHERE (P.IsHidden = 0 OR P.IsHidden IS NULL);
   `);
   return result.recordset;
@@ -69,9 +95,17 @@ exports.findHotProducts = async () => {
     P.Price,             -- Lấy giá gốc sản phẩm
     P.Image,             -- Lấy ảnh sản phẩm
     P.isHot,             -- Lấy trạng thái "hot" (1 = sản phẩm hot)
+    -- 📦 Tồn kho = tổng số lượng còn lại của tất cả lô trong BATCH_DETAIL
+    ISNULL(BDQ.StockQuantity, 0) AS StockQuantity,
     PS.sale_price        -- Lấy giá khuyến mãi từ bảng PRODUCT_SALE nếu 
     FROM PRODUCT P
     LEFT JOIN PRODUCT_SALE PS ON P.ProductID = PS.product_id
+    LEFT JOIN (
+      SELECT ProductID, SUM(CAST(Quantity AS INT)) AS StockQuantity
+      FROM BATCH_DETAIL
+      WHERE ISNULL(IsActive, 1) = 1
+      GROUP BY ProductID
+    ) BDQ ON BDQ.ProductID = P.ProductID
     WHERE P.isHot = 1
       AND (P.IsHidden = 0 OR P.IsHidden IS NULL);
   `);
@@ -153,6 +187,7 @@ exports.findAllProducts = async () => {
           P.Price,
           P.Image,
           P.isHot,
+          -- 📦 Tồn kho được tính bằng tổng Quantity còn lại ở các lô trong BATCH_DETAIL
           ISNULL(BDQ.StockQuantity, 0) AS StockQuantity,
           P.CategoryID,
           P.SubCategoryID,
@@ -215,6 +250,7 @@ exports.findProductDetailById = async (productIds) => {
     const query = `
       SELECT
         P.*,
+        -- 📦 Tồn kho được tính bằng tổng Quantity còn lại ở các lô trong BATCH_DETAIL
         ISNULL(BDQ.StockQuantity, 0) AS StockQuantity,
         C.CategoryName,
         SC.SubCategoryName,
@@ -356,6 +392,8 @@ exports.findBrandDetailWithProducts = async (idBrand) => {
         P.Price,
         P.Image,
         P.isHot,
+        -- 📦 Tồn kho = tổng số lượng còn lại của tất cả lô trong BATCH_DETAIL
+        ISNULL(BDQ.StockQuantity, 0) AS StockQuantity,
         P.CategoryID,
         P.SubCategoryID,
         C.CategoryName,
@@ -367,6 +405,12 @@ exports.findBrandDetailWithProducts = async (idBrand) => {
       LEFT JOIN PRODUCT_SALE PS ON P.ProductID = PS.product_id
       LEFT JOIN CATEGORY C ON P.CategoryID = C.CategoryID
       LEFT JOIN SUB_CATEGORY SC ON P.SubCategoryID = SC.SubCategoryID
+      LEFT JOIN (
+        SELECT ProductID, SUM(CAST(Quantity AS INT)) AS StockQuantity
+        FROM BATCH_DETAIL
+        WHERE ISNULL(IsActive, 1) = 1
+        GROUP BY ProductID
+      ) BDQ ON BDQ.ProductID = P.ProductID
       WHERE P.SupplierID = @idBrand
         AND (P.IsHidden = 0 OR P.IsHidden IS NULL)
         AND (C.IsHidden = 0 OR C.IsHidden IS NULL)

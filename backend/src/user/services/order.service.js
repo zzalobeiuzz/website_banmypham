@@ -1,5 +1,5 @@
 const { buildSepayCheckout } = require("../../payment/sepay.service");
-const { insertBillAndDetails, updateBillStatus } = require("../models/order.model");
+const { insertBillAndDetails, updateBillStatus, getOrderByOrderId } = require("../models/order.model");
 
 // ============================================
 // 🎯 PAYMENT METHOD HANDLERS
@@ -18,7 +18,8 @@ exports.handleCODPayment = async (orderData) => {
 
   return {
     success: true,
-    paymentRequired: false,
+    paymentMethod: "COD",
+    paymentRequired:false,
     data: orderResult,
   };
 };
@@ -60,6 +61,7 @@ exports.handleTransferPayment = async (orderData) => {
       success: true,                 // ✔️ thành công
       paymentRequired: true,         // 💳 cần thanh toán
       paymentProvider: "SEPAY",      // 🏦 cổng thanh toán
+      paymentMethod: "TRANSFER",     // 🏦 phương thức thanh toán
 
       data: {
         id: orderId,                // 🆔 mã đơn (đã INSERT vào DB)
@@ -99,6 +101,38 @@ exports.handleMOMOPayment = async (orderData) => {
       status: "Chờ thanh toán",
     },
     message: "MOMO payment đang được xử lý...",
+  };
+};
+
+/*================================================================
+  Xử lý đơn hàng khi nhận được webhook thanh toán thành công từ SePay
+ - Cập nhật trạng thái đơn hàng từ "Chờ thanh toán" → "Đã thanh toán"
+ - Trả về thông tin đơn hàng đã cập nhật
+ ================================================================*/
+exports.markPaidService = async (orderId) => {
+  if (!orderId) {
+    throw new Error("Thiếu orderId");
+  }
+
+  //1. Lấy order (có thể throw nếu dữ liệu chi tiết bị lỗi)
+  const existingOrder = await getOrderByOrderId(orderId);
+  if (!existingOrder) {
+    return { success: false, message: "Không tìm thấy đơn hàng" };
+  }
+
+  //2. Cập nhật trạng thái và trừ hàng tồn dựa trên đơn hàng đã có
+  const result = await updateBillStatus(orderId, "Đã thanh toán");
+  if (!result.success) {
+    return { success: false, message: result.message };
+  }
+
+  //3. Lấy lại order đã cập nhật
+  const updatedOrder = await getOrderByOrderId(orderId);
+
+  return {
+    success: true,
+    message: result.message,
+    order: updatedOrder,
   };
 };
 

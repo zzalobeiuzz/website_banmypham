@@ -12,9 +12,30 @@ const CheckoutConfirm = ({ setStep, order, setOrder }) => {
     }));
   };
 
+  // ✅ Kiểm tra dự liệu nhập trước khi qua bước tiếp theo
   const handleNext = () => {
-    setStep(3);
-  };
+  const name = order.shippingInfo?.name?.trim();
+  const phone = order.shippingInfo?.phone?.trim();
+  const address = order.shippingInfo?.address?.trim();
+
+  // ❌ Kiểm tra rỗng
+  if (!name || !phone || !address) {
+    alert("Vui lòng nhập đầy đủ thông tin giao hàng.");
+    return;
+  }
+
+  // ❌ Kiểm tra số điện thoại
+  const phoneRegex = /^(0|\+84)[0-9]{9,10}$/;
+
+  if (!phoneRegex.test(phone)) {
+    alert("Số điện thoại không hợp lệ.");
+    return;
+  }
+
+  // ✅ Qua bước thanh toán
+  setStep(3);
+};
+
   return (
     <div className="checkout-box">
       <h3>
@@ -34,7 +55,7 @@ const CheckoutConfirm = ({ setStep, order, setOrder }) => {
 
         <div className="form-group">
           <label>📞 Số điện thoại</label>
-          <input
+          <input 
             type="text"
             value={order.shippingInfo?.phone || ""}
             onChange={(e) => handleChange("phone", e.target.value)}

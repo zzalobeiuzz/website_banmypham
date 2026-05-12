@@ -4,9 +4,8 @@ const {
   handleCODPayment,
   handleTransferPayment,
   handleMOMOPayment,
-} = require("../services/orderService");
-
-const { updateBillStatus, getOrderByOrderId } = require("../models/order.model");
+  markPaidService,
+} = require("../services/order.service");
 
 exports.addOrder = async (req, res) => {
   try {
@@ -58,54 +57,44 @@ exports.addOrder = async (req, res) => {
 };
 
 /**
- * 💳 Đánh dấu đơn hàng đã thanh toán 
+ * 💳 XỬ LÝ ĐƠN HÀNG KHI ĐÃ THANH TOÁN THÀNH CÔNG
  */
 exports.markPaid = async (req, res) => {
   console.log("📥 markPaid endpoint called with body:", req.body);
   try {
+    //  Kiểm tra orderId trong body
     const { orderId } = req.body;
-
+    // Nếu thiếu orderId, trả về lỗi rõ ràng
     if (!orderId) {
-      return res.status(400).json({
-        success: false,
-        message: "Thiếu orderId",
-      });
+      return res.status(400).json({ success: false, message: "Thiếu orderId" });
+    }
+    
+    // Gọi service để cập nhật trạng thái đơn hàng
+    let svcRes;
+    try {
+      svcRes = await markPaidService(orderId);
+    } catch (err) {
+      // Service threw (e.g. dữ liệu chi tiết bị lỗi) → trả lỗi rõ ràng
+      return res.status(400).json({ success: false, message: err.message || "Lỗi xử lý đơn hàng" });
     }
 
-    const order = await getOrderByOrderId(orderId);
-
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: "Không tìm thấy đơn hàng",
-      });
-    }
-
-    const result = await updateBillStatus(orderId, "Đã thanh toán");
-
-    if (!result.success) {
-      return res.status(404).json({
-        success: false,
-        message: result.message,
-        order,
-      });
+    if (!svcRes || !svcRes.success) {
+      const status = svcRes && svcRes.message && svcRes.message.includes("Không tìm thấy") ? 404 : 400;
+      return res.status(status).json({ success: false, message: svcRes?.message || "Không thể cập nhật đơn hàng" });
     }
 
     return res.json({
-      success: result.success,
-      message: result.message,
+      success: true,
+      message: svcRes.message,
       order: {
-        ...order,
+        ...svcRes.order,
         status: "Đã thanh toán",
         paymentStatus: "success",
       },
     });
   } catch (err) {
     console.error("❌ markPaid error:", err);
-    return res.status(err.status || 500).json({
-      success: false,
-      message: err.message || "Lỗi server.",
-    });
+    return res.status(err.status || 500).json({ success: false, message: err.message || "Lỗi server." });
   }
 };
 

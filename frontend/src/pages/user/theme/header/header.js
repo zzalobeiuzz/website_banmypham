@@ -23,6 +23,7 @@ const Header = () => {
   const { cartCount } = useCart();
 
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const [isFixedMenuOpen, setIsFixedMenuOpen] = useState(false);
   const [categories, setCategories] = useState([]);
   const [activeCategoryId, setActiveCategoryId] = useState(null);
 
@@ -156,7 +157,11 @@ const Header = () => {
 
             <div className="container-header-main">
               {isFixed && (
-                <div className={`show-when-fixed ${isHomePage ? "open" : ""}`}>
+                <div 
+                  className={`show-when-fixed ${isFixedMenuOpen ? "open" : ""}`}
+                  onMouseEnter={() => setIsFixedMenuOpen(true)}
+                  onMouseLeave={() => setIsFixedMenuOpen(false)}
+                >
                   <a href="/" className="item">
                     <FontAwesomeIcon icon={faBars} className="fas" />
                     Danh mục sản phẩm

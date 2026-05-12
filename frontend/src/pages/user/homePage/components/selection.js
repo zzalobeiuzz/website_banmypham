@@ -11,7 +11,7 @@ import "./componets.scss";
 
 
 
-// 🌟 Kích thước 1 item và số lượng item hiển thị
+// 🧱 Layout slider
 const ITEM_WIDTH = 254;
 const VISIBLE_COUNT = 5;
 const CART_STORAGE_KEY = "cartItems";
@@ -69,11 +69,10 @@ const resolveBrandPreviewSrc = (image) => {
   return `${UPLOAD_BASE}/pictures/${raw.replace(/^\/+/, "")}`;
 };
 
-// ✨ Hiệu ứng: clone ảnh sản phẩm và cho ảnh bay về icon giỏ hàng.
+// ✨ Bay ảnh vào giỏ
 const animateImageToCart = (sourceImage) => {
   if (!sourceImage) return;
 
-  // Tìm icon giỏ hàng trên header (ưu tiên thẻ img trong wrapper).
   const cartIcon = document.querySelector(".shopping-cart-icon-wrap img")
     || document.querySelector(".shopping-cart-icon-wrap");
   if (!cartIcon) return;
@@ -105,13 +104,11 @@ const animateImageToCart = (sourceImage) => {
   const deltaX = toCenterX - fromCenterX;
   const deltaY = toCenterY - fromCenterY;
 
-  // Chạy animation ở frame kế tiếp để browser kịp render vị trí ban đầu.
   window.requestAnimationFrame(() => {
     clone.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(0.12)`;
     clone.style.opacity = "0.25";
   });
 
-  // Dọn dẹp node tạm sau khi animation kết thúc, tránh rác DOM.
   const cleanup = () => {
     if (clone.parentNode) {
       clone.parentNode.removeChild(clone);
@@ -131,12 +128,12 @@ const Select = ({ title }) => {
   const { request, loading, error } = useHttp();
   const isTopBrandSection = title === "Thương hiệu nổi bật";
 
-  // ================== 📌 STATE ==================
-  const [products, setProducts] = useState([]);                 // Danh sách sản phẩm
-  const [translateX, setTranslateX] = useState(0);             // Vị trí dịch slider
-  const [activeIndexes, setActiveIndexes] = useState([0, 1, 2, 3, 4]); // Các index active
+  // 🗂️ State
+  const [products, setProducts] = useState([]);
+  const [translateX, setTranslateX] = useState(0);
+  const [activeIndexes, setActiveIndexes] = useState([0, 1, 2, 3, 4]);
 
-  // ================== 📌 REF ==================
+  // 📍 Refs
   const startX = useRef(0);
   const endX = useRef(0);
   const currentTranslateX = useRef(0);
@@ -144,7 +141,7 @@ const Select = ({ title }) => {
   const animationFrameId = useRef(null);
   const scrolledItemsCount = useRef(0);
 
-  // ================== ✅ Icon cho tiêu đề ==================
+  // 🎨 Icon tiêu đề
 
   let icon_select = null;
   if (title === "Flash Sale") {
@@ -154,8 +151,13 @@ const Select = ({ title }) => {
   }
 
 
-  // ================== ✅ Fetch dữ liệu sản phẩm ==================
+  // 🔄 Load dữ liệu
   useEffect(() => {
+    let isMounted = true;
+    let retryCount = 0;
+    const MAX_RETRIES = 3;
+    const INITIAL_DELAY = 1000;
+
     const fetchProducts = async () => {
       let url = null;
       if (title === "Flash Sale") {
@@ -168,36 +170,64 @@ const Select = ({ title }) => {
 
       if (!url) return;
 
-      try {
-        const data = await request("GET", url);
+      const attemptFetch = async (attempt = 0) => {
+        try {
+          const data = await request("GET", url);
 
-        if (title === "Flash Sale") {
-          const now = new Date();
-          const updated = data.map((product) => {
-            const end = new Date(product.end_date);
-            const diff = Math.max(0, end - now);
-            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+          if (!isMounted) return;
 
-            const formatted = `Còn ${days} ngày ${String(hours).padStart(2, "0")} : ${String(minutes).padStart(2, "0")} : ${String(seconds).padStart(2, "0")}`;
+          if (title === "Flash Sale") {
+            const now = new Date();
+            const updated = data.map((product) => {
+              const end = new Date(product.end_date);
+              const diff = Math.max(0, end - now);
+              const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+              const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+              const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+              const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-            return { ...product, discountTimeLeft: formatted };
-          });
-          setProducts(updated);
-        } else {
-          setProducts(data);
+              const formatted = `Còn ${days} ngày ${String(hours).padStart(2, "0")} : ${String(minutes).padStart(2, "0")} : ${String(seconds).padStart(2, "0")}`;
+
+              return { ...product, discountTimeLeft: formatted };
+            });
+            setProducts(updated);
+          } else {
+            setProducts(data);
+          }
+        } catch (err) {
+          if (!isMounted) return;
+
+          retryCount = attempt + 1;
+
+          if (retryCount < MAX_RETRIES) {
+            const delayMs = INITIAL_DELAY * Math.pow(2, attempt);
+            console.warn(`⚠️ Lỗi lấy ${title} (lần ${retryCount}/${MAX_RETRIES}), thử lại trong ${delayMs}ms...`, err.message);
+            setTimeout(() => {
+              if (isMounted) {
+                attemptFetch(attempt + 1);
+              }
+            }, delayMs);
+          } else {
+            console.error(`❌ Lỗi lấy ${title} sau ${MAX_RETRIES} lần thử:`, err.message);
+          }
         }
-      } catch (err) {
-        console.error("❌ Lỗi lấy sản phẩm:", err.message);
-      }
+      };
+
+      setTimeout(() => {
+        if (isMounted) {
+          attemptFetch(0);
+        }
+      }, INITIAL_DELAY);
     };
 
     fetchProducts();
+
+    return () => {
+      isMounted = false;
+    };
   }, [title, request, isTopBrandSection]);
 
-  // ================== ✅ Cập nhật countdown (Flash Sale) ==================
+  // ⏱️ Countdown flash sale
   useEffect(() => {
     if (title !== "Flash Sale" || products.length === 0) return;
 
@@ -223,7 +253,7 @@ const Select = ({ title }) => {
     return () => clearInterval(interval);
   }, [products, title]);
 
-   // ================== ✅ Auto-slide ==================
+  // ↔️ Auto slide
   useEffect(() => {
     if (!products.length || products.length <= VISIBLE_COUNT) return;
     let autoSlideTimer = null;
@@ -240,7 +270,6 @@ const Select = ({ title }) => {
         const finalTranslateX = -scrolledItemsCount.current * ITEM_WIDTH;
         setTranslateX(finalTranslateX);
         currentTranslateX.current = finalTranslateX;
-        // Cập nhật activeIndexes
         const newActiveIndexes = [];
         for (let i = 0; i < VISIBLE_COUNT; i++) {
           const idx = scrolledItemsCount.current + i;
@@ -252,7 +281,6 @@ const Select = ({ title }) => {
 
     startAutoSlide();
 
-    // Khi người dùng kéo chuột thì tạm dừng auto-slide
     const pauseAutoSlide = () => { paused = true; };
     const resumeAutoSlide = () => { paused = false; };
     const slider = containerRef.current;
@@ -276,7 +304,7 @@ const Select = ({ title }) => {
     };
   }, [products]);
 
-  // ================== ✅ Xử lý kéo ngang slider ==================
+  // 🖱️ Kéo ngang
   const handleMouseMove = useCallback((e) => {
     if (e.buttons !== 1) return;
     const deltaX = e.clientX - startX.current;
@@ -354,22 +382,30 @@ const Select = ({ title }) => {
     event.preventDefault();
     event.stopPropagation();
 
-    // Lấy ảnh trong card hiện tại để tạo hiệu ứng bay vào giỏ.
-    const productCard = event.currentTarget.closest(".product-template");
-    const productImage = productCard?.querySelector("img");
-    animateImageToCart(productImage);
-
     const productId = String(product?.ProductID || "").trim();
     if (!productId) return;
 
+    // 📦 Kiểm tra tồn kho trước khi cho thêm vào giỏ
+    const stockQuantity = Number(product?.StockQuantity || 0);
+    if (stockQuantity <= 0) {
+      window.alert("Sản phẩm đã hết hàng.");
+      return;
+    }
+
     const cartItems = getCartItemsFromStorage();
     const foundIndex = cartItems.findIndex((item) => String(item?.productId) === productId);
+    const currentQty = foundIndex >= 0 ? Number(cartItems[foundIndex].quantity || 0) : 0;
+    const nextQty = currentQty + 1;
+
+    if (nextQty > stockQuantity) {
+      window.alert(stockQuantity <= 0 ? "Sản phẩm đã hết hàng." : `Không thể thêm vào giỏ. Sản phẩm đã hết hàng`);
+      return;
+    }
 
     if (foundIndex >= 0) {
-      const currentQty = Number(cartItems[foundIndex].quantity || 0);
       cartItems[foundIndex] = {
         ...cartItems[foundIndex],
-        quantity: currentQty + 1,
+        quantity: nextQty,
       };
     } else {
       cartItems.push({
@@ -378,64 +414,15 @@ const Select = ({ title }) => {
       });
     }
 
-    // Lưu lại giỏ và phát sự kiện để header cập nhật badge realtime.
+    // ✨ Chỉ chạy hiệu ứng khi thêm thành công (không vượt quá stock)
+    const productCard = event.currentTarget.closest(".product-template");
+    const productImage = productCard?.querySelector("img");
+    animateImageToCart(productImage);
+
     saveCartItemsToStorage(cartItems);
   };
 
-  // ================== ✅ Auto-slide ==================
-  useEffect(() => {
-    if (!products.length || products.length <= VISIBLE_COUNT) return;
-    let autoSlideTimer = null;
-    let paused = false;
-
-    const startAutoSlide = () => {
-      if (autoSlideTimer) clearInterval(autoSlideTimer);
-      autoSlideTimer = setInterval(() => {
-        if (paused) return;
-        scrolledItemsCount.current++;
-        if (scrolledItemsCount.current > products.length - VISIBLE_COUNT) {
-          scrolledItemsCount.current = 0;
-        }
-        const finalTranslateX = -scrolledItemsCount.current * ITEM_WIDTH;
-        setTranslateX(finalTranslateX);
-        currentTranslateX.current = finalTranslateX;
-        // Cập nhật activeIndexes
-        const newActiveIndexes = [];
-        for (let i = 0; i < VISIBLE_COUNT; i++) {
-          const idx = scrolledItemsCount.current + i;
-          if (idx < products.length) newActiveIndexes.push(idx);
-        }
-        setActiveIndexes(newActiveIndexes);
-      }, 3000);
-    };
-
-    startAutoSlide();
-
-    // Khi người dùng kéo chuột thì tạm dừng auto-slide
-    const pauseAutoSlide = () => { paused = true; };
-    const resumeAutoSlide = () => { paused = false; };
-    const slider = containerRef.current;
-    if (slider) {
-      slider.addEventListener("mousedown", pauseAutoSlide);
-      slider.addEventListener("touchstart", pauseAutoSlide);
-      slider.addEventListener("mouseup", resumeAutoSlide);
-      slider.addEventListener("touchend", resumeAutoSlide);
-      slider.addEventListener("mouseleave", resumeAutoSlide);
-    }
-
-    return () => {
-      if (autoSlideTimer) clearInterval(autoSlideTimer);
-      if (slider) {
-        slider.removeEventListener("mousedown", pauseAutoSlide);
-        slider.removeEventListener("touchstart", pauseAutoSlide);
-        slider.removeEventListener("mouseup", resumeAutoSlide);
-        slider.removeEventListener("touchend", resumeAutoSlide);
-        slider.removeEventListener("mouseleave", resumeAutoSlide);
-      }
-    };
-  }, [products]);
-
-  // ================== ✅ Render UI ==================
+  // 🖼️ Render
   if (loading) return <div className="loading">🔄 Đang tải sản phẩm...</div>;
   if (error) return <div className="error">❌ Lỗi: {error}</div>;
 
@@ -522,40 +509,56 @@ const Select = ({ title }) => {
                       </div>
                     ) : (
                       <>
-                        <img
-                          src={`${UPLOAD_BASE}/pictures/${product.Image}`}
-                          alt={`Hình ảnh của ${product.ProductName}`}
-                          loading="lazy"
-                          style={title !== "Flash Sale" ? { border: "none" } : {}}
-                          draggable={false}
-                          onDragStart={e => e.preventDefault()}
-                        />
-
-                        <div className="product-price px-2">
-                          {product.sale_price ? (
-                            <>
-                              <div className="public-price">
-                                {product.sale_price.toLocaleString("vi-VN")}đ
-                              </div>
-                              <div className="origin-price">
-                                {product.Price.toLocaleString("vi-VN")}đ
-                              </div>
-                            </>
-                          ) : (
-                            <div className="public-price">
-                              {product.Price.toLocaleString("vi-VN")}đ
-                            </div>
-                          )}
+                        <div className="product-image-wrap">
+                          <img
+                            src={`${UPLOAD_BASE}/pictures/${product.Image}`}
+                            alt={`Hình ảnh của ${product.ProductName}`}
+                            loading="lazy"
+                            style={title !== "Flash Sale" ? { border: "none" } : {}}
+                            draggable={false}
+                            onDragStart={e => e.preventDefault()}
+                          />
                         </div>
 
-                        <div className="product-id px-2">{product.ProductID}</div>
+                        <div className="product-meta">
+                          <div className="product-price">
+                            {product.sale_price ? (
+                              <>
+                                <div className="public-price">
+                                  {product.sale_price.toLocaleString("vi-VN")}đ
+                                </div>
+                                <div className="origin-price">
+                                  {product.Price.toLocaleString("vi-VN")}đ
+                                </div>
+                              </>
+                            ) : (
+                              <div className="public-price">
+                                {product.Price.toLocaleString("vi-VN")}đ
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="product-stock">
+                            {(() => {
+                              const stock = Number(product?.StockQuantity ?? product?.stockQuantity ?? 0);
+                              return (
+                                <span style={{ fontSize: "12px", color: stock === 0 ? "#c73030" : "#0f766e" }}>
+                                  {stock === 0 ? "Hết hàng" : `Tồn kho: ${stock}`}
+                                </span>
+                              );
+                            })()}
+                          </div>
+                        </div>
+
+                        <div className="product-id px-2">{`Mã sản phẩm: ${product.ProductID}`}</div>
                         <div className="product-title px-2">{product.ProductName}</div>
 
                         {title === "Flash Sale" && (
-                          <div className="product-progress-sale count-down">
+                          <div className="product-progress-sale count-down px-2">
                             {product.discountTimeLeft}
                           </div>
                         )}
+
                       </>
                     )}
                   </Link>

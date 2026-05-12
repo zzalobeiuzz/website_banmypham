@@ -1,7 +1,7 @@
 require("dotenv").config({ path: "../../private.env" });
 const sql = require("mssql");
 
-// Cấu hình kết nối
+// 🔧 Connection pool configuration
 const config = {
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
@@ -12,24 +12,102 @@ const config = {
     encrypt: process.env.DB_ENCRYPT === "true",
     trustServerCertificate: process.env.DB_TRUST_CERT === "true",
   },
+  // 📊 Connection pool sizing (tuned for production)
+  pool: {
+    min: 2,                  // Minimum idle connections
+    max: 20,                 // Maximum concurrent connections
+    idleTimeoutMillis: 30000, // 30s idle timeout
+  },
+  // ⏱️ Request timeout
+  requestTimeout: 30000,     // 30 second timeout per request
+  connectionTimeout: 15000,  // 15 second connection timeout
 };
 
-// Global pool để tái sử dụng
+// Global pool to reuse connections
 let pool = null;
+let connectingPromise = null;
+let poolMetrics = {
+  created: null,
+  totalRequests: 0,
+  activeConnections: 0,
+  lastError: null,
+};
 
-// Hàm kết nối
+// 🔌 Connection function with better error handling
 async function connectDB() {
   try {
-    if (!pool || !pool.connected) {
-      pool = new sql.ConnectionPool(config);
-      await pool.connect();
-      console.log("✅ Kết nối SQL Server thành công!");
+    if (pool && pool.connected) {
+      poolMetrics.totalRequests++;
+      return pool;
     }
+
+    if (!connectingPromise) {
+      connectingPromise = (async () => {
+        if (pool) {
+          try {
+            await pool.close();
+          } catch (closeErr) {
+            // Ignore close errors while rebuilding pool
+          }
+          pool = null;
+        }
+
+        const newPool = new sql.ConnectionPool(config);
+        newPool.on("error", (err) => {
+          poolMetrics.lastError = {
+            message: err.message,
+            timestamp: new Date(),
+          };
+          console.error("❌ SQL Pool Error:", err.message);
+        });
+
+        await newPool.connect();
+        pool = newPool;
+        poolMetrics.created = new Date();
+        console.log("✅ Đã kết nối thành công với Database (min:2, max:20)");
+      })().finally(() => {
+        connectingPromise = null;
+      });
+    }
+
+    await connectingPromise;
+    poolMetrics.totalRequests++;
     return pool;
   } catch (err) {
-    console.error("❌ Lỗi kết nối SQL Server:", err);
+    poolMetrics.lastError = {
+      message: err.message,
+      timestamp: new Date(),
+    };
+    console.error("❌ DB Connection Error:", err.message);
     throw err;
   }
 }
 
-module.exports = { connectDB, sql, config };
+async function resetDBPool() {
+  if (!pool) return;
+
+  try {
+    await pool.close();
+  } catch (err) {
+    // Ignore close errors during reset
+  } finally {
+    pool = null;
+  }
+}
+
+// 📊 Pool metrics endpoint (for monitoring)
+function getPoolMetrics() {
+  if (!pool) return { status: "disconnected" };
+  
+  return {
+    status: pool.connected ? "connected" : "disconnected",
+    createdAt: poolMetrics.created,
+    totalRequests: poolMetrics.totalRequests,
+    requestTimeout: config.requestTimeout,
+    connectionTimeout: config.connectionTimeout,
+    poolConfig: config.pool,
+    lastError: poolMetrics.lastError,
+  };
+}
+
+module.exports = { connectDB, resetDBPool, sql, config, getPoolMetrics };

@@ -66,7 +66,7 @@
               .add-cart-plus-btn {
                 position: absolute;
                 right: 18px;
-                bottom: 130px;
+                top: 35px;
                 width: 28px;
                 height: 28px;
                 border-radius: 50%;
@@ -110,6 +110,10 @@
                 width: 100%;
                 display: block;
                 padding: 0 10px;
+              }
+
+              .product-image-wrap {
+                position: relative;
               }
 
               .brand-only-wrap {
@@ -163,8 +167,15 @@
               }
             }
 
-            .product-price {
+            .product-meta {
               margin-bottom: 8px;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              gap: 8px;
+            }
+
+            .product-price {
               display: flex;
               align-items: center;
               gap: 10px;
@@ -180,6 +191,13 @@
                 color: #707070;
                 font-size: 12px;
               }
+            }
+
+            .product-stock {
+              font-size: 11px;
+              font-weight: 700;
+              color: #0f766e;
+              white-space: nowrap;
             }
 
             .product-brand {
@@ -202,10 +220,13 @@
             }
 
             .product-progress-sale {
+              display: flex;
+              align-items: center;
+              justify-content: center;
               color: #fff;
               font-size: 12px;
               height: 19px;
-              margin-top: 10px;
+              margin-top: 8px;
               text-align: center;
               border-radius: 10px;
               background-color: #c73030;

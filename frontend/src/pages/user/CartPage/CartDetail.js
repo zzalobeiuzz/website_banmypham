@@ -41,18 +41,9 @@ const NoProductLottie = () => {
   }, []);
 
   return (
-    <div
-      className="no-product-lottie"
-    >
-      <div
-        ref={containerRef}
-        className="no-product-container"
-      />
-      <div
-        className="no-product-message"
-      >
-        Giỏ hàng đang trống
-      </div>
+    <div className="no-product-lottie">
+      <div ref={containerRef} className="no-product-container" />
+      <div className="no-product-message">Giỏ hàng đang trống</div>
     </div>
   );
 };
@@ -76,10 +67,12 @@ const Cart = () => {
   const [isPaymentPending, setIsPaymentPending] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState("");
   const isPaymentPendingRef = useRef(false);
+  const handledPaymentOrdersRef = useRef(new Set());
 
   //State các bước thanh toán
   const [step, setStep] = useState(1);
   const [expandDetailsCart, setExpandDetailsCart] = useState(false);
+  const [showClearModal, setShowClearModal] = useState(false);
 
   // 📋 State TOÀN BỘ THÔNG TIN ĐƠN HÀNG (tất cả dữ liệu cần tạo đơn)
   const [order, setOrder] = useState({
@@ -127,128 +120,154 @@ const Cart = () => {
     isPaymentPendingRef.current = isPaymentPending;
   }, [isPaymentPending]);
 
-  // =======================================
-  // 💳 HANDLE PAYMENT CALLBACK REDIRECT
-  // =======================================
+  /*========================================================
+   💳 XỬ LÝ KHI NHẬN THÔNG BÁO THANH TOÁN THÀNH CÔNG TỪ SEPAY
+    ========================================================*/
   useEffect(() => {
-    // Parse query params từ payment callback
+    const finalizePaymentSuccess = async ({
+      orderId,
+      paymentStatus = "success",
+      source = "unknown",
+    }) => {
+      const safeOrderId = String(orderId || "").trim();
+      if (!safeOrderId) return;
+
+      if (handledPaymentOrdersRef.current.has(safeOrderId)) {
+        return;
+      }
+      handledPaymentOrdersRef.current.add(safeOrderId);
+
+      let nextOrderInfo = null;
+
+      try {
+        // 1) Cập nhật trạng thái thanh toán thành công (backend sẽ trừ kho tại đây)
+        const paidRes = await request(
+          "POST",
+          `${API_BASE}/api/user/orders/mark-paid`,
+          {
+            orderId: safeOrderId,
+          },
+        );
+
+        const backendOrder = paidRes?.order || paidRes?.data?.order || null;
+
+        if (backendOrder) {
+          nextOrderInfo = {
+            ...backendOrder,
+            id: safeOrderId,
+            paymentStatus: paymentStatus || "success",
+          };
+        }
+      } catch (err) {
+        console.warn(`⚠️ mark-paid thất bại từ ${source}:`, err);
+      }
+
+      // 2) Fallback sang localStorage nếu backend chưa trả đủ dữ liệu
+      if (!nextOrderInfo) {
+        let orderDataFromStorage = null;
+        try {
+          const stored = localStorage.getItem("order_data");
+          if (stored) {
+            orderDataFromStorage = JSON.parse(stored);
+          }
+        } catch (e) {}
+
+        nextOrderInfo = {
+          id: safeOrderId,
+          paymentStatus: paymentStatus || "success",
+          items: orderDataFromStorage?.items || [],
+          total: orderDataFromStorage?.total || 0,
+          subtotal: orderDataFromStorage?.subtotal || 0,
+          discount: orderDataFromStorage?.discount || 0,
+          shippingInfo: orderDataFromStorage?.shippingInfo || {},
+        };
+      }
+
+      if (nextOrderInfo) {
+        setOrderInfo(nextOrderInfo);
+      }
+
+      // 3) Chuyển sang step 4
+      clearCart();
+      clearPendingPaymentState(false);
+      setStep(4);
+      setExpandDetailsCart(true);
+    };
+
+    // Ưu tiên xử lý callback URL trước
     const queryParams = new URLSearchParams(location.search);
     const callbackStep = queryParams.get("step");
-    const orderId = queryParams.get("order_id");
-    const paymentStatus = queryParams.get("payment");
+    const callbackOrderId = queryParams.get("order_id");
+    const callbackPaymentStatus = queryParams.get("payment");
 
-    // Nếu từ payment callback, jump to step 4
-    if (callbackStep === "4" && orderId) {
-      clearCart();
-      setStep(4);
-      clearPendingPaymentState(false);
-      setExpandDetailsCart(true);
-
-      (async () => {
-        try {
-          const res = await request("GET", `${API_BASE}/api/user/orders/detail/${orderId}`);
-          const fetchedOrder = res?.order || res?.data?.order || res?.data || null;
-
-          setOrderInfo({
-            ...fetchedOrder,
-            id: orderId,
-            paymentStatus: paymentStatus || "success",
-          });
-        } catch (err) {
-          console.warn("⚠️ Không lấy được chi tiết đơn hàng từ DB:", err);
-          let orderDataFromStorage = null;
-          try {
-            const stored = localStorage.getItem("order_data");
-            if (stored) {
-              orderDataFromStorage = JSON.parse(stored);
-            }
-          } catch (e) {}
-
-          setOrderInfo({
-            id: orderId,
-            paymentStatus: paymentStatus || "success",
-            items: orderDataFromStorage?.items || [],
-            total: orderDataFromStorage?.total || 0,
-            subtotal: orderDataFromStorage?.subtotal || 0,
-            discount: orderDataFromStorage?.discount || 0,
-            shippingInfo: orderDataFromStorage?.shippingInfo || {},
-          });
-        }
-      })();
+    if (callbackStep === "4" && callbackOrderId) {
+      finalizePaymentSuccess({
+        orderId: callbackOrderId,
+        paymentStatus: callbackPaymentStatus,
+        source: "callback-query",
+      });
     }
-  }, [location.search, clearCart, request]);
 
-  // =======================================
-  // 📨 Nhận Message từ cổng Thanh Toán
-  // =======================================
-  useEffect(() => {
+    /**
+     * 📩 Nhận message bằng postMessage()
+     * ---------------------------------------
+     * Callback tab sẽ gửi:
+     * window.opener.postMessage(...)
+     */
     const handlePaymentMessage = async (event) => {
       const { type, orderId, paymentStatus } = event.data || {};
 
-      // Nếu nhận được message từ callback tab
+      // ✅ Nếu là tín hiệu thanh toán thành công
       if (type === "PAYMENT_SUCCESS") {
         console.log("💌 CartDetail nhận được postMessage:", {
           orderId,
           paymentStatus,
         });
 
-        // Cố gắng mark paid trên backend (nếu webhook chưa tới)
-        try {
-          const res = await request("POST", `${API_BASE}/api/user/orders/mark-paid`, { orderId });
-          const backendOrder = res?.order || res?.data?.order || null;
-
-          if (backendOrder) {
-            setOrderInfo({
-              ...backendOrder,
-              id: orderId,
-              paymentStatus: paymentStatus || "success",
-            });
-          }
-        } catch (err) {
-          console.warn("⚠️ Không thể gọi mark-paid endpoint:", err);
-        }
-
-        clearCart();
-        clearPendingPaymentState(false);
-        setStep(4);
-        setExpandDetailsCart(true);
+        // 🔄 Đồng bộ trạng thái thanh toán
+        await finalizePaymentSuccess({
+          orderId,
+          paymentStatus,
+          source: "postMessage",
+        });
       }
     };
 
-    // Thêm listener (không bao giờ remove để tránh miss message)
+    /**
+     * 👂 Lắng nghe message từ tab/payment popup
+     */
     window.addEventListener("message", handlePaymentMessage);
-    // BroadcastChannel listener (same-origin reliable)
+
+    /**
+     * =======================================
+     * 📡 BroadcastChannel
+     * =======================================
+     */
+
     let bc;
+
     try {
+      // ✅ Browser hỗ trợ BroadcastChannel
       if (typeof BroadcastChannel !== "undefined") {
+        // 📡 Tạo channel chung
         bc = new BroadcastChannel("sepay_channel");
+
+        // 📩 Khi nhận message từ channel
         bc.onmessage = async (ev) => {
           const { type, orderId, paymentStatus } = ev.data || {};
+
           if (type === "PAYMENT_SUCCESS") {
             console.log("💡 CartDetail nhận BroadcastChannel:", {
               orderId,
               paymentStatus,
             });
 
-            try {
-              const res = await request("POST", `${API_BASE}/api/user/orders/mark-paid`, { orderId });
-              const backendOrder = res?.order || res?.data?.order || null;
-
-              if (backendOrder) {
-                setOrderInfo({
-                  ...backendOrder,
-                  id: orderId,
-                  paymentStatus: paymentStatus || "success",
-                });
-              }
-            } catch (err) {
-              console.warn("⚠️ Không thể gọi mark-paid endpoint (BC):", err);
-            }
-
-            clearCart();
-            clearPendingPaymentState(false);
-            setStep(4);
-            setExpandDetailsCart(true);
+            // 🔄 Đồng bộ trạng thái thanh toán
+            await finalizePaymentSuccess({
+              orderId,
+              paymentStatus,
+              source: "broadcast-channel",
+            });
           }
         };
       }
@@ -256,56 +275,95 @@ const Cart = () => {
       console.warn("⚠️ BroadcastChannel not available", err);
     }
 
-    // localStorage fallback (storage event)
+    /**
+     * =======================================
+     * 🗄️ localStorage fallback
+     * =======================================
+     * Nếu browser không hỗ trợ BroadcastChannel
+     * thì dùng storage event thay thế
+     */
+
     const handleStorage = async (ev) => {
+      // ❌ Không có key
       if (!ev.key) return;
+
+      // ✅ Nếu key thanh toán thay đổi
       if (ev.key === "sepay_last" && ev.newValue) {
         try {
+          // 📦 Parse dữ liệu JSON
           const payload = JSON.parse(ev.newValue);
+
+          // ✅ Nếu thanh toán thành công
           if (payload && payload.type === "PAYMENT_SUCCESS") {
             console.log("🗄️ CartDetail nhận localStorage event:", payload);
-            try {
-              await request("POST", `${API_BASE}/api/user/orders/mark-paid`, { orderId: payload.orderId });
-            } catch (err) {
-              console.warn("⚠️ Không thể gọi mark-paid endpoint (storage):", err);
-            }
 
-            clearCart();
-            clearPendingPaymentState(false);
-            setStep(4);
-            setExpandDetailsCart(true);
+            // 🔄 Đồng bộ trạng thái thanh toán
+            await finalizePaymentSuccess({
+              orderId: payload.orderId,
+              paymentStatus: payload.paymentStatus,
+              source: "storage-event",
+            });
           }
         } catch (err) {
           console.warn("⚠️ parse sepay_last", err);
         }
       }
     };
+
+    /**
+     * 👂 Lắng nghe thay đổi localStorage
+     */
     window.addEventListener("storage", handleStorage);
 
-    // Theo dõi popup cổng thanh toán: nếu user đóng ngang thì mở khóa lại trang
+    /**
+     * =======================================
+     * 👀 Theo dõi popup thanh toán
+     * =======================================
+     * Nếu user đóng popup ngang
+     * → reset trạng thái pending payment
+     */
+
     const pollPaymentWindow = setInterval(() => {
+      // ❌ Không ở trạng thái chờ thanh toán
       if (!isPaymentPendingRef.current) return;
 
-      const popupClosed = !sepayWindowRef.current || sepayWindowRef.current.closed;
+      // 📌 Kiểm tra popup còn mở không
+      const popupClosed =
+        !sepayWindowRef.current || sepayWindowRef.current.closed;
+
+      // ✅ Nếu popup bị đóng
       if (popupClosed) {
+        // 🔓 Mở khóa trạng thái thanh toán
         clearPendingPaymentState(true);
       }
     }, 500);
 
-    // Optional: cleanup khi component unmount (nhưng listener sẽ không hoạt động nếu component unmount)
+    /**
+     * =======================================
+     * 🧹 Cleanup khi component unmount
+     * =======================================
+     */
+
     return () => {
+      // ❌ Remove postMessage listener
       window.removeEventListener("message", handlePaymentMessage);
+
+      // ❌ Đóng BroadcastChannel
       try {
         if (bc) bc.close();
       } catch (e) {}
+
+      // ❌ Remove storage listener
       window.removeEventListener("storage", handleStorage);
+
+      // ❌ Clear interval kiểm tra popup
       clearInterval(pollPaymentWindow);
     };
-  }, [clearCart, request]);
+  }, [location.search, clearCart, request]);
 
-  // =========================
-  // 📥 LOAD PRODUCT DETAIL
-  // =========================
+  // ======================================================
+  // 📥 HIỆN THÔNG TIN CHI TIẾT DANH SÁCH SP TRONG GIỎ HÀNG
+  // ======================================================
   useEffect(() => {
     const fetchCart = async () => {
       if (!cartItems.length) {
@@ -333,6 +391,7 @@ const Cart = () => {
             id: p.ProductID,
             name: p.ProductName,
             price: Number(p.Price) || 0,
+            stockQuantity: Number(p.StockQuantity) || 0,
 
             // ✅ CHUẨN HÓA Ở ĐÂY
             sale_price: Number(p.sale_price) || 0, // giảm giá
@@ -408,9 +467,10 @@ const Cart = () => {
   };
 
   // =========================
-  // ✅ XÁC NHẬN THANH TOÁN ĐƠN HÀNG (TẠO ORDER + TẠO PAYMENT)
+  // ✅ XÁC NHẬN TẠO ĐƠN HÀNG (TẠO ORDER + TẠO PAYMENT)
   // =========================
   const handleFinalCheckout = async () => {
+    console.log("🚀 handleFinalCheckout called with order data:", order);
     setIsSubmittingOrder(true);
     try {
       const res = await request(
@@ -425,16 +485,38 @@ const Cart = () => {
           subtotal: order.subtotal,
           total: order.total,
           paymentMethod: order.paymentMethod,
+          status:
+            order.paymentMethod === "COD" ? "Thanh toán COD" : "Đang xử lý",
         },
       );
 
       console.log("🧾 createOrder response:", res);
+      // --------------💳 COD ----------------
+      if (res?.paymentMethod === "COD") {
+        alert("Đơn hàng đã được tạo thành công!");
 
+        // ✅ reset cart
+        clearCart();
 
-      // -------------- 💳 NẾU TRẢ VỀ YÊU CẦU THANH TOÁN CHUYỂN KHOẢN --------------
-      if (res?.paymentRequired) {
+        // ✅ reset payment state
+        clearPendingPaymentState(false);
 
-        // 🔄 Chuyển trạng thái đang chờ thanh toán 
+        // ✅ set dữ liệu đơn hàng
+        if (res?.data) {
+          setOrderInfo(res.data);
+        }
+
+        // ✅ sang step success
+        setStep(4);
+
+        // ✅ mở rộng chi tiết
+        setExpandDetailsCart(true);
+
+        return;
+      }
+      // -------------- 💳 NẾU TRẢ VỀ LÀ THANH TOÁN CHUYỂN KHOẢN --------------
+      if (res?.paymentMethod === "TRANSFER" && res?.paymentRequired) {
+        // 🔄 Chuyển trạng thái đang chờ thanh toán
         setIsPaymentPending(true);
         setPendingOrderId("");
 
@@ -452,8 +534,6 @@ const Cart = () => {
             "Có lỗi khi khởi tạo cổng thanh toán. Vui lòng thử lại hoặc liên hệ hỗ trợ.",
           );
         } else {
-
-
           // ✅ --------- FORM VÀ SUBMIT SANG SEPAY ---------
           const form = sepayFormRef.current;
 
@@ -499,7 +579,11 @@ const Cart = () => {
                 setPendingOrderId(createdOrderId);
                 localStorage.setItem(
                   "pending_order",
-                  JSON.stringify({ orderId: createdOrderId, total: order.total, createdAt: Date.now() })
+                  JSON.stringify({
+                    orderId: createdOrderId,
+                    total: order.total,
+                    createdAt: Date.now(),
+                  }),
                 );
                 // 💾 Lưu full order data để hiển thị step 4 khi nhận PAYMENT_SUCCESS callback
                 localStorage.setItem(
@@ -510,7 +594,7 @@ const Cart = () => {
                     subtotal: order.subtotal,
                     discount: order.discount,
                     shippingInfo: order.shippingInfo,
-                  })
+                  }),
                 );
               }
             } catch (e) {
@@ -531,12 +615,8 @@ const Cart = () => {
 
         // ⛔ Dừng flow tại đây (không chạy các bước tiếp theo như navigate)
         return;
-      }
-
-      if (res?.data) {
-        clearPendingPaymentState(false);
-        setOrderInfo(res.data);
-        setStep(4);
+      } else if (res?.paymentMethod === "MOMO" && res?.paymentRequired) {
+        alert("MOMO payment đang được xử lý. Vui lòng chờ...");
       }
     } catch (err) {
       clearPendingPaymentState(false);
@@ -570,34 +650,38 @@ const Cart = () => {
 
       <div className="cart-detail-page">
         {isPaymentPending && (
-        <div className="payment-lock-overlay">
-          <div className="payment-lock-modal">
-            <div className="payment-icon">⏳</div>
-            <h3>Đang xử lý thanh toán</h3>
-            <p>
-              Vui lòng không thao tác trên trang này cho đến khi thanh toán hoàn tất.
-              Nếu bạn đóng tab cổng thanh toán, hệ thống sẽ tự mở khóa lại để bạn tiếp tục.
-            </p>
-            <div className="payment-order-id">
-              Mã đơn: {pendingOrderId || "-"}
+          <div className="payment-lock-overlay">
+            <div className="payment-lock-modal">
+              <div className="payment-icon">⏳</div>
+              <h3>Đang xử lý thanh toán</h3>
+              <p>
+                Vui lòng không thao tác trên trang này cho đến khi thanh toán
+                hoàn tất. Nếu bạn đóng tab cổng thanh toán, hệ thống sẽ tự mở
+                khóa lại để bạn tiếp tục.
+              </p>
+              <div className="payment-order-id">
+                Mã đơn: {pendingOrderId || "-"}
+              </div>
+              <button
+                type="button"
+                onClick={() => clearPendingPaymentState(true)}
+                className="btn-cancel-payment"
+              >
+                Hủy thanh toán
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => clearPendingPaymentState(true)}
-              className="btn-cancel-payment"
-            >
-              Hủy thanh toán
-            </button>
           </div>
-        </div>
         )}
 
-        <div className={`cart-detail-main ${step === 4 && expandDetailsCart ? 'expand-details-view' : ''}`}>
+        <div
+          className={`cart-detail-main ${step === 4 && expandDetailsCart ? "expand-details-view" : ""}`}
+        >
           {/* ================= LEFT ================= */}
           <div className="main-left">
             <div className="cart-header-wrapper">
               <h2>Giỏ hàng</h2>
             </div>
+
             {products.length === 0 ? (
               <NoProductLottie />
             ) : (
@@ -609,6 +693,7 @@ const Cart = () => {
                   <div className="cart-col qty">Số lượng</div>
                   <div className="cart-col total">Thành tiền</div>
                 </div>
+
                 {products.map((item) => (
                   <div className="cart-item" key={item.id}>
                     {/* 🖼 ẢNH */}
@@ -643,7 +728,22 @@ const Cart = () => {
                     <div className="cart-col qty">
                       <button onClick={() => decreaseQty(item.id)}>➖</button>
                       <span>{item.quantity}</span>
-                      <button onClick={() => increaseQty(item.id)}>➕</button>
+                      <button
+                        disabled={
+                          item.stockQuantity > 0 &&
+                          item.quantity >= item.stockQuantity
+                        }
+                        onClick={() => {
+                          const ok = increaseQty(item.id, item.stockQuantity);
+                          if (!ok) {
+                            window.alert(
+                              `Chỉ còn ${item.stockQuantity} sản phẩm trong kho.`,
+                            );
+                          }
+                        }}
+                      >
+                        ➕
+                      </button>
                     </div>
 
                     {/* 🧮 THÀNH TIỀN */}
@@ -659,6 +759,18 @@ const Cart = () => {
                     </div>
                   </div>
                 ))}
+
+                {products.length > 0 && (
+                  <button
+                    onClick={() => setShowClearModal(true)}
+                    className="btn-clear-all"
+                    title="Xóa tất cả sản phẩm"
+                    aria-haspopup="dialog"
+                    aria-expanded={showClearModal}
+                  >
+                    Xóa tất cả
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -686,14 +798,19 @@ const Cart = () => {
                   {isPaymentPending && (
                     <div className="payment-pending-banner">
                       <small>
-                        Đang chờ thanh toán cho đơn <strong>{(() => {
-                          try {
-                            const p = JSON.parse(localStorage.getItem("pending_order") || "{}");
-                            return p.orderId || "-";
-                          } catch (e) {
-                            return "-";
-                          }
-                        })()}</strong>
+                        Đang chờ thanh toán cho đơn{" "}
+                        <strong>
+                          {(() => {
+                            try {
+                              const p = JSON.parse(
+                                localStorage.getItem("pending_order") || "{}",
+                              );
+                              return p.orderId || "-";
+                            } catch (e) {
+                              return "-";
+                            }
+                          })()}
+                        </strong>
                       </small>
                       <button
                         className="btn-cancel-pending"
@@ -743,6 +860,40 @@ const Cart = () => {
       >
         {/* Hidden inputs sẽ được populate động trong handleFinalCheckout */}
       </form>
+
+      {/* ===== CONFIRM CLEAR-ALL MODAL ===== */}
+      {showClearModal && (
+        <div className="confirm-modal-overlay" role="dialog" aria-modal="true">
+          <div className="confirm-modal">
+            <button
+              className="confirm-modal-close"
+              onClick={() => setShowClearModal(false)}
+              aria-label="Đóng"
+            >
+              ✕
+            </button>
+            <h3>Xác nhận</h3>
+            <p>Bạn chắc chắn muốn xóa tất cả sản phẩm trong giỏ hàng?</p>
+            <div className="confirm-actions">
+              <button
+                className="btn btn-cancel"
+                onClick={() => setShowClearModal(false)}
+              >
+                Hủy
+              </button>
+              <button
+                className="btn btn-confirm"
+                onClick={() => {
+                  clearCart();
+                  setShowClearModal(false);
+                }}
+              >
+                Xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

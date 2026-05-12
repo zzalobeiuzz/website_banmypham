@@ -11,21 +11,32 @@ const {
 } = require("../models/product.model");
 const { calculateDiscountPercent, calculateTimeLeft } = require("../utils/productUtils");
 
+// ⏱️ Batch sync config
 const BATCH_SYNC_INTERVAL_MS = Number(process.env.BATCH_SYNC_INTERVAL_MS || 10 * 60 * 1000);
+const BATCH_SYNC_TIMEOUT_MS = 25000; // 25 second timeout
 let lastBatchSyncAt = 0;
 let isBatchSyncRunning = false;
 
 const triggerBatchSyncInBackground = () => {
   const now = Date.now();
+  
+  // 🔒 Skip if already running or too recent
   if (isBatchSyncRunning) return;
   if (now - lastBatchSyncAt < BATCH_SYNC_INTERVAL_MS) return;
 
   isBatchSyncRunning = true;
   lastBatchSyncAt = now;
 
-  syncExpiredBatchDetailsStatus()
+  // ⏱️ Wrap with timeout
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error("Batch sync timeout")), BATCH_SYNC_TIMEOUT_MS)
+  );
+
+  Promise.race([syncExpiredBatchDetailsStatus(), timeoutPromise])
     .catch((error) => {
-      console.error("❌ Lỗi đồng bộ lô hết hạn (background):", error?.message || error);
+      console.error(
+        `❌ Background batch sync failed: ${error?.message || error}. Next attempt in ${BATCH_SYNC_INTERVAL_MS / 1000}s`
+      );
     })
     .finally(() => {
       isBatchSyncRunning = false;
