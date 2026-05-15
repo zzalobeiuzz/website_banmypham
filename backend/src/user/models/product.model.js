@@ -36,17 +36,25 @@ exports.syncExpiredBatchDetailsStatus = async () => {
     return Number(result.recordset?.[0]?.UpdatedRows || 0);
   } catch (error) {
     const message = String(error?.message || "");
-    const isClosedConnection = /connection\s+is\s+closed|connection\s+not\s+yet\s+open|pool\s+is\s+not\s+open/i.test(message);
+    const isClosedConnection =
+      /connection\s+is\s+closed|connection\s+not\s+yet\s+open|pool\s+is\s+not\s+open/i.test(
+        message,
+      );
 
     if (isClosedConnection) {
       try {
-        console.warn("⚠️ Pool đang đóng, thử reconnect để đồng bộ lô hết hạn...");
+        console.warn(
+          "⚠️ Pool đang đóng, thử reconnect để đồng bộ lô hết hạn...",
+        );
         await resetDBPool();
         const retryPool = await connectDB();
         const retryResult = await retryPool.request().query(syncQuery);
         return Number(retryResult.recordset?.[0]?.UpdatedRows || 0);
       } catch (retryError) {
-        console.error("❌ Retry đồng bộ lô hết hạn thất bại:", retryError.message);
+        console.error(
+          "❌ Retry đồng bộ lô hết hạn thất bại:",
+          retryError.message,
+        );
         return 0;
       }
     }
@@ -150,16 +158,14 @@ exports.findCategories = async () => {
     `);
 
     // Lấy tất cả sub-category chưa bị ẩn
-    const subCategoryResult = await pool
-      .request()
-      .query(`
+    const subCategoryResult = await pool.request().query(`
         SELECT * FROM SUB_CATEGORY
         WHERE IsHidden = 0 OR IsHidden IS NULL
       `);
 
     const categories = categoryResult.recordset.map((category) => {
       const subCategories = subCategoryResult.recordset.filter(
-        (sub) => sub.CategoryID === category.CategoryID
+        (sub) => sub.CategoryID === category.CategoryID,
       );
       return {
         ...category,
@@ -248,28 +254,65 @@ exports.findProductDetailById = async (productIds) => {
     });
 
     const query = `
-      SELECT
-        P.*,
-        -- 📦 Tồn kho được tính bằng tổng Quantity còn lại ở các lô trong BATCH_DETAIL
-        ISNULL(BDQ.StockQuantity, 0) AS StockQuantity,
-        C.CategoryName,
-        SC.SubCategoryName,
-        D.Usage,
-        D.Ingredient,
-        D.ProductDescription,
-        D.HowToUse
+          SELECT
+          P.*,
+
+          -- 📦 tồn kho
+          ISNULL(BDQ.StockQuantity, 0) AS StockQuantity,
+
+          -- 📂 category
+          C.CategoryName,
+          SC.SubCategoryName,
+
+          -- 📄 detail
+          D.Usage,
+          D.Ingredient,
+          D.ProductDescription,
+          D.HowToUse,
+
+          -- 🔥 sale
+          PS.sale_price,
+          PS.start_date,
+          PS.end_date,
+          PS.status AS sale_status
+
       FROM PRODUCT P
-      LEFT JOIN CATEGORY C ON P.CategoryID = C.CategoryID
-      LEFT JOIN SUB_CATEGORY SC ON P.SubCategoryID = SC.SubCategoryID
+
+      LEFT JOIN CATEGORY C 
+          ON P.CategoryID = C.CategoryID
+
+      LEFT JOIN SUB_CATEGORY SC 
+          ON P.SubCategoryID = SC.SubCategoryID
+
       LEFT JOIN (
-        SELECT ProductID, SUM(CAST(Quantity AS INT)) AS StockQuantity
-        FROM BATCH_DETAIL BD
-        LEFT JOIN BATCHES B ON B.ID = BD.BatchID
-        WHERE ISNULL(BD.IsActive, 1) = 1
-          AND (B.IsActive = 1 OR B.IsActive IS NULL)
-        GROUP BY ProductID
-      ) BDQ ON BDQ.ProductID = P.ProductID
-      LEFT JOIN Product_Detail D ON P.DetailID = D.IDDetail
+          SELECT 
+              ProductID,
+              SUM(CAST(Quantity AS INT)) AS StockQuantity
+          FROM BATCH_DETAIL BD
+          LEFT JOIN BATCHES B 
+              ON B.ID = BD.BatchID
+          WHERE ISNULL(BD.IsActive, 1) = 1
+            AND (B.IsActive = 1 OR B.IsActive IS NULL)
+          GROUP BY ProductID
+      ) BDQ 
+          ON BDQ.ProductID = P.ProductID
+
+      LEFT JOIN Product_Detail D 
+          ON P.DetailID = D.IDDetail
+
+      -- 🔥 JOIN SALE
+      LEFT JOIN PRODUCT_SALE PS
+          ON PS.product_id = P.ProductID
+        AND PS.status = 1
+        AND (
+              PS.start_date IS NULL 
+              OR PS.start_date <= GETDATE()
+        )
+        AND (
+              PS.end_date IS NULL
+              OR PS.end_date >= GETDATE()
+        )
+
       WHERE P.ProductID IN (${idParams.join(",")})
         AND (P.IsHidden = 0 OR P.IsHidden IS NULL)
         AND (C.IsHidden = 0 OR C.IsHidden IS NULL)
@@ -339,11 +382,7 @@ exports.findBatchDetailsByProductId = async (input) => {
         barcode: row.Barcode || "",
         quantity: Number(row.Quantity || 0),
         createdAt: row.BatchCreatedAt || row.CreatedAt || null,
-        expiryDate:
-          row.ExpiryDate ||
-          row.ExpiredDate ||
-          row.ExpireDate ||
-          null,
+        expiryDate: row.ExpiryDate || row.ExpiredDate || row.ExpireDate || null,
         note: row.BatchNote || row.Note || "",
       });
     });
@@ -367,10 +406,7 @@ exports.findBrandDetailWithProducts = async (idBrand) => {
     };
   }
 
-  const brandResult = await pool
-    .request()
-    .input("idBrand", brandId)
-    .query(`
+  const brandResult = await pool.request().input("idBrand", brandId).query(`
       SELECT TOP 1
         idBrand,
         Brand,
@@ -381,10 +417,7 @@ exports.findBrandDetailWithProducts = async (idBrand) => {
       WHERE idBrand = @idBrand
     `);
 
-  const productResult = await pool
-    .request()
-    .input("idBrand", brandId)
-    .query(`
+  const productResult = await pool.request().input("idBrand", brandId).query(`
       SELECT
         P.ProductID,
         P.ProductName,

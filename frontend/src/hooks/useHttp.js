@@ -25,18 +25,28 @@ const useHttp = () => {
     setError(null);       // Reset lỗi cũ (nếu có)
 
     const isAdminApi = typeof url === "string" && url.includes("/api/admin/");
+    const isUserApi = typeof url === "string" && url.includes("/api/user/");
+    const isProtectedApi = isAdminApi || isUserApi;
 
     const sendRequest = async (overrideHeaders = {}) => {
       const safeHeaders = headers && typeof headers === "object" && !Array.isArray(headers) ? headers : {};
       const mergedHeaders = { ...safeHeaders, ...overrideHeaders };
 
-      // Tự gắn access token cho toàn bộ API admin nếu caller chưa truyền Authorization.
-      if (isAdminApi && !mergedHeaders.Authorization) {
+      // Tự gắn access token cho toàn bộ API admin/user nếu caller chưa truyền Authorization.
+      if (isProtectedApi && !mergedHeaders.Authorization) {
         const accessToken = localStorage.getItem("accessToken");
         if (accessToken) {
           mergedHeaders.Authorization = `Bearer ${accessToken}`;
         }
       }
+      // Debug: log when sending protected requests (only first 10 chars of token)
+      try {
+        if (isProtectedApi) {
+          const tokenPreview = (mergedHeaders.Authorization || "").slice(0, 20);
+          // eslint-disable-next-line no-console
+          console.debug("useHttp: sending", method, url, tokenPreview ? `${tokenPreview}...` : "(no token)");
+        }
+      } catch (e) {}
 
       return axios({
         method: method.toLowerCase(),
@@ -59,10 +69,10 @@ const useHttp = () => {
 
       const isInvalidToken =
         status === 401 &&
-        /token không hợp lệ|jwt expired|invalid token/i.test(String(message));
+        /token không hợp lệ|jwt expired|invalid token|unauthorized|thiếu token/i.test(String(message).toLowerCase());
 
-      // API admin: tự refresh access token rồi retry 1 lần nếu token hết hạn/không hợp lệ.
-      if (isAdminApi && isInvalidToken) {
+      // API admin/user: tự refresh access token rồi retry 1 lần nếu token hết hạn/không hợp lệ.
+      if (isProtectedApi && isInvalidToken) {
         try {
           const refreshToken = localStorage.getItem("refreshToken");
           if (!refreshToken) {

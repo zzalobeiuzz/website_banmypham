@@ -96,7 +96,6 @@ exports.buildSepayCheckout = ({
     api_version: process.env.SEPAY_API_VERSION || "v1",
     checkout_version: process.env.SEPAY_CHECKOUT_VERSION || "v1",
   });
-  console.log("env:", env, "merchantId:", merchantId, "secretKey:", secretKey ? "✅" : "❌");
   // 📦 Tạo dữ liệu thanh toán (fields)
   const fields = client.checkout.initOneTimePaymentFields({
     operation: "PURCHASE", // 🛒 hành động thanh toán

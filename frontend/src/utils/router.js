@@ -3,6 +3,7 @@ export const ROUTERS = {
     USER: {
       HOME: "",                      // Trang chủ user: /
       PROFILE: "profile",            // Trang profile: /profile
+      ORDERS: "orders",              // Trang danh sách đơn hàng của user: /orders
       PRODUCT_DETAIL: "product/:id", // Chi tiết sản phẩm: /product/123
       BRAND_DETAIL: "brand/:idBrand", // Chi tiết thương hiệu: /brand/BR001
       SIGNUP: "signup",              // Trang đăng ký: /signup

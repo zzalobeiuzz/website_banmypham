@@ -147,6 +147,29 @@ const deductInventoryFromBatch = async (
   quantity,
 ) => {
   try {
+    // 🔎 Kiểm tra trạng thái đơn hàng trong DB trước khi trừ kho
+    const orderStatusResult = await transaction
+      .request()
+      .input("orderId", sql.NVarChar(100), String(orderId || "").trim()).query(`
+        SELECT TOP 1 [Status], [PaymentMethod]
+        FROM ORDERS WITH (UPDLOCK, ROWLOCK)
+        WHERE CAST([OrderID] AS NVARCHAR(100)) = @orderId
+      `);
+
+    const persistedOrder = orderStatusResult.recordset?.[0];
+    const persistedStatus = String(persistedOrder?.Status || "").trim();
+    const persistedPaymentMethod = String(persistedOrder?.PaymentMethod || "").trim().toUpperCase();
+
+    const canDeductNow =
+      persistedPaymentMethod === "COD" ||
+      persistedStatus.toLowerCase() === "đã thanh toán";
+
+    if (!canDeductNow) {
+      throw new Error(
+        `== Đơn hàng ${orderId} chưa đủ điều kiện trừ kho (status="${persistedStatus}", paymentMethod="${persistedPaymentMethod}==")`,
+      );
+    }
+
     // Chuẩn hóa dữ liệu đầu vào
     // Tạo biến lưu số lượng còn phải trừ ban đầu
     let remainingQty = Number(quantity || 0);
@@ -288,6 +311,8 @@ const deductInventoryFromBatch = async (
  💡 Trừ kho CHỈ khi thanh toán thành công (status = "Đã thanh toán")
 --------------------------------------------------*/
 exports.insertBillAndDetails = async (orderData) => {
+  console.log("🚀 -----------------Đang tạo đơn hàng-------------------");
+  console.log("Trạng thái đơn hàng:", orderData.status);
   const {
     userId,
     items = [],
@@ -297,9 +322,9 @@ exports.insertBillAndDetails = async (orderData) => {
     discount = 0,
     voucher = "",
     paymentMethod = "COD",
-    status = "Đã Thanh Toán", // Mặc định là COD → đã thanh toán ngay
+    status = "Chờ thanh toán",
   } = orderData;
- 
+
   const pool = await connectDB();
   const transaction = pool.transaction();
   await transaction.begin();
@@ -331,32 +356,49 @@ exports.insertBillAndDetails = async (orderData) => {
       `);
 
     // 🧾 Insert bảng ORDER_DETAILS + 📦 Trừ kho (nếu thanh toán thành công)
+
+    const lowerStatus = String(status || "").toLowerCase();
+    // 💡 Chỉ trừ kho khi status chứa "Thanh toán" hoặc "Đã thanh toán" (thanh toán thành công)
+    // ✅ Status thành công: "Thanh Toán COD", "Đã thanh toán", "Đã Thanh Toán"
+    // ❌ Status chưa thành công: "Chờ thanh toán", "Đang xử lý"
+    const shouldDeductInventory =
+      lowerStatus.includes("đã") ||
+      (lowerStatus.includes("thanh toán") && !lowerStatus.includes("chờ"));
+
     for (const it of items) {
+      const qty = Number(it.quantity || 1);
+      const originalPriceVal = Number(
+        (it.originalPrice ?? it.originPrice ?? it.price) || 0,
+      );
+      const salePriceVal = Number(
+        (it.salePrice ?? it.sale_price ?? it.price) || 0,
+      );
+      const lineTotalVal = Number(
+        (salePriceVal || originalPriceVal) * qty || 0,
+      );
+
       await transaction
         .request()
         .input("orderId", sql.NVarChar(100), newOrderId)
         .input("productId", sql.NVarChar(100), it.productId || 0)
-
-        .input("quantity", sql.Int, it.quantity || 1)
-        .input("originalPrice", sql.Decimal(18, 2), it.originalPrice || 0)
-        .input("salePrice", sql.Decimal(18, 2), it.salePrice || 0)
-        .input(
-          "lineTotal",
-          sql.Decimal(18, 2),
-          (it.salePrice || it.price || 0) * (it.quantity || 1),
-        ).query(`
+        .input("quantity", sql.Int, qty)
+        .input("originalPrice", sql.Decimal(18, 2), originalPriceVal)
+        .input("salePrice", sql.Decimal(18, 2), salePriceVal)
+        .input("lineTotal", sql.Decimal(18, 2), lineTotalVal).query(`
           INSERT INTO ORDER_DETAILS (OrderID, ProductID,  Quantity, OriginalPrice, SalePrice, LineTotal)
           VALUES (@orderId, @productId,   @quantity, @originalPrice, @salePrice, @lineTotal)
         `);
 
+      // 📦 Trừ kho CHỈ nếu thanh toán thành công (COD hoặc webhook thanh toán)
       const productId = String(it.productId || "").trim();
-      const orderQty = Number(it.quantity || 1);
-      if (productId && orderQty > 0) {
-        await deductInventoryFromBatch(
-          transaction,
-          newOrderId,
-          productId,
-          orderQty,
+      if (productId && qty > 0 && shouldDeductInventory) {
+        console.log(
+          `=> 📦 Trừ kho cho sản phẩm ${productId} vì status="${status}" là thanh toán thành công`,
+        );
+        await deductInventoryFromBatch(transaction, newOrderId, productId, qty);
+      } else if (productId && qty > 0 && !shouldDeductInventory) {
+        console.log(
+          `=> ⏸️ Chưa trừ kho cho sản phẩm ${productId} vì status="${status}" là chưa thanh toán`,
         );
       }
     }
@@ -364,7 +406,7 @@ exports.insertBillAndDetails = async (orderData) => {
     // ✅ Commit = tất cả OK
     await transaction.commit();
     console.log(
-      `✅ Tạo đơn hàng thành công: ${newOrderId} với ${items.length} sản phẩm.`,
+      `  == ✅ Tạo đơn hàng: ${newOrderId} thành công. ==`,
     );
     return {
       id: newOrderId,
@@ -417,21 +459,21 @@ exports.getOrderByOrderId = async (orderId) => {
   if (!orderRow) {
     return null;
   }
-  // 2. Query chi tiết đơn hàng từ ORDER_DETAILS
+  // 2. Query chi tiết đơn hàng từ ORDER_DETAILS + JOIN PRODUCT để lấy tên và ảnh
   const detailResult = await pool
     .request()
     .input("OrderId", sql.NVarChar(100), normalizedOrderId).query(`
       SELECT
-        CAST([ProductID] AS NVARCHAR(100)) AS ProductID,
-        CAST([ProductName] AS NVARCHAR(255)) AS ProductName,
-        CAST([Barcode] AS NVARCHAR(100)) AS Barcode,
-        [Quantity],
-        [OriginalPrice],
-        [SalePrice],
-        [LineTotal]
-      FROM ORDER_DETAILS
-      WHERE CAST([OrderID] AS NVARCHAR(100)) = @OrderId
-      ORDER BY CAST([ProductName] AS NVARCHAR(255)) ASC
+        CAST([od].[ProductID] AS NVARCHAR(100)) AS ProductID,
+        [od].[Quantity],
+        [od].[OriginalPrice],
+        [od].[SalePrice],
+        [od].[LineTotal],
+        [p].[ProductName],
+        [p].[Image]
+      FROM ORDER_DETAILS [od]
+      LEFT JOIN PRODUCT [p] ON CAST([od].[ProductID] AS NVARCHAR(100)) = CAST([p].[ProductID] AS NVARCHAR(100))
+      WHERE CAST([od].[OrderID] AS NVARCHAR(100)) = @OrderId
     `);
 
   // ✅ Kiểm tra chi tiết đơn hàng có tồn tại và không rỗng
@@ -465,8 +507,8 @@ exports.getOrderByOrderId = async (orderId) => {
     updatedAt: orderRow.UpdatedAt,
     items: detailResult.recordset.map((row) => ({
       productId: row.ProductID,
-      name: row.ProductName,
-      barcode: row.Barcode,
+      productName: row.ProductName || "",
+      image: row.Image || "",
       quantity: Number(row.Quantity) || 0,
       originalPrice: Number(row.OriginalPrice) || 0,
       salePrice: Number(row.SalePrice) || 0,
@@ -474,6 +516,56 @@ exports.getOrderByOrderId = async (orderId) => {
       lineTotal: Number(row.LineTotal) || 0,
     })),
   };
+};
+
+/**-------------------------------------------------
+ 🧾 Lấy danh sách đơn hàng của một người dùng (không bao gồm chi tiết item)
+--------------------------------------------------*/
+exports.getOrdersByUserId = async (userId) => {
+  const pool = await connectDB();
+  const safeUserId = String(userId || "").trim();
+  if (!safeUserId) return [];
+
+  const result = await pool
+    .request()
+    .input("userId", sql.NVarChar(100), safeUserId).query(`
+      SELECT
+        CAST([OrderID] AS NVARCHAR(100)) AS OrderID,
+        [UserID],
+        [CustomerName],
+        [CustomerPhone],
+        [CustomerAddress],
+        [Subtotal],
+        [Discount],
+        [Total],
+        [Voucher],
+        [PaymentMethod],
+        [Status],
+        [CreatedAt],
+        [UpdatedAt]
+      FROM ORDERS
+      WHERE CAST([UserID] AS NVARCHAR(100)) = @userId
+      ORDER BY [CreatedAt] DESC
+    `);
+
+  const rows = result.recordset || [];
+  return rows.map((r) => ({
+    id: String(r.OrderID || ""),
+    userId: r.UserID,
+    shippingInfo: {
+      name: r.CustomerName || "",
+      phone: r.CustomerPhone || "",
+      address: r.CustomerAddress || "",
+    },
+    subtotal: Number(r.Subtotal) || 0,
+    discount: Number(r.Discount) || 0,
+    total: Number(r.Total) || 0,
+    voucher: r.Voucher || "",
+    paymentMethod: r.PaymentMethod || "",
+    status: r.Status || "",
+    createdAt: r.CreatedAt,
+    updatedAt: r.UpdatedAt,
+  }));
 };
 
 /**-------------------------------------------------
@@ -557,6 +649,18 @@ exports.updateBillStatus = async (orderId, newStatus) => {
           `Chi tiết đơn hàng ${orderId} không tồn tại hoặc không có items`,
         );
       }
+
+      // ✅ Cập nhật trạng thái sang "Đã thanh toán" trước khi trừ kho
+      // để deductInventoryFromBatch đọc được trạng thái hợp lệ ngay trong cùng transaction.
+      await transaction
+        .request()
+        .input("orderId", sql.NVarChar(100), orderId)
+        .input("newStatus", sql.NVarChar(100), newStatus).query(`
+          UPDATE ORDERS
+          SET Status = @newStatus,
+              UpdatedAt = GETDATE()
+          WHERE CAST(OrderID AS NVARCHAR(100)) = @orderId
+        `);
 
       // 4. Trừ kho hàng cho từng sản phẩm trong đơn hàng
       const details = detailResult.recordset;

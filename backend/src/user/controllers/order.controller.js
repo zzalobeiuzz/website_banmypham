@@ -6,11 +6,11 @@ const {
   handleMOMOPayment,
   markPaidService,
 } = require("../services/order.service");
+const { getOrdersByUserId, getOrderByOrderId } = require("../models/order.model");
 
 exports.addOrder = async (req, res) => {
   try {
     const { paymentMethod } = req.body;
-    console.log("+ Đang kiểm tra paymentMethod:", paymentMethod);
     // ✅ Kiểm tra paymentMethod là REQUIRED
     if (!paymentMethod) {
       return res.status(400).json({
@@ -53,6 +53,23 @@ exports.addOrder = async (req, res) => {
       success: false,
       message: err.message || "Lỗi server.",
     });
+  }
+};
+
+exports.getUserOrders = async (req, res) => {
+  console.log("📥----------------- Đang tải danh sách đơn hàng của bạn -----------------");
+  try {
+    const userId = req.user?.id || req.user?.userId || req.user?.UserID;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Thiếu thông tin user" });
+    }
+
+    const orders = await getOrdersByUserId(userId);
+    console.log(`✅ Tải thành công ${orders.length} đơn hàng`);
+    return res.json({ success: true, orders });
+  } catch (err) {
+    console.error("❌ getUserOrders error:", err);
+    return res.status(err.status || 500).json({ success: false, message: err.message || "Lỗi server." });
   }
 };
 

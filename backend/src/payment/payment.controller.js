@@ -124,3 +124,101 @@ const handleMarkPaid = async (req, res) => {
 };
 
 exports.handleMarkPaid = handleMarkPaid;
+
+
+exports.handleMomoIPN = async (req, res) => {
+  try {
+    console.log("📥 Nhận MOMO IPN webhook:", JSON.stringify(req.body, null, 2));
+
+    const payload = req.body || {};
+
+    // 🔑 Lấy orderId từ extraData (backend gửi lên khi init payment)
+    const orderId = payload.extraData || payload.orderId;
+    const resultCode = payload.resultCode; // 0 = success, khác 0 = failed
+    const transactionId = payload.transId;
+    const requestId = payload.requestId;
+    const amount = payload.amount;
+
+    if (!orderId) {
+      console.warn("⚠️ MOMO IPN không có orderId");
+      return res.status(200).json({ success: true }); // Trả success để MOMO không gọi lại
+    }
+
+    // ✅ Nếu thanh toán thành công (resultCode === 0)
+    if (resultCode === 0) {
+      try {
+        const updateResult = await updateBillStatus(orderId, "Đã thanh toán");
+
+        if (updateResult.success) {
+          console.log(`✅ MOMO IPN: Cập nhật đơn hàng ${orderId} → Đã thanh toán`);
+          console.log(`   Transaction: ${transactionId}, Amount: ${amount}`);
+        } else {
+          console.warn(`⚠️ MOMO IPN: ${updateResult.message}`);
+        }
+      } catch (updateErr) {
+        console.error("❌ MOMO IPN: Lỗi update status:", updateErr);
+        // Vẫn trả success để không gây lặp vô hạn
+      }
+    } else {
+      // ❌ Thanh toán thất bại hoặc bị hủy
+      console.warn(
+        `⚠️ MOMO IPN: Thanh toán thất bại - orderId: ${orderId}, resultCode: ${resultCode}`
+      );
+    }
+
+    // Luôn trả success để MOMO không gọi lại webhook
+    return res.status(200).json({
+      success: true,
+      message: "MOMO IPN đã xử lý",
+      orderId,
+      resultCode,
+      transactionId,
+    });
+  } catch (err) {
+    console.error("❌ MOMO IPN error:", err);
+    // Vẫn trả success để không gây lặp vô hạn
+    return res.status(200).json({
+      success: true,
+      error: err.message,
+    });
+  }
+};
+
+/**
+ * TEST ENDPOINT - Giả lập MOMO webhook thành công
+ * POST /api/payment/momo-test-webhook
+ * 
+ * 🧪 Dùng để test payment flow mà không cần thực hiện thanh toán MOMO thực
+ * 
+ * Body: { "orderId": "DH17786733315985883" }
+ */
+exports.handleMomoTestWebhook = async (req, res) => {
+  try {
+    const { orderId } = req.body || {};
+
+    if (!orderId) {
+      return res.status(400).json({
+        success: false,
+        message: "Thiếu orderId",
+      });
+    }
+
+    console.log(`🧪 TEST: Giả lập MOMO webhook thành công cho order: ${orderId}`);
+
+    // Gọi update status như MOMO webhook thực
+    const updateResult = await updateBillStatus(orderId, "Đã thanh toán");
+
+    return res.json({
+      success: true,
+      message: "Test webhook thành công - Order cập nhật thành 'Đã thanh toán'",
+      orderId,
+      updateResult,
+    });
+  } catch (err) {
+    console.error("❌ Test webhook error:", err);
+    return res.status(500).json({
+      success: false,
+      message: err.message || "Lỗi server",
+    });
+  }
+};

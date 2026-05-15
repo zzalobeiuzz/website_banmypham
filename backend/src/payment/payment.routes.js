@@ -1,5 +1,5 @@
 const express = require("express");
-const { handleWebhook, handleCreatePayment } = require("./payment.controller");
+const { handleWebhook, handleCreatePayment, handleMomoIPN, handleMomoTestWebhook } = require("./payment.controller");
 
 const router = express.Router();
 
@@ -7,8 +7,20 @@ const router = express.Router();
 // POST /api/payment/create-checkout
 router.post("/create-checkout", handleCreatePayment);
 
-// Webhook phải công khai để Sepay có thể gửi dữ liệu về
+// Webhook từ Sepay khi thanh toán thành công
 // POST /api/payment/sepay/webhook
 router.post("/sepay/webhook", handleWebhook);
+
+// Webhook từ MOMO khi thanh toán thành công (IPN)
+// POST /api/payment/momo-ipn (legacy)
+router.post("/momo-ipn", handleMomoIPN);
+
+// Webhook từ MOMO khi thanh toán thành công (standardized)
+// POST /api/payment/momo-webhook
+router.post("/momo-webhook", handleMomoIPN);
+
+// 🧪 TEST ENDPOINT - Giả lập MOMO webhook thành công
+// POST /api/payment/momo-test-webhook
+router.post("/momo-test-webhook", handleMomoTestWebhook);
 
 module.exports = router;

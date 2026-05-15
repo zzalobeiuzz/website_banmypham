@@ -148,6 +148,7 @@ const Cart = () => {
             orderId: safeOrderId,
           },
         );
+        console.log(`✅ mark-paid response from ${source}:`, paidRes);
 
         const backendOrder = paidRes?.order || paidRes?.data?.order || null;
 
@@ -194,26 +195,62 @@ const Cart = () => {
       setExpandDetailsCart(true);
     };
 
-    // Ưu tiên xử lý callback URL trước
-    const queryParams = new URLSearchParams(location.search);
-    const callbackStep = queryParams.get("step");
-    const callbackOrderId = queryParams.get("order_id");
-    const callbackPaymentStatus = queryParams.get("payment");
-
-    if (callbackStep === "4" && callbackOrderId) {
-      finalizePaymentSuccess({
-        orderId: callbackOrderId,
-        paymentStatus: callbackPaymentStatus,
-        source: "callback-query",
-      });
-    }
-
     /**
      * 📩 Nhận message bằng postMessage()
      * ---------------------------------------
      * Callback tab sẽ gửi:
      * window.opener.postMessage(...)
      */
+    // Uu ti�n x? l� callback URL tru?c
+    const queryParams = new URLSearchParams(location.search);
+    const callbackStep = queryParams.get("step");
+    const callbackOrderId = queryParams.get("order_id");
+    const callbackPaymentStatus = queryParams.get("payment");
+
+    // MOMO callback format:
+    // ?step=4&partnerCode=MOMO&...&resultCode=0&extraData=DH...&...
+    const momoResultCode = queryParams.get("resultCode");
+    const momoExtraData = queryParams.get("extraData");
+
+    // N?u dang ? popup callback th� b�o cho tab g?c r?i t? d�ng popup
+    const notifyParentAndClose = (orderId) => {
+      try {
+        if (window.opener && !window.opener.closed && orderId) {
+          window.opener.postMessage(
+            {
+              type: "PAYMENT_SUCCESS",
+              orderId,
+              paymentStatus: "success",
+            },
+            window.location.origin,
+          );
+          window.close();
+          return true;
+        }
+      } catch (e) {
+        console.warn("Không thể gọi PAYMENT_SUCCESS cho tab g?c", e);
+      }
+      return false;
+    };
+
+    if (callbackStep === "4" && momoResultCode === "0" && momoExtraData) {
+      if (!notifyParentAndClose(momoExtraData)) {
+        finalizePaymentSuccess({
+          orderId: momoExtraData,
+          paymentStatus: "success",
+          source: "momo-callback",
+        });
+      }
+    } else if (callbackStep === "4" && callbackOrderId) {
+      if (!notifyParentAndClose(callbackOrderId)) {
+        finalizePaymentSuccess({
+          orderId: callbackOrderId,
+          paymentStatus: callbackPaymentStatus,
+          source: "callback-query",
+        });
+      }
+    }
+
     const handlePaymentMessage = async (event) => {
       const { type, orderId, paymentStatus } = event.data || {};
 
@@ -414,8 +451,9 @@ const Cart = () => {
   // =========================
   useEffect(() => {
     const subtotal = products.reduce((sum, item) => {
-      const price = item.sale_price || item.price;
-      return sum + price * item.quantity;
+      // Dùng sale_price nếu có, không thì dùng price gốc
+      const finalPrice = item.sale_price || item.price;
+      return sum + finalPrice * item.quantity;
     }, 0);
 
     const total = subtotal - order.discount;
@@ -424,11 +462,17 @@ const Cart = () => {
     setOrder((prev) => ({
       ...prev,
       userId: user?.id,
-      items: products.map((item) => ({
-        productId: item.id,
-        quantity: item.quantity,
-        price: item.sale_price || item.price,
-      })),
+      items: products.map((item) => {
+        const originalPrice = Number(item.price) || 0;
+        const salePrice = Number(item.sale_price) || 0;
+        return {
+          productId: item.id,
+          quantity: item.quantity,
+          originalPrice: originalPrice,
+          salePrice: salePrice,
+          price: salePrice > 0 ? salePrice : originalPrice // giá cuối để tính toán
+        };
+      }),
       subtotal: subtotal,
       total: total,
     }));
@@ -437,6 +481,24 @@ const Cart = () => {
   const getItemTotal = (item) => {
     const price = item.sale_price || item.price;
     return price * item.quantity;
+  };
+
+  const buildOrderDisplayItems = () => {
+    return products.map((item) => {
+      const originalPrice = Number(item.price) || 0;
+      const salePrice = Number(item.sale_price) || 0;
+      const finalPrice = salePrice > 0 ? salePrice : originalPrice;
+
+      return {
+        productId: item.id,
+        name: item.name,
+        image: item.image,
+        quantity: Number(item.quantity) || 1,
+        originalPrice: originalPrice,
+        salePrice: salePrice,
+        price: finalPrice,
+      };
+    });
   };
 
   // =========================
@@ -485,15 +547,52 @@ const Cart = () => {
           subtotal: order.subtotal,
           total: order.total,
           paymentMethod: order.paymentMethod,
-          status:
-            order.paymentMethod === "COD" ? "Thanh toán COD" : "Đang xử lý",
         },
       );
 
       console.log("🧾 createOrder response:", res);
       // --------------💳 COD ----------------
+      // 🔍 DEBUG: Log full response structure
+      console.log("📊 Response structure:", {
+        success: res?.success,
+        paymentMethod: res?.paymentMethod,
+        paymentRequired: res?.paymentRequired,
+        hasData: !!res?.data,
+        hasPayment: !!res?.payment,
+        paymentKeys: res?.payment ? Object.keys(res.payment) : [],
+      });
+
       if (res?.paymentMethod === "COD") {
         alert("Đơn hàng đã được tạo thành công!");
+
+        const createdOrderId = res?.data?.id || res?.data?.OrderID || "";
+        const fullOrderInfo = {
+          ...(res?.data || {}),
+          id: createdOrderId || res?.data?.id,
+          items: buildOrderDisplayItems(),
+          total: order.total,
+          subtotal: order.subtotal,
+          discount: order.discount,
+          shippingInfo: order.shippingInfo,
+          paymentStatus: "success",
+        };
+
+        try {
+          if (createdOrderId) {
+            localStorage.setItem(
+              "order_data",
+              JSON.stringify({
+                items: buildOrderDisplayItems(),
+                total: order.total,
+                subtotal: order.subtotal,
+                discount: order.discount,
+                shippingInfo: order.shippingInfo,
+              }),
+            );
+          }
+        } catch (e) {
+          console.warn("⚠️ Không thể lưu order_data cho COD", e);
+        }
 
         // ✅ reset cart
         clearCart();
@@ -502,9 +601,7 @@ const Cart = () => {
         clearPendingPaymentState(false);
 
         // ✅ set dữ liệu đơn hàng
-        if (res?.data) {
-          setOrderInfo(res.data);
-        }
+        setOrderInfo(fullOrderInfo);
 
         // ✅ sang step success
         setStep(4);
@@ -589,7 +686,7 @@ const Cart = () => {
                 localStorage.setItem(
                   "order_data",
                   JSON.stringify({
-                    items: order.items,
+                    items: buildOrderDisplayItems(),
                     total: order.total,
                     subtotal: order.subtotal,
                     discount: order.discount,
@@ -615,8 +712,81 @@ const Cart = () => {
 
         // ⛔ Dừng flow tại đây (không chạy các bước tiếp theo như navigate)
         return;
-      } else if (res?.paymentMethod === "MOMO" && res?.paymentRequired) {
-        alert("MOMO payment đang được xử lý. Vui lòng chờ...");
+      }
+      // -------------- 💳 NẾU TRẢ VỀ LÀ THANH TOÁN MOMO --------------
+      else if (res?.paymentMethod === "MOMO" && res?.paymentRequired) {
+        // 🔄 Chuyển trạng thái đang chờ thanh toán
+        setIsPaymentPending(true);
+        setPendingOrderId("");
+
+        // ❗ Kiểm tra payload MOMO có đầy đủ không
+        if (!res?.payment || !res.payment.payUrl) {
+          // ❌ Nếu thiếu → dừng flow
+          setIsPaymentPending(false);
+
+          console.error("❌ paymentRequired nhưng thiếu payUrl:", res);
+
+          alert(
+            "Có lỗi khi khởi tạo cổng thanh toán MOMO. Vui lòng thử lại hoặc liên hệ hỗ trợ.",
+          );
+        } else {
+          // ✅ ----- REDIRECT SANG MOMO PAYMENT PAGE -----
+          const createdOrderId = res && res.data && res.data.id;
+
+          if (createdOrderId) {
+            setPendingOrderId(createdOrderId);
+
+            // 💾 Lưu pending order info
+            try {
+              localStorage.setItem(
+                "pending_order",
+                JSON.stringify({
+                  orderId: createdOrderId,
+                  total: order.total,
+                  createdAt: Date.now(),
+                }),
+              );
+
+              // 💾 Lưu full order data để hiển thị step 4 khi nhận PAYMENT_SUCCESS callback
+              localStorage.setItem(
+                "order_data",
+                JSON.stringify({
+                  items: buildOrderDisplayItems(),
+                  total: order.total,
+                  subtotal: order.subtotal,
+                  discount: order.discount,
+                  shippingInfo: order.shippingInfo,
+                }),
+              );
+            } catch (e) {
+              console.warn("⚠️ Không thể lưu pending_order", e);
+            }
+
+            // 🌐 Redirect đến MOMO payment page
+            console.log("🚀 MOMO payUrl:", res.payment.payUrl);
+
+            // ✅ Cách 1: Thử mở popup (nếu được phép)
+            try {
+              const momoWindow = window.open(res.payment.payUrl, "momo_window");
+              if (momoWindow) {
+                sepayWindowRef.current = momoWindow;
+                momoWindow.focus();
+                console.log("✅ Mở popup MOMO thành công");
+              } else {
+                // ❌ Popup bị chặn → Cách 2: Dùng direct navigation
+                console.warn("⚠️ Popup bị chặn, dùng direct navigation...");
+                window.location.href = res.payment.payUrl;
+              }
+            } catch (err) {
+              // ❌ Lỗi → Cách 3: Direct navigation
+              console.error("❌ Lỗi mở popup:", err);
+              window.location.href = res.payment.payUrl;
+            }
+          }
+        }
+
+        // ⛔ Dừng flow tại đây (không chạy các bước tiếp theo)
+        return;
       }
     } catch (err) {
       clearPendingPaymentState(false);
