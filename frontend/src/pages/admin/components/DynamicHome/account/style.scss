@@ -243,12 +243,14 @@
   .account-role-filter {
     margin-bottom: 14px;
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: center;
     gap: 10px;
     animation: fadeUp 1s ease both;
+    flex-direction: row;
 
     .filter-btn {
+      width: 20%;
       border: 1px solid rgba(30, 27, 46, 0.15);
       border-radius: 999px;
       padding: 8px 16px;

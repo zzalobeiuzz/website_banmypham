@@ -1,5 +1,6 @@
 const nodemailer = require("nodemailer");
 
+//==========================GỬI MAIL XÁC THỰC==============================
 exports.sendVerificationEmail = async (email, code, use) => {
   const subject =
     use === "register"

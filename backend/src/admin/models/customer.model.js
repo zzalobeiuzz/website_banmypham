@@ -1,20 +1,42 @@
 const { connectDB } = require("../../config/connect");
 const sql = require("mssql");
 
-const TOTAL_MONEY_EXPR = "TRY_CAST(REPLACE(REPLACE(O.TotalPrice, N'₫', ''), ',', '') AS DECIMAL(18,2))";
+const TOTAL_MONEY_EXPR = "TRY_CAST(REPLACE(REPLACE(O.Total, N'₫', ''), ',', '') AS DECIMAL(18,2))";
+const ORDER_TABLE = "ORDERS";
 
-const getOrderTableName = async (pool) => {
-  const tableCheck = await pool.request().query(`
-    SELECT TOP 1
-      CASE
-        WHEN OBJECT_ID(N'dbo.[ORDER]', N'U') IS NOT NULL THEN N'dbo.[ORDER]'
-        WHEN OBJECT_ID(N'dbo.ORDERS', N'U') IS NOT NULL THEN N'dbo.ORDERS'
-        WHEN OBJECT_ID(N'dbo.[ORDERS]', N'U') IS NOT NULL THEN N'dbo.[ORDERS]'
-        ELSE NULL
-      END AS TableName
-  `);
+const pickColumn = (columns, candidates, fallback = null) => {
+  const lowered = new Map(columns.map((column) => [String(column).toLowerCase(), column]));
+  for (const candidate of candidates) {
+    const found = lowered.get(String(candidate).toLowerCase());
+    if (found) return found;
+  }
+  return fallback;
+};
 
-  return tableCheck.recordset[0]?.TableName || null;
+const getTableColumns = async (pool, tableName) => {
+  const result = await pool.request()
+    .input("tableName", sql.NVarChar(128), tableName)
+    .query(`
+      SELECT C.name AS ColumnName
+      FROM sys.columns C
+      INNER JOIN sys.objects O ON O.object_id = C.object_id
+      WHERE O.type = 'U' AND O.name = @tableName
+      ORDER BY C.column_id ASC
+    `);
+
+  return (result.recordset || []).map((row) => row.ColumnName);
+};
+
+const getCustomerSchema = async (pool) => {
+  const customerCols = await getTableColumns(pool, "CUSTOMER");
+  const customerKeyCol = pickColumn(customerCols, ["Email", "Id", "CustomerID", "CustomerCode"]);
+  const customerCodeCol = pickColumn(customerCols, ["Id", "CustomerCode"], customerKeyCol);
+
+  if (!customerKeyCol) {
+    throw new Error("Không tìm thấy cột định danh của bảng CUSTOMER.");
+  }
+
+  return { customerKeyCol, customerCodeCol };
 };
 
 /**
@@ -23,26 +45,21 @@ const getOrderTableName = async (pool) => {
 exports.getCustomerList = async () => {
   try {
     const pool = await connectDB();
-    const orderTableName = await getOrderTableName(pool);
-    const orderStatsSql = orderTableName
-      ? `OUTER APPLY (
-          SELECT
-            COUNT(*) AS OrderCount,
-            SUM(${TOTAL_MONEY_EXPR}) AS TotalSpent
-          FROM ${orderTableName} O
-          WHERE O.Email = C.Email
-        ) S`
-      : `OUTER APPLY (
-          SELECT
-            CAST(0 AS INT) AS OrderCount,
-            CAST(0 AS DECIMAL(18,2)) AS TotalSpent
-        ) S`;
+    const { customerKeyCol, customerCodeCol } = await getCustomerSchema(pool);
+    const orderStatsSql = `OUTER APPLY (
+        SELECT
+          COUNT(*) AS OrderCount,
+          SUM(${TOTAL_MONEY_EXPR}) AS Total
+        FROM ${ORDER_TABLE} O
+        WHERE O.UserID = C.[${customerKeyCol}]
+        AND O.Status IN (N'Thanh Toán COD', N'Đã Thanh Toán')
+      ) S`;
 
     const result = await pool.request().query(`
       SELECT
-        C.Id AS CustomerCode,
-        C.Email AS CustomerID,
-        C.Email AS Email,
+        C.[${customerCodeCol}] AS CustomerCode,
+        C.[${customerKeyCol}] AS CustomerID,
+        C.[${customerKeyCol}] AS Email,
         C.Name AS FullName,
         C.Phone AS PhoneNumber,
         C.Address,
@@ -58,12 +75,12 @@ exports.getCustomerList = async () => {
           ELSE N'Đã có'
         END AS AccountStatus,
         ISNULL(S.OrderCount, 0) AS OrderCount,
-        ISNULL(S.TotalSpent, 0) AS TotalSpent
+        ISNULL(S.Total, 0) AS Total
       FROM CUSTOMER C
-      LEFT JOIN ACCOUNT A ON A.Email = C.Email
+      LEFT JOIN ACCOUNT A ON A.Email = C.[${customerKeyCol}]
       ${orderStatsSql}
       WHERE ISNULL(C.isActive, 1) = 1
-      ORDER BY C.Name ASC, C.Email ASC
+      ORDER BY C.Name ASC, C.[${customerKeyCol}] ASC
     `);
 
     return result.recordset;
@@ -78,19 +95,20 @@ exports.getCustomerList = async () => {
  */
 exports.getCustomerDetail = async (customerId) => {
   try {
+    
     const pool = await connectDB();
-    const orderTableName = await getOrderTableName(pool);
+    const { customerKeyCol, customerCodeCol } = await getCustomerSchema(pool);
 
     const customerRes = await pool.request()
       .input("customerId", sql.VarChar, customerId)
       .query(`
         DECLARE @latestOrderDate DATE = NULL;
-        ${orderTableName ? `SELECT @latestOrderDate = MAX(CreatedAt) FROM ${orderTableName} WHERE Email = @customerId;` : ""}
+        SELECT @latestOrderDate = MAX(CreatedAt) FROM ${ORDER_TABLE} WHERE UserID = @customerId;
 
         SELECT
-          C.Email AS CustomerID,
-          C.Email AS Email,
-          C.Id AS CustomerCode,
+          C.[${customerKeyCol}] AS CustomerID,
+          C.[${customerKeyCol}] AS Email,
+          C.[${customerCodeCol}] AS CustomerCode,
           C.Name AS FullName,
           C.Phone AS PhoneNumber,
           Address,
@@ -101,49 +119,45 @@ exports.getCustomerDetail = async (customerId) => {
           A.Role,
           CONVERT(VARCHAR(10), @latestOrderDate, 23) AS LastOrderDate
         FROM CUSTOMER C
-        LEFT JOIN ACCOUNT A ON A.Email = C.Email
-        WHERE C.Email = @customerId
+        LEFT JOIN ACCOUNT A ON A.Email = C.[${customerKeyCol}]
+        WHERE C.[${customerKeyCol}] = @customerId
       `);
 
     const customer = customerRes.recordset[0];
 
     if (customer) {
-      const ordersRes = orderTableName
-        ? await pool.request()
-            .input("email", sql.VarChar, customerId)
-            .query(`
-              SELECT TOP 100
-                OrderID,
-                OrderDate,
-                TotalPrice,
-                Status,
-                CustomerName,
-                CustomerPhone,
-                CustomerAddress
-              FROM ${orderTableName}
-              WHERE Email = @email
-              ORDER BY OrderDate DESC
-            `)
-        : { recordset: [] };
+      const ordersRes = await pool.request()
+        .input("email", sql.VarChar, customerId)
+        .query(`
+          SELECT TOP 100
+            OrderID,
+            CreatedAt AS OrderDate,
+            Total,
+            Status,
+            CustomerName,
+            CustomerPhone,
+            CustomerAddress
+          FROM ${ORDER_TABLE}
+          WHERE UserID = @email
+          ORDER BY CreatedAt DESC
+        `);
 
-      const summaryRes = orderTableName
-        ? await pool.request()
-            .input("email", sql.VarChar, customerId)
-            .query(`
-              SELECT 
-                COUNT(*) AS OrderCount,
-                SUM(${TOTAL_MONEY_EXPR}) AS TotalSpent
-              FROM ${orderTableName} O
-              WHERE O.Email = @email
-            `)
-        : { recordset: [{ OrderCount: 0, TotalSpent: 0 }] };
+      const summaryRes = await pool.request()
+        .input("email", sql.VarChar, customerId)
+        .query(`
+          SELECT 
+            COUNT(*) AS OrderCount,
+            SUM(${TOTAL_MONEY_EXPR}) AS Total
+          FROM ${ORDER_TABLE} O
+          WHERE O.UserID = @email
+        `);
 
       return {
         ...customer,
         Type: customer.AccountEmail ? "Account" : "Customer",
         Orders: ordersRes.recordset || [],
         OrderCount: summaryRes.recordset[0]?.OrderCount || 0,
-        TotalSpent: summaryRes.recordset[0]?.TotalSpent || 0,
+        Total: summaryRes.recordset[0]?.Total || 0,
       };
     }
 
@@ -160,6 +174,7 @@ exports.getCustomerDetail = async (customerId) => {
 exports.deleteCustomer = async (customerId) => {
   try {
     const pool = await connectDB();
+    const { customerKeyCol } = await getCustomerSchema(pool);
     const transaction = new sql.Transaction(pool);
     await transaction.begin();
 
@@ -177,7 +192,7 @@ exports.deleteCustomer = async (customerId) => {
         .query(`
           UPDATE CUSTOMER
           SET isActive = 0
-          WHERE Email = @customerId
+          WHERE [${customerKeyCol}] = @customerId
         `);
 
       await transaction.commit();
@@ -220,6 +235,7 @@ exports.resetCustomerPassword = async (customerId, hashedPassword) => {
 exports.updateCustomerInfo = async ({ customerId, fullName, phoneNumber, address }) => {
   try {
     const pool = await connectDB();
+    const { customerKeyCol } = await getCustomerSchema(pool);
     const result = await pool.request()
       .input("customerId", sql.VarChar, customerId)
       .input("fullName", sql.NVarChar, fullName)
@@ -231,7 +247,7 @@ exports.updateCustomerInfo = async ({ customerId, fullName, phoneNumber, address
           Name = @fullName,
           Phone = @phoneNumber,
           Address = @address
-        WHERE Email = @customerId
+        WHERE [${customerKeyCol}] = @customerId
       `);
 
     return result.rowsAffected[0] > 0;
@@ -257,6 +273,7 @@ exports.createCustomer = async ({
 }) => {
   try {
     const pool = await connectDB();
+    const { customerKeyCol } = await getCustomerSchema(pool);
     const transaction = new sql.Transaction(pool);
     await transaction.begin();
 
@@ -267,11 +284,11 @@ exports.createCustomer = async ({
         .query(`
           SELECT TOP 1 1 AS ExistsCheck
           FROM (
-            SELECT Email FROM CUSTOMER
+            SELECT [${customerKeyCol}] AS CustomerKey FROM CUSTOMER
             UNION
             SELECT Email FROM ACCOUNT
           ) E
-          WHERE E.Email = @email
+          WHERE E.CustomerKey = @email
         `);
 
       if (existsRes.recordset.length > 0) {
@@ -285,7 +302,7 @@ exports.createCustomer = async ({
         .input("phone", sql.VarChar, phoneNumber)
         .input("address", sql.NVarChar, address)
         .query(`
-          INSERT INTO CUSTOMER (Name, Email, Phone, Address, isActive)
+          INSERT INTO CUSTOMER (Name, [${customerKeyCol}], Phone, Address, isActive)
           VALUES (@name, @email, @phone, @address, 1)
         `);
 

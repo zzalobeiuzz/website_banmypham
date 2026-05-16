@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { UPLOAD_BASE } from "../../../constants";
 
 const ResetPasswordForm = ({ onSubmit, goBack }) => {
   // 🔒 Dữ liệu nhập mật khẩu mới
@@ -41,7 +42,7 @@ const ResetPasswordForm = ({ onSubmit, goBack }) => {
         />
         {password && (
           <img
-            src={showPassword ? "/assets/icons/icons8-hide-64.png" : "/assets/icons/icons8-eye-48.png"}
+            src={showPassword ? `${UPLOAD_BASE}/icons/icons8-hide-64.png` : `${UPLOAD_BASE}/icons/icons8-eye-48.png`}
             alt="toggle"
             onClick={() => setShowPassword(!showPassword)}
           />
@@ -59,7 +60,7 @@ const ResetPasswordForm = ({ onSubmit, goBack }) => {
         />
         {confirm && (
           <img
-            src={showConfirm ? "/assets/icons/icons8-hide-64.png" : "/assets/icons/icons8-eye-48.png"}
+            src={showConfirm ? `${UPLOAD_BASE}/icons/icons8-hide-64.png` : `${UPLOAD_BASE}/icons/icons8-eye-48.png`}
             alt="toggle"
             onClick={() => setShowConfirm(!showConfirm)}
           />

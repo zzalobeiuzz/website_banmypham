@@ -13,6 +13,7 @@ exports.handleGetAccounts = async (req, res) => {
   }
 };
 
+// Hàm reset mật khẩu tài khoản theo email, chỉ admin mới có quyền gọi API này
 exports.handleResetAccountPassword = async (req, res) => {
   try {
     const email = String(req.params.email || "").trim();

@@ -29,9 +29,13 @@ router.post("/register", registerHandler);
 router.post("/resetPassword",resetPasswordHandler);
 // Gửi mã xác thực nếu email tồn tại
 router.post("/sendVerificationCode", sendVerificationCode); 
+// Cập nhật avatar mới cho người dùng đã đăng nhập
 router.put("/avatar", verifyToken, upload.single("avatar"), updateAvatarHandler);
+// Đổi mật khẩu cho người dùng đã đăng nhập
 router.put("/change-password", verifyToken, changePasswordHandler);
+//	Lấy thông tin profile của người dùng đã đăng nhập
 router.get("/profile", verifyToken, getProfileHandler);
+// Cập nhật thông tin profile (không bao gồm avatar) cho người dùng đã đăng nhập
 router.put("/update-profile", verifyToken, updateProfileHandler);
 
 module.exports = router;

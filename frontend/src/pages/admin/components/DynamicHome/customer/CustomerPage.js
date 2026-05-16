@@ -7,16 +7,15 @@ import Notification from "../../shared/Notification";
 import useMinimumLoading from "../../useMinimumLoading";
 import AvatarCropEditor from "./AvatarCropEditor";
 import CreateCustomerPopup from "./CreateCustomerPopup";
+import CustomerDetailModal from "./CustomerDetailModal";
 import "./style.scss";
 
 const TXT = {
   title: "Quản lý khách hàng",
-  searchPlaceholder:
-    "Tìm theo mã KH, tên, email, số điện thoại...",
+  searchPlaceholder: "Tìm theo mã KH, tên, email, số điện thoại...",
   loading: "Đang tải...",
   noData: "Không có khách hàng nào",
-  noAccount:
-    "Khách hàng này chưa có tài khoản đăng nhập",
+  noAccount: "Khách hàng này chưa có tài khoản đăng nhập",
 };
 
 const CustomerPage = () => {
@@ -40,7 +39,13 @@ const CustomerPage = () => {
   const [editMessage, setEditMessage] = useState("");
   const [showUpdateConfirmPopup, setShowUpdateConfirmPopup] = useState(false);
   const [showUpdateSuccessPopup, setShowUpdateSuccessPopup] = useState(false);
-  const [notify, setNotify] = useState({ open: false, status: "info", message: "" });
+  const [showDeleteConfirmPopup, setShowDeleteConfirmPopup] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState(null);
+  const [notify, setNotify] = useState({
+    open: false,
+    status: "info",
+    message: "",
+  });
   const [showCreateCustomerPopup, setShowCreateCustomerPopup] = useState(false);
   const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
   const [showAvatarEditor, setShowAvatarEditor] = useState(false);
@@ -64,144 +69,44 @@ const CustomerPage = () => {
     address: "",
   });
 
-  const getAuthHeaders = (token) => ({ Authorization: `Bearer ${token}` });
-
-  const refreshAccessToken = async () => {
-    const refreshToken = localStorage.getItem("refreshToken");
-    if (!refreshToken) {
-      throw new Error("Không tìm thấy refresh token");
-    }
-
-    const refreshRes = await request("POST", `${API_BASE}/api/admin/refresh-token`, {
-      refreshToken,
-    });
-
-    if (!refreshRes?.accessToken) {
-      throw new Error("Không thể làm mới access token");
-    }
-
-    localStorage.setItem("accessToken", refreshRes.accessToken);
-    return refreshRes.accessToken;
+  // --- UI helpers ---
+  const showPopup = ({ status = "info", message = "" }) => {
+    setNotify({ open: true, status, message: String(message || "") });
   };
 
-  const fetchCustomers = async () => {
-    try {
-      setLoading(true);
-      let token = localStorage.getItem("accessToken");
+  const closePopup = () => setNotify((prev) => ({ ...prev, open: false }));
 
-      let res;
-      try {
-        res = await request("GET", `${API_BASE}/api/admin/customers`, null, getAuthHeaders(token));
-      } catch (error) {
-        if (error?.status !== 401) throw error;
-        token = await refreshAccessToken();
-        res = await request("GET", `${API_BASE}/api/admin/customers`, null, getAuthHeaders(token));
-      }
+  const handleSearchChange = (keyword) => setSearchKeyword(String(keyword || ""));
 
-      if (res?.success) setCustomers(res.data || []);
-    } catch (error) {
-      console.error("Loi:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchCustomerDetail = async (customerId) => {
-    try {
-      setLoading(true);
-      let token = localStorage.getItem("accessToken");
-
-      let res;
-      try {
-        res = await request("GET", `${API_BASE}/api/admin/customers/${customerId}`, null, getAuthHeaders(token));
-      } catch (error) {
-        if (error?.status !== 401) throw error;
-        token = await refreshAccessToken();
-        res = await request("GET", `${API_BASE}/api/admin/customers/${customerId}`, null, getAuthHeaders(token));
-      }
-
-      if (res?.success) {
-        const detailData = res.data || null;
-        setCustomerDetail(detailData);
-        setEditForm({
-          fullName: detailData?.FullName || "",
-          phoneNumber: detailData?.PhoneNumber || "",
-          address: detailData?.Address || "",
-        });
-        setIsEditingCustomer(false);
-        setIsSavingCustomer(false);
-        setEditMessage("");
-        setResetPasswordMessage("");
-        setActiveDetailTab("info");
-        setShowDetailPopup(true);
-      }
-    } catch (error) {
-      console.error("Loi:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchCustomers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const filteredCustomers = customers.filter((customer) => {
-    const isActive =
-      customer?.IsActive === null ||
-      customer?.IsActive === undefined ||
-      Number(customer?.IsActive) === 1;
-    if (!isActive) return false;
-
-    const keyword = searchKeyword.toLowerCase();
+  const filteredCustomers = (customers || []).filter((customer) => {
+    const keyword = String(searchKeyword || "").trim().toLowerCase();
+    if (!keyword) return true;
     return (
-      customer.FullName?.toLowerCase().includes(keyword) ||
-      String(customer.CustomerCode || "").toLowerCase().includes(keyword) ||
-      customer.CustomerID?.toLowerCase().includes(keyword) ||
-      customer.Email?.toLowerCase().includes(keyword) ||
-      customer.PhoneNumber?.includes(keyword) ||
-      customer.AccountEmail?.toLowerCase().includes(keyword) ||
-      customer.DisplayName?.toLowerCase().includes(keyword)
+      String(customer?.FullName || "").toLowerCase().includes(keyword) ||
+      String(customer?.CustomerCode || "").toLowerCase().includes(keyword) ||
+      String(customer?.CustomerID || "").toLowerCase().includes(keyword) ||
+      String(customer?.Email || "").toLowerCase().includes(keyword) ||
+      String(customer?.PhoneNumber || "").toLowerCase().includes(keyword) ||
+      String(customer?.AccountEmail || "").toLowerCase().includes(keyword)
     );
   });
 
-  const handleSearchChange = (keyword) => {
-    setSearchKeyword(String(keyword || ""));
-  };
-
   const formatPrice = (price) => {
-    if (!price) return "0 ₫";
-    const num = typeof price === "string" ? parseFloat(price) : price;
+    const num = Number(price) || 0;
     return `${Math.round(num).toLocaleString("vi-VN")} ₫`;
   };
 
   const resolveAvatarSrc = (avatar) => {
     if (!avatar) return "";
-    const value = String(avatar).trim();
-    if (!value) return "";
-    if (/^https?:\/\//i.test(value) || value.startsWith("data:")) return value;
-    const normalized = value.replace(/^\/+/, "").replace(/^uploads\/?assets\/?/i, "");
+    const v = String(avatar).trim();
+    if (!v) return "";
+    if (/^https?:\/\//i.test(v) || v.startsWith("data:")) return v;
+    const normalized = v.replace(/^\/+/, "").replace(/^uploads\/?assets\/?/i, "");
     return `${UPLOAD_BASE}/${normalized}`;
   };
 
   const isAccountCustomer = (customer) => Boolean(customer?.HasAccount || customer?.AccountEmail);
-  const getAccountStatusLabel = (customer) => {
-    if (customer?.AccountStatus) return customer.AccountStatus;
-    return isAccountCustomer(customer) ? "Đã có" : "Không có";
-  };
-
-  const showPopup = ({ status, message }) => {
-    setNotify({
-      open: true,
-      status: status || "info",
-      message: String(message || ""),
-    });
-  };
-
-  const closePopup = () => {
-    setNotify((prev) => ({ ...prev, open: false }));
-  };
+  const getAccountStatusLabel = (customer) => (customer?.AccountStatus ? customer.AccountStatus : (isAccountCustomer(customer) ? "Đã có" : "Không có"));
 
   const resetCreateCustomerForm = () => {
     setCreateCustomerForm({
@@ -231,24 +136,26 @@ const CustomerPage = () => {
   };
 
   const handleChangeCreateCustomerForm = (field, value) => {
-    setCreateCustomerForm((prev) => {
-      const next = { ...prev, [field]: value };
+    setCreateCustomerForm((prev) => ({ ...prev, [field]: value }));
+  };
 
-      if (field === "linkGoogle" && value) {
-        next.createAccount = true;
-      }
+  const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Không thể đọc file ảnh."));
+    reader.readAsDataURL(file);
+  });
 
-      if (field === "createAccount" && !value) {
-        next.linkGoogle = false;
-        next.password = "";
-        next.displayName = "";
-        next.avatarUrl = "";
-        next.avatarFile = null;
-        next.avatarPreview = "";
-      }
-
-      return next;
-    });
+  const getDroppedImageUrl = (event) => {
+    const uriList = String(event?.dataTransfer?.getData("text/uri-list") || "").trim();
+    if (/^https?:\/\//i.test(uriList) || uriList.startsWith("data:")) return uriList;
+    const plain = String(event?.dataTransfer?.getData("text/plain") || "").trim();
+    if (/^https?:\/\//i.test(plain) || plain.startsWith("data:")) return plain;
+    const html = String(event?.dataTransfer?.getData("text/html") || "").trim();
+    const imgMatch = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+    const imgSrc = String(imgMatch?.[1] || "").trim();
+    if (/^https?:\/\//i.test(imgSrc) || imgSrc.startsWith("data:")) return imgSrc;
+    return "";
   };
 
   const handleCreateAvatarFileChange = (event) => {
@@ -258,63 +165,15 @@ const CustomerPage = () => {
       handleChangeCreateCustomerForm("avatarPreview", "");
       return;
     }
-
     if (!String(file.type || "").startsWith("image/")) {
       showPopup({ status: "warning", message: "Vui lòng chọn file ảnh hợp lệ." });
       return;
     }
-
-    readFileAsDataUrl(file)
-      .then((dataUrl) => {
-        handleChangeCreateCustomerForm("avatarUrl", dataUrl);
-        handleChangeCreateCustomerForm("avatarFile", null);
-        handleChangeCreateCustomerForm("avatarPreview", dataUrl);
-      })
-      .catch((error) => {
-        showPopup({ status: "error", message: error?.message || "Không thể đọc ảnh đã chọn." });
-      });
-  };
-
-  const handleCreateAvatarUrlChange = (value) => {
-    const nextUrl = String(value || "").trim();
-    handleChangeCreateCustomerForm("avatarUrl", nextUrl);
-
-    if (!nextUrl) {
-      handleChangeCreateCustomerForm("avatarPreview", "");
-      return;
-    }
-
-    handleChangeCreateCustomerForm("avatarFile", null);
-    handleChangeCreateCustomerForm("avatarPreview", nextUrl);
-  };
-
-  const readFileAsDataUrl = (file) =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ""));
-      reader.onerror = () => reject(new Error("Không thể đọc file ảnh."));
-      reader.readAsDataURL(file);
-    });
-
-  const getDroppedImageUrl = (event) => {
-    const uriList = String(event?.dataTransfer?.getData("text/uri-list") || "").trim();
-    if (/^https?:\/\//i.test(uriList) || uriList.startsWith("data:")) {
-      return uriList;
-    }
-
-    const plainText = String(event?.dataTransfer?.getData("text/plain") || "").trim();
-    if (/^https?:\/\//i.test(plainText) || plainText.startsWith("data:")) {
-      return plainText;
-    }
-
-    const htmlText = String(event?.dataTransfer?.getData("text/html") || "").trim();
-    const imgMatch = htmlText.match(/<img[^>]+src=["']([^"']+)["']/i);
-    const imgSrc = String(imgMatch?.[1] || "").trim();
-    if (/^https?:\/\//i.test(imgSrc) || imgSrc.startsWith("data:")) {
-      return imgSrc;
-    }
-
-    return "";
+    readFileAsDataUrl(file).then((dataUrl) => {
+      handleChangeCreateCustomerForm("avatarUrl", dataUrl);
+      handleChangeCreateCustomerForm("avatarFile", null);
+      handleChangeCreateCustomerForm("avatarPreview", dataUrl);
+    }).catch((err) => showPopup({ status: "error", message: err?.message || "Không thể đọc ảnh đã chọn." }));
   };
 
   const handleCreateAvatarDrop = (event) => {
@@ -325,40 +184,157 @@ const CustomerPage = () => {
         showPopup({ status: "warning", message: "Vui lòng kéo file ảnh hợp lệ." });
         return;
       }
-
-      readFileAsDataUrl(file)
-        .then((dataUrl) => {
-          handleChangeCreateCustomerForm("avatarUrl", dataUrl);
-          handleChangeCreateCustomerForm("avatarFile", null);
-          handleChangeCreateCustomerForm("avatarPreview", dataUrl);
-        })
-        .catch((error) => {
-          showPopup({ status: "error", message: error?.message || "Không thể tải ảnh vừa kéo vào." });
-        });
+      readFileAsDataUrl(file).then((dataUrl) => {
+        handleChangeCreateCustomerForm("avatarUrl", dataUrl);
+        handleChangeCreateCustomerForm("avatarFile", null);
+        handleChangeCreateCustomerForm("avatarPreview", dataUrl);
+      }).catch((err) => showPopup({ status: "error", message: err?.message || "Không thể tải ảnh vừa kéo vào." }));
       return;
     }
-
     const droppedUrl = getDroppedImageUrl(event);
-
     if (droppedUrl) {
-      handleCreateAvatarUrlChange(droppedUrl);
+      handleChangeCreateCustomerForm("avatarUrl", droppedUrl);
+      handleChangeCreateCustomerForm("avatarPreview", droppedUrl);
       return;
     }
-
     showPopup({ status: "warning", message: "Chỉ nhận ảnh kéo từ web hoặc liên kết ảnh." });
   };
 
   const handleOpenAvatarEditor = () => {
     if (isCreatingCustomer) return;
     const source = String(createCustomerForm.avatarPreview || createCustomerForm.avatarUrl || "").trim();
-    if (!source) {
-      showPopup({ status: "warning", message: "Bạn cần chọn ảnh trước khi chỉnh sửa." });
-      return;
-    }
-
+    if (!source) return showPopup({ status: "warning", message: "Bạn cần chọn ảnh trước khi chỉnh sửa." });
     setAvatarEditorSource(source);
     setShowAvatarEditor(true);
   };
+
+  const getAuthHeaders = (token) => ({ Authorization: `Bearer ${token}` });
+
+  const refreshAccessToken = async () => {
+    const refreshToken = localStorage.getItem("refreshToken");
+    if (!refreshToken) {
+      throw new Error("Không tìm thấy refresh token");
+    }
+
+    const refreshRes = await request(
+      "POST",
+      `${API_BASE}/api/admin/refresh-token`,
+      {
+        refreshToken,
+      },
+    );
+
+    if (!refreshRes?.accessToken) {
+      throw new Error("Không thể làm mới access token");
+    }
+
+    localStorage.setItem("accessToken", refreshRes.accessToken);
+    return refreshRes.accessToken;
+  };
+
+  /**
+    Lấy danh sách tất cả khách hàng tự động khi vào trang
+    có xử lý refresh token nếu cần thiết.
+ */
+const fetchCustomers = async () => {
+  try {
+    // bật loading
+    setLoading(true);
+
+    // lấy access token hiện tại
+    let token = localStorage.getItem("accessToken");
+
+    let res;
+
+    try {
+      // gọi API lấy danh sách khách hàng
+      res = await request(
+        "GET",
+        `${API_BASE}/api/admin/customers`,
+        null,
+        getAuthHeaders(token),
+      );
+      console.log(" Dữ liệu láy thành công:", res);
+    } catch (error) {
+      // nếu lỗi không phải do token hết hạn, ném lỗi ra ngoài
+      if (error?.status !== 401) throw error;
+
+      // nếu là lỗi 401, thử refresh token
+      token = await refreshAccessToken();
+
+      // gọi lại API với token mới
+      res = await request(
+        "GET",
+        `${API_BASE}/api/admin/customers`,
+        null,
+        getAuthHeaders(token),
+      );
+      console.log("Dữ liệu láy thành công sau khi refresh token:", res);
+    }
+
+    // nếu thành công, cập nhật state customers
+    if (res?.success) {
+      setCustomers(res.data || []);
+    }
+  } catch (error) {
+    // log lỗi tổng
+    console.error("Loi:", error);
+  } finally {
+    // luôn tắt loading
+    setLoading(false);
+  }
+};
+
+  const fetchCustomerDetail = async (customerId) => {
+    try {
+      setLoading(true);
+      let token = localStorage.getItem("accessToken");
+
+      let res;
+      try {
+        res = await request(
+          "GET",
+          `${API_BASE}/api/admin/customers/${customerId}`,
+          null,
+          getAuthHeaders(token),
+        );
+      } catch (error) {
+        if (error?.status !== 401) throw error;
+        token = await refreshAccessToken();
+        res = await request(
+          "GET",
+          `${API_BASE}/api/admin/customers/${customerId}`,
+          null,
+          getAuthHeaders(token),
+        );
+      }
+
+      if (res?.success) {
+        const detailData = res.data || null;
+        setCustomerDetail(detailData);
+        setEditForm({
+          fullName: detailData?.FullName || "",
+          phoneNumber: detailData?.PhoneNumber || "",
+          address: detailData?.Address || "",
+        });
+        setIsEditingCustomer(false);
+        setIsSavingCustomer(false);
+        setEditMessage("");
+        setResetPasswordMessage("");
+        setActiveDetailTab("info");
+        setShowDetailPopup(true);
+      }
+    } catch (error) {
+      console.error("Loi:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+    useEffect(() => {
+      fetchCustomers();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
   const handleApplyAvatarEdit = (dataUrl) => {
     handleChangeCreateCustomerForm("avatarUrl", dataUrl);
@@ -375,7 +351,9 @@ const CustomerPage = () => {
 
   const handleCreateCustomer = async () => {
     const fullName = String(createCustomerForm.fullName || "").trim();
-    const email = String(createCustomerForm.email || "").trim().toLowerCase();
+    const email = String(createCustomerForm.email || "")
+      .trim()
+      .toLowerCase();
     const phoneNumber = String(createCustomerForm.phoneNumber || "").trim();
     const address = String(createCustomerForm.address || "").trim();
     const createAccount = Boolean(createCustomerForm.createAccount);
@@ -386,12 +364,18 @@ const CustomerPage = () => {
     const avatarFile = createCustomerForm.avatarFile || null;
 
     if (!fullName || !email || !phoneNumber || !address) {
-      showPopup({ status: "warning", message: "Vui lòng nhập đầy đủ tên, email, số điện thoại và địa chỉ." });
+      showPopup({
+        status: "warning",
+        message: "Vui lòng nhập đầy đủ tên, email, số điện thoại và địa chỉ.",
+      });
       return;
     }
 
     if (createAccount && !linkGoogle && password.length < 6) {
-      showPopup({ status: "warning", message: "Mật khẩu phải có ít nhất 6 ký tự." });
+      showPopup({
+        status: "warning",
+        message: "Mật khẩu phải có ít nhất 6 ký tự.",
+      });
       return;
     }
 
@@ -416,24 +400,43 @@ const CustomerPage = () => {
 
       let res;
       try {
-        res = await request("POST", `${API_BASE}/api/admin/customers`, payload, getAuthHeaders(token));
+        res = await request(
+          "POST",
+          `${API_BASE}/api/admin/customers`,
+          payload,
+          getAuthHeaders(token),
+        );
       } catch (error) {
         if (error?.status !== 401) throw error;
         token = await refreshAccessToken();
-        res = await request("POST", `${API_BASE}/api/admin/customers`, payload, getAuthHeaders(token));
+        res = await request(
+          "POST",
+          `${API_BASE}/api/admin/customers`,
+          payload,
+          getAuthHeaders(token),
+        );
       }
 
       if (!res?.success) {
-        showPopup({ status: "error", message: res?.message || "Tạo khách hàng thất bại." });
+        showPopup({
+          status: "error",
+          message: res?.message || "Tạo khách hàng thất bại.",
+        });
         return;
       }
 
       setShowCreateCustomerPopup(false);
       resetCreateCustomerForm();
       await fetchCustomers();
-      showPopup({ status: "success", message: res?.message || "Tạo khách hàng thành công." });
+      showPopup({
+        status: "success",
+        message: res?.message || "Tạo khách hàng thành công.",
+      });
     } catch (error) {
-      showPopup({ status: "error", message: error?.message || "Tạo khách hàng thất bại." });
+      showPopup({
+        status: "error",
+        message: error?.message || "Tạo khách hàng thất bại.",
+      });
     } finally {
       setIsCreatingCustomer(false);
     }
@@ -466,7 +469,7 @@ const CustomerPage = () => {
           "PUT",
           `${API_BASE}/api/admin/customers/${encodeURIComponent(customerDetail.CustomerID)}/reset-password`,
           { newPassword: normalizedNewPassword },
-          getAuthHeaders(token)
+          getAuthHeaders(token),
         );
       } catch (error) {
         if (error?.status !== 401) throw error;
@@ -475,7 +478,7 @@ const CustomerPage = () => {
           "PUT",
           `${API_BASE}/api/admin/customers/${encodeURIComponent(customerDetail.CustomerID)}/reset-password`,
           { newPassword: normalizedNewPassword },
-          getAuthHeaders(token)
+          getAuthHeaders(token),
         );
       }
 
@@ -534,6 +537,70 @@ const CustomerPage = () => {
     setShowUpdateConfirmPopup(false);
   };
 
+  const openDeleteConfirmPopup = (customer) => {
+    setCustomerToDelete(customer || null);
+    setShowDeleteConfirmPopup(true);
+  };
+
+  const closeDeleteConfirmPopup = () => {
+    setShowDeleteConfirmPopup(false);
+    setCustomerToDelete(null);
+  };
+
+  const handleDeleteCustomer = async () => {
+    const targetCustomerId = customerToDelete?.CustomerID;
+    if (!targetCustomerId) {
+      showPopup({ status: "warning", message: "Không tìm thấy khách hàng để xóa." });
+      closeDeleteConfirmPopup();
+      return;
+    }
+
+    try {
+      let token = localStorage.getItem("accessToken");
+      let res;
+      try {
+        res = await request(
+          "DELETE",
+          `${API_BASE}/api/admin/customers/${encodeURIComponent(targetCustomerId)}`,
+          null,
+          getAuthHeaders(token),
+        );
+      } catch (error) {
+        if (error?.status !== 401) throw error;
+        token = await refreshAccessToken();
+        res = await request(
+          "DELETE",
+          `${API_BASE}/api/admin/customers/${encodeURIComponent(targetCustomerId)}`,
+          null,
+          getAuthHeaders(token),
+        );
+      }
+
+      if (!res?.success) {
+        showPopup({
+          status: "error",
+          message: res?.message || "Xóa khách hàng thất bại.",
+        });
+        return;
+      }
+
+      showPopup({
+        status: "success",
+        message: res?.message || "Xóa khách hàng thành công.",
+      });
+      closeDeleteConfirmPopup();
+      await fetchCustomers();
+      if (showDetailPopup && customerDetail?.CustomerID === targetCustomerId) {
+        closeDetailPopup();
+      }
+    } catch (error) {
+      showPopup({
+        status: "error",
+        message: error?.message || "Xóa khách hàng thất bại.",
+      });
+    }
+  };
+
   const openEditCustomerMode = () => {
     setEditMessage("");
     setIsEditingCustomer(true);
@@ -566,7 +633,8 @@ const CustomerPage = () => {
     const address = String(editForm.address || "").trim();
 
     if (!fullName) return setEditMessage("Tên khách hàng không được để trống.");
-    if (!phoneNumber) return setEditMessage("Số điện thoại không được để trống.");
+    if (!phoneNumber)
+      return setEditMessage("Số điện thoại không được để trống.");
     if (!address) return setEditMessage("Địa chỉ không được để trống.");
 
     try {
@@ -580,7 +648,7 @@ const CustomerPage = () => {
           "PUT",
           `${API_BASE}/api/admin/customers/${encodeURIComponent(customerDetail.CustomerID)}`,
           { fullName, phoneNumber, address },
-          getAuthHeaders(token)
+          getAuthHeaders(token),
         );
       } catch (error) {
         if (error?.status !== 401) throw error;
@@ -589,12 +657,15 @@ const CustomerPage = () => {
           "PUT",
           `${API_BASE}/api/admin/customers/${encodeURIComponent(customerDetail.CustomerID)}`,
           { fullName, phoneNumber, address },
-          getAuthHeaders(token)
+          getAuthHeaders(token),
         );
       }
 
       if (!res?.success) {
-        showPopup({ status: "error", message: res?.message || "Cập nhật thông tin thất bại." });
+        showPopup({
+          status: "error",
+          message: res?.message || "Cập nhật thông tin thất bại.",
+        });
         return;
       }
 
@@ -616,7 +687,10 @@ const CustomerPage = () => {
       setIsEditingCustomer(false);
       await fetchCustomers();
     } catch (error) {
-      showPopup({ status: "error", message: error?.message || "Cập nhật thông tin thất bại." });
+      showPopup({
+        status: "error",
+        message: error?.message || "Cập nhật thông tin thất bại.",
+      });
     } finally {
       setIsSavingCustomer(false);
     }
@@ -633,7 +707,11 @@ const CustomerPage = () => {
       <ToolBar title={TXT.title} onSearchChange={handleSearchChange} />
       <div className="customer-container">
         <div className="customer-top-actions">
-          <button type="button" className="btn-action create-customer" onClick={openCreateCustomerPopup}>
+          <button
+            type="button"
+            className="btn-action create-customer"
+            onClick={openCreateCustomerPopup}
+          >
             {"+ Tạo khách hàng"}
           </button>
         </div>
@@ -657,45 +735,90 @@ const CustomerPage = () => {
             <table className="customer-table">
               <thead>
                 <tr>
-                  <th>Mã khách hàng</th>
-                  <th>Ảnh đại diện</th>
+                  <th className="th-customer-code">Mã KH</th>
+                  <th className="th-avatar">Ảnh</th>
                   <th>Tên khách hàng</th>
-                  <th>Email</th>
+                  <th className="th-email">Email</th>
                   <th>Số điện thoại</th>
+                  <th className="th-orders">Đơn hàng</th>
                   <th>Trạng thái tài khoản</th>
                   <th>Hành động</th>
                 </tr>
               </thead>
+
               <tbody>
                 {filteredCustomers.map((customer, idx) => (
                   <tr key={idx} className="customer-row">
-                    <td className="td-customer-code cell-wrap">
-                      <span className="customer-code-field">{customer.CustomerCode ?? "N/A"}</span>
-                    </td>
-                    <td className="td-avatar">
-                      {customer.Avatar && (
-                        <img src={resolveAvatarSrc(customer.Avatar)} alt="avatar" className="avatar-thumb" />
-                      )}
-                    </td>
-                    <td className="td-full-name cell-wrap">
-                      <span className="customer-field-text">{customer.FullName || "N/A"}</span>
-                    </td>
-                    <td className="td-email cell-wrap">
-                      <span className="customer-field-text">{customer.Email || customer.CustomerID || "N/A"}</span>
-                    </td>
-                    <td className="td-phone cell-wrap">
-                      <span className="customer-field-text">{customer.PhoneNumber || "N/A"}</span>
-                    </td>
-                    <td className="td-account-status cell-wrap">
-                      <span className="customer-field-text">
-                        <span className={`type-badge ${isAccountCustomer(customer) ? "account" : "guest"}`}>
-                          {getAccountStatusLabel(customer)}
-                        </span>
+                    <td className="td-customer-code">
+                      <span className="customer-code-field">
+                        {customer.CustomerCode ?? "N/A"}
                       </span>
                     </td>
+
+                    <td className="td-avatar">
+                      {customer.Avatar ? (
+                        <img
+                          src={resolveAvatarSrc(customer.Avatar)}
+                          alt="avatar"
+                          className="avatar-thumb"
+                        />
+                      ) : (
+                        <div className="avatar-placeholder">?</div>
+                      )}
+                    </td>
+
+                    <td className="td-full-name cell-wrap">
+                      <span className="customer-field-text">
+                        {customer.FullName || "N/A"}
+                      </span>
+                    </td>
+
+                    <td className="td-email cell-wrap">
+                      <span className="customer-field-text">
+                        {customer.Email || customer.CustomerID || "N/A"}
+                      </span>
+                    </td>
+
+                    <td className="td-phone cell-wrap">
+                      <span className="customer-field-text">
+                        {customer.PhoneNumber || "N/A"}
+                      </span>
+                    </td>
+
+                    <td className="td-orders">
+                      <div className="orders-summary">
+                        <div className="orders-count">
+                          {customer.OrderCount ?? 0} đơn
+                        </div>
+
+                        <div className="orders-total">
+                          {formatPrice(customer.Total || 0)}
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="td-account-status">
+                      <span
+                        className={`type-badge ${
+                          isAccountCustomer(customer) ? "account" : "guest"
+                        }`}
+                      >
+                        {getAccountStatusLabel(customer)}
+                      </span>
+                    </td>
+
                     <td className="actions-cell td-actions">
-                      <button className="btn-action detail" onClick={() => fetchCustomerDetail(customer.CustomerID)}>
-                        {"Chi tiết"}
+                      <button
+                        className="btn-action detail"
+                        onClick={() => fetchCustomerDetail(customer.CustomerID)}
+                      >
+                        Chi tiết
+                      </button>
+                      <button
+                        className="btn-action delete"
+                        onClick={() => openDeleteConfirmPopup(customer)}
+                      >
+                        Xóa
                       </button>
                     </td>
                   </tr>
@@ -706,166 +829,39 @@ const CustomerPage = () => {
         </div>
       </div>
 
-      {showDetailPopup && customerDetail && (
-        <div className="detail-popup-overlay" onClick={closeDetailPopup}>
-          <div className="detail-popup-shell" onClick={(e) => e.stopPropagation()}>
-            <div className="detail-popup">
-              <div className="popup-header">
-                <h2>{"Chi tiết khách hàng"}</h2>
-                <button className="close-btn" onClick={closeDetailPopup}>×</button>
-              </div>
-
-              <div className="popup-body">
-                <div className="info-section">
-                  {customerDetail.AccountEmail ? (
-                    <div className="account-detail-card">
-                      {customerDetail.Avatar && (
-                        <img src={resolveAvatarSrc(customerDetail.Avatar)} alt="avatar" className="account-detail-avatar" />
-                      )}
-                      <div className="account-detail-info">
-                        <div className="account-detail-name">{customerDetail.DisplayName || customerDetail.AccountEmail}</div>
-                        <div className="account-detail-email">{customerDetail.AccountEmail}</div>
-                        <div className="account-detail-role">
-                          {"Vai trò: "}
-                          {customerDetail.Role === 0
-                            ? "Khách hàng"
-                            : customerDetail.Role ?? "N/A"}
-                        </div>
-                      </div>
-                      <div className="account-action-wrap">
-                        <button className="btn-action reset-password" onClick={openResetPasswordPopup} disabled={isResettingPassword}>
-                          {isResettingPassword
-                            ? "Đang reset..."
-                            : "Reset mật khẩu"}
-                        </button>
-                        <div className="account-action-note">
-                          {"Nhập mật khẩu mới khi xác nhận reset."}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="no-account">{TXT.noAccount}</div>
-                  )}
-
-                  {resetPasswordMessage && <div className="reset-password-message">{resetPasswordMessage}</div>}
-                </div>
-
-                {activeDetailTab === "info" && (
-                  <div className="info-section">
-                    <h3>{"Thông tin cơ bản"}</h3>
-                    <div className="info-actions">
-                      {!isEditingCustomer ? (
-                        <button className="btn-action edit" onClick={openEditCustomerMode}>
-                          {"Chỉnh sửa"}
-                        </button>
-                      ) : (
-                        <>
-                          <button className="btn-action save" onClick={openUpdateConfirmPopup} disabled={isSavingCustomer}>
-                            {isSavingCustomer ? "Đang lưu..." : "Lưu"}
-                          </button>
-                          <button className="btn-action cancel" onClick={cancelEditCustomerMode} disabled={isSavingCustomer}>
-                            {"Hủy"}
-                          </button>
-                        </>
-                      )}
-                    </div>
-
-                    <div className="info-grid">
-                      <div className="info-item">
-                        <label>{"Tên:"}</label>
-                        {isEditingCustomer ? (
-                          <input type="text" value={editForm.fullName} onChange={(e) => handleChangeEditForm("fullName", e.target.value)} disabled={isSavingCustomer} />
-                        ) : (
-                          <span className="editable-value">{customerDetail.FullName || "N/A"}</span>
-                        )}
-                      </div>
-                      <div className="info-item">
-                        <label>{"Điện thoại:"}</label>
-                        {isEditingCustomer ? (
-                          <input type="text" value={editForm.phoneNumber} onChange={(e) => handleChangeEditForm("phoneNumber", e.target.value)} disabled={isSavingCustomer} />
-                        ) : (
-                          <span className="editable-value">{customerDetail.PhoneNumber || "N/A"}</span>
-                        )}
-                      </div>
-                      <div className="info-item">
-                        <label>{"Địa chỉ:"}</label>
-                        {isEditingCustomer ? (
-                          <input type="text" value={editForm.address} onChange={(e) => handleChangeEditForm("address", e.target.value)} disabled={isSavingCustomer} />
-                        ) : (
-                          <span className="editable-value">{customerDetail.Address || "N/A"}</span>
-                        )}
-                      </div>
-                      <div className="info-item"><label>Email / ID:</label><span className="editable-value">{customerDetail.CustomerID || "N/A"}</span></div>
-                      <div className="info-item">
-                        <label>{"Số đơn hàng đã mua:"}</label>
-                        <span className="editable-value">{customerDetail.OrderCount ?? customerDetail.Orders?.length ?? 0}</span>
-                      </div>
-                      <div className="info-item">
-                        <label>{"Tổng chi tiêu:"}</label>
-                        <span className="total-spent">{formatPrice(customerDetail.TotalSpent)}</span>
-                      </div>
-                    </div>
-                    {editMessage && <div className="edit-message">{editMessage}</div>}
-                  </div>
-                )}
-
-                {activeDetailTab === "orders" && (
-                  <div className="orders-section">
-                    <h3>
-                      {"Lịch sử đơn hàng"} ({customerDetail.OrderCount || 0})
-                    </h3>
-                    {customerDetail.Orders && customerDetail.Orders.length > 0 ? (
-                      <div className="orders-table">
-                        <table>
-                          <thead>
-                            <tr>
-                              <th>{"Mã đơn"}</th>
-                              <th>{"Ngày đặt"}</th>
-                              <th>{"Tổng tiền"}</th>
-                              <th>{"Trạng thái"}</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {customerDetail.Orders.map((order, idx) => (
-                              <tr key={idx}>
-                                <td>{order.OrderID || "N/A"}</td>
-                                <td>{order.OrderDate ? new Date(order.OrderDate).toLocaleDateString("vi-VN") : "N/A"}</td>
-                                <td className="price-cell">{formatPrice(order.TotalPrice)}</td>
-                                <td>
-                                  <span className={`status-badge ${order.Status?.toLowerCase() || ""}`}>
-                                    {order.Status || "Chờ xác nhận"}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <div className="no-orders">{"Chưa có đơn hàng"}</div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className={`popup-side-tabs outside ${activeDetailTab === "info" ? "tab-info" : "tab-orders"}`}>
-              <button type="button" className={`side-tab-btn ${activeDetailTab === "info" ? "active" : ""}`} onClick={() => setActiveDetailTab("info")}>
-                {"Thông tin"}
-              </button>
-              <button type="button" className={`side-tab-btn ${activeDetailTab === "orders" ? "active" : ""}`} onClick={() => setActiveDetailTab("orders")}>
-                {"Lịch sử mua hàng"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <CustomerDetailModal
+        open={showDetailPopup}
+        customerDetail={customerDetail}
+        onClose={closeDetailPopup}
+        formatPrice={formatPrice}
+        resolveAvatarSrc={resolveAvatarSrc}
+        openResetPasswordPopup={openResetPasswordPopup}
+        isResettingPassword={isResettingPassword}
+        resetPasswordMessage={resetPasswordMessage}
+        activeDetailTab={activeDetailTab}
+        setActiveDetailTab={setActiveDetailTab}
+        isEditingCustomer={isEditingCustomer}
+        openEditCustomerMode={openEditCustomerMode}
+        cancelEditCustomerMode={cancelEditCustomerMode}
+        editForm={editForm}
+        handleChangeEditForm={handleChangeEditForm}
+        isSavingCustomer={isSavingCustomer}
+        openUpdateConfirmPopup={openUpdateConfirmPopup}
+        editMessage={editMessage}
+      />
 
       {showResetPasswordPopup && (
-        <div className="confirm-popup-overlay" onClick={closeResetPasswordPopup}>
+        <div
+          className="confirm-popup-overlay"
+          onClick={closeResetPasswordPopup}
+        >
           <div className="confirm-popup" onClick={(e) => e.stopPropagation()}>
-            <div className="confirm-popup-title">{"Xác nhận reset mật khẩu"}</div>
-            <div className="confirm-popup-desc">{"Bạn có chắc muốn reset mật khẩu cho tài khoản này không?"}</div>
+            <div className="confirm-popup-title">
+              {"Xác nhận reset mật khẩu"}
+            </div>
+            <div className="confirm-popup-desc">
+              {"Bạn có chắc muốn reset mật khẩu cho tài khoản này không?"}
+            </div>
             <div className="confirm-popup-field">
               <label>{"Mật khẩu mới"}</label>
               <input
@@ -877,10 +873,20 @@ const CustomerPage = () => {
               />
             </div>
             <div className="confirm-popup-actions">
-              <button type="button" className="btn-cancel" onClick={closeResetPasswordPopup} disabled={isResettingPassword}>
+              <button
+                type="button"
+                className="btn-cancel"
+                onClick={closeResetPasswordPopup}
+                disabled={isResettingPassword}
+              >
                 {"Hủy"}
               </button>
-              <button type="button" className="btn-confirm" onClick={handleResetPassword} disabled={isResettingPassword}>
+              <button
+                type="button"
+                className="btn-confirm"
+                onClick={handleResetPassword}
+                disabled={isResettingPassword}
+              >
                 {isResettingPassword ? "Đang xử lý..." : "Xác nhận reset"}
               </button>
             </div>
@@ -889,15 +895,30 @@ const CustomerPage = () => {
       )}
 
       {showUpdateConfirmPopup && (
-        <div className="confirm-popup-overlay" onClick={closeUpdateConfirmPopup}>
+        <div
+          className="confirm-popup-overlay"
+          onClick={closeUpdateConfirmPopup}
+        >
           <div className="confirm-popup" onClick={(e) => e.stopPropagation()}>
             <div className="confirm-popup-title">{"Xác nhận chỉnh sửa"}</div>
-            <div className="confirm-popup-desc">{"Bạn có chắc muốn lưu thay đổi thông tin khách hàng không?"}</div>
+            <div className="confirm-popup-desc">
+              {"Bạn có chắc muốn lưu thay đổi thông tin khách hàng không?"}
+            </div>
             <div className="confirm-popup-actions">
-              <button type="button" className="btn-cancel" onClick={closeUpdateConfirmPopup} disabled={isSavingCustomer}>
+              <button
+                type="button"
+                className="btn-cancel"
+                onClick={closeUpdateConfirmPopup}
+                disabled={isSavingCustomer}
+              >
                 {"Hủy"}
               </button>
-              <button type="button" className="btn-confirm" onClick={handleSaveCustomerInfo} disabled={isSavingCustomer}>
+              <button
+                type="button"
+                className="btn-confirm"
+                onClick={handleSaveCustomerInfo}
+                disabled={isSavingCustomer}
+              >
                 {isSavingCustomer ? "Đang lưu..." : "Xác nhận lưu"}
               </button>
             </div>
@@ -906,13 +927,51 @@ const CustomerPage = () => {
       )}
 
       {showUpdateSuccessPopup && (
-        <div className="confirm-popup-overlay" onClick={closeUpdateSuccessPopup}>
+        <div
+          className="confirm-popup-overlay"
+          onClick={closeUpdateSuccessPopup}
+        >
           <div className="confirm-popup" onClick={(e) => e.stopPropagation()}>
             <div className="confirm-popup-title">{"Cập nhật thành công"}</div>
-            <div className="confirm-popup-desc">{"Thông tin khách hàng đã được cập nhật thành công."}</div>
+            <div className="confirm-popup-desc">
+              {"Thông tin khách hàng đã được cập nhật thành công."}
+            </div>
             <div className="confirm-popup-actions">
-              <button type="button" className="btn-ok" onClick={closeUpdateSuccessPopup}>
+              <button
+                type="button"
+                className="btn-ok"
+                onClick={closeUpdateSuccessPopup}
+              >
                 {"Đóng"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteConfirmPopup && (
+        <div className="confirm-popup-overlay" onClick={closeDeleteConfirmPopup}>
+          <div className="confirm-popup" onClick={(e) => e.stopPropagation()}>
+            <div className="confirm-popup-title">{"Xác nhận xóa khách hàng"}</div>
+            <div className="confirm-popup-desc">
+              {customerToDelete?.FullName
+                ? `Bạn có chắc muốn xóa khách hàng ${customerToDelete.FullName} không?`
+                : "Bạn có chắc muốn xóa khách hàng này không?"}
+            </div>
+            <div className="confirm-popup-actions">
+              <button
+                type="button"
+                className="btn-cancel"
+                onClick={closeDeleteConfirmPopup}
+              >
+                {"Hủy"}
+              </button>
+              <button
+                type="button"
+                className="btn-confirm"
+                onClick={handleDeleteCustomer}
+              >
+                {"Xác nhận xóa"}
               </button>
             </div>
           </div>

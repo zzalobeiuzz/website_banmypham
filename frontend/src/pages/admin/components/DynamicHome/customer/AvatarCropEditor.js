@@ -1,3 +1,4 @@
+// ======== Component cho phép người dùng chỉnh sửa ảnh đại diện ============= */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 const VIEW_SIZE = 320;

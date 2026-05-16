@@ -36,6 +36,71 @@ const buildSafeIntFromString = (value) => {
   return safeValue === 0 ? 1 : safeValue;
 };
 
+const pickCustomerKeyColumn = async (transaction) => {
+  const columnRes = await transaction.request().query(`
+    SELECT C.name AS ColumnName
+    FROM sys.columns C
+    INNER JOIN sys.objects O ON O.object_id = C.object_id
+    WHERE O.type = 'U' AND O.name = N'CUSTOMER'
+  `);
+
+  const columns = (columnRes.recordset || []).map((r) => String(r.ColumnName || "").toLowerCase());
+  if (columns.includes("email")) return "Email";
+  if (columns.includes("id")) return "Id";
+  return null;
+};
+
+// Tạo hồ sơ khách hàng nếu đơn hàng đã thanh toán
+const ensureCustomerProfileForPaidOrder = async (transaction, orderRow) => {
+  const userId = String(orderRow?.UserID || "").trim();
+  if (!userId) return false;
+  // ✅ Kiểm tra nếu đã tồn tại profile khách hàng liên kết với userId này rồi thì không tạo nữa
+  const accountRes = await transaction.request()
+    .input("userId", sql.NVarChar(100), userId)
+    .query(`
+      SELECT TOP 1 Email, DisplayName, Role
+      FROM ACCOUNT
+      WHERE CAST(Email AS NVARCHAR(100)) = @userId
+    `);
+
+  const account = accountRes.recordset?.[0];
+  if (!account) return false;
+  // Chỉ tạo profile nếu role là khách hàng (0), 
+  // tránh tạo nhầm cho admin/staff nếu có đơn hàng do lỗi hệ thống hoặc tấn công giả mạo
+  if (Number(account.Role) !== 0) return false;
+
+  const customerKeyCol = await pickCustomerKeyColumn(transaction);
+  if (!customerKeyCol) return false;
+  // Kiểm tra nếu đã tồn tại profile liên kết với userId này rồi thì không tạo nữa
+  const existsRes = await transaction.request()
+    .input("userId", sql.NVarChar(100), userId)
+    .query(`
+      SELECT TOP 1 1 AS Found
+      FROM CUSTOMER
+      WHERE CAST([${customerKeyCol}] AS NVARCHAR(100)) = @userId
+    `);
+
+  if (existsRes.recordset?.length > 0) {
+    return false;
+  }
+
+  const profileName = String(orderRow?.CustomerName || account.DisplayName || userId).trim();
+  const profilePhone = String(orderRow?.CustomerPhone || "").trim();
+  const profileAddress = String(orderRow?.CustomerAddress || "").trim();
+
+  await transaction.request()
+    .input("customerName", sql.NVarChar(255), profileName)
+    .input("userId", sql.NVarChar(100), userId)
+    .input("customerPhone", sql.NVarChar(50), profilePhone || null)
+    .input("customerAddress", sql.NVarChar(500), profileAddress || null)
+    .query(`
+      INSERT INTO CUSTOMER (Name, [${customerKeyCol}], Phone, Address, isActive)
+      VALUES (@customerName, @userId, @customerPhone, @customerAddress, 1)
+    `);
+
+  return true;
+};
+
 /**-------------------------------------------------
  🧹 Xóa các đơn hàng có trạng thái "Chờ thanh toán" 
  mà quá 10p chưa chuyển trạng thái "Đã thanh toán"
@@ -404,6 +469,23 @@ exports.insertBillAndDetails = async (orderData) => {
     }
 
     // ✅ Commit = tất cả OK
+    // Nếu đơn hàng ở trạng thái đã thanh toán khi tạo (ví dụ: Thanh Toán COD),
+    // tạo hồ sơ CUSTOMER ngay trong cùng transaction để tránh trường hợp
+    // không có callback sau khi tạo đơn (COD thay đổi trạng thái ngay lúc tạo).
+    if (shouldDeductInventory) {
+      try {
+        const orderRowForEnsure = {
+          UserID: userId,
+          CustomerName: shippingInfo.name || "",
+          CustomerPhone: shippingInfo.phone || "",
+          CustomerAddress: shippingInfo.address || "",
+        };
+        await ensureCustomerProfileForPaidOrder(transaction, orderRowForEnsure);
+      } catch (ensureErr) {
+        console.warn("Không tạo được hồ sơ khách hàng tự động:", ensureErr.message);
+      }
+    }
+
     await transaction.commit();
     console.log(
       `  == ✅ Tạo đơn hàng: ${newOrderId} thành công. ==`,
@@ -578,6 +660,7 @@ exports.updateBillStatus = async (orderId, newStatus) => {
     "Đang xử lý",
     "Chờ thanh toán",
     "Đã thanh toán",
+    "Thanh Toán COD",
     "Đã hủy",
   ];
   //  Kiểm tra status gửi của đơn hàng gửi lên có thuộc trong danh sách ko
@@ -594,9 +677,8 @@ exports.updateBillStatus = async (orderId, newStatus) => {
       .request()
 
       // 1. Lấy trạng thái đơn hàng hiện tại
-
       .input("orderId", sql.NVarChar(100), orderId).query(`
-        SELECT TOP 1 OrderID, Status
+        SELECT TOP 1 OrderID, Status, UserID, CustomerName, CustomerPhone, CustomerAddress
         FROM ORDERS WITH (UPDLOCK, ROWLOCK)
         WHERE CAST(OrderID AS NVARCHAR(100)) = @orderId
       `);
@@ -613,16 +695,32 @@ exports.updateBillStatus = async (orderId, newStatus) => {
     // Trạng thái hiện tại
     const currentStatus = String(currentOrder.Status || "").trim();
     let deductedItems = 0;
+    let customerProfileCreated = false;
+
+    const isPaidStatus = (st) => {
+      const s = String(st || "").toLowerCase();
+      if (!s) return false;
+      // Explicit 'Đã thanh toán'
+      if (s.includes("đã thanh toán")) return true;
+      // Cases like 'Thanh Toán COD' or any 'thanh toán' with 'cod'
+      if (s.includes("thanh toán") && s.includes("cod")) return true;
+      // Generic: if contains both 'thanh toán' and not 'chờ'
+      if (s.includes("thanh toán") && !s.includes("chờ")) return true;
+      return false;
+    };
 
     // 2. Nếu trạng thái đã là "Đã thanh toán"
     // và vẫn nhận được yêu cầu markPaid,
     // trả về thông tin đã thanh toán mà không trừ kho thêm lần nữa
-    if (currentStatus === "Đã thanh toán" && newStatus === "Đã thanh toán") {
+    // Đồng thời thêm hồ sơ khách hàng nếu chưa có
+    if (isPaidStatus(currentStatus) && isPaidStatus(newStatus)) {
+      customerProfileCreated = await ensureCustomerProfileForPaidOrder(transaction, currentOrder);
       await transaction.commit();
       return {
         success: true,
         message: "Đã thanh toán",
         deductedItems,
+        customerProfileCreated,
       };
     }
 
@@ -710,6 +808,10 @@ exports.updateBillStatus = async (orderId, newStatus) => {
         WHERE CAST(OrderID AS NVARCHAR(100)) = @orderId
       `);
 
+    if (isPaidStatus(newStatus)) {
+      customerProfileCreated = await ensureCustomerProfileForPaidOrder(transaction, currentOrder);
+    }
+
     await transaction.commit();
 
     return {
@@ -718,8 +820,8 @@ exports.updateBillStatus = async (orderId, newStatus) => {
         ? "Cập nhật thành công"
         : "Không tìm thấy đơn hàng",
       deductedItems,
-      alreadyPaid:
-        currentStatus === "Đã thanh toán" && newStatus === "Đã thanh toán",
+      customerProfileCreated,
+      alreadyPaid: isPaidStatus(currentStatus) && isPaidStatus(newStatus),
     };
   } catch (err) {
     await transaction.rollback();

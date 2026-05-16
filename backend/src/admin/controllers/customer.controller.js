@@ -108,7 +108,9 @@ const toBoolean = (value) => {
  */
 exports.handleGetCustomers = async (req, res) => {
   try {
+    console.log("📥------ Đang lấy danh sách khách hàng ------");
     const customers = await getCustomerList();
+    console.log(`✅ Lấy thành công ${customers.length} khách hàng`);
     res.json({ success: true, data: customers });
   } catch (error) {
     console.error("❌ Lỗi handleGetCustomers:", error);
@@ -272,6 +274,7 @@ exports.handleUpdateCustomer = async (req, res) => {
  * Tạo mới khách hàng + tùy chọn tạo tài khoản và liên kết Google theo email.
  */
 exports.handleCreateCustomer = async (req, res) => {
+  console.log("---------------- Đang tạo mới người dùng ---------------")
   try {
     const {
       fullName,

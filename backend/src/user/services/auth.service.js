@@ -418,6 +418,7 @@ exports.checkEmailAndGenerateCode = async (email, use) => {
 
 //==========================GỬI MAIL XÁC THỰC==============================
 exports.generateAndSendVerificationCode = async (email, use) => {
+  // Trước khi tạo code, kiểm tra email và mục đích sử dụng hợp lệ
   const result = await exports.checkEmailAndGenerateCode(email, use);
 
   if (!result.success) {
