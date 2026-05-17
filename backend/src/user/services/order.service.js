@@ -20,7 +20,7 @@ exports.handleCODPayment = async (orderData) => {
   // 📥 Tạo order trong database (sử dụng function từ model)
   const orderResult = await insertBillAndDetails({
     ...orderData,
-    status: "Thanh Toán COD",
+    status: "Thanh toán COD",
   });
 
   return {

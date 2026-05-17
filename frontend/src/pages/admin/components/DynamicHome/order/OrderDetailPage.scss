@@ -1,0 +1,746 @@
+/*
+  OrderDetailPage styles
+  - Styles scoped under `.order-detail-page`.
+  - Responsible for layout, typography, table, and responsive rules
+    used by the admin order detail view.
+*/
+.order-detail-page {
+  /* Theme variables used throughout the page for easy tuning */
+  --bg: #f6f8fa;
+  --card-bg: #ffffff;
+  --muted: #9ca3af;
+  --text: #0f172a;
+  --surface: #fbfbfd;
+  --primary: #2563eb;
+  --danger: #b91c1c;
+  --shadow: 0 6px 26px rgba(15, 23, 42, 0.08);
+
+  padding: 28px;
+  background: var(--bg);
+  min-height: 100vh;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  color: var(--text);
+
+  // Loading & Error states (centered messages)
+  .loading,
+  .error {
+    text-align: center;
+    padding: 48px 24px;
+    font-size: 16px;
+    color: #666;
+  }
+
+  .error {
+    color: #d32f2f;
+  }
+
+  // Main card container for the order details
+  .order-detail-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    background: var(--card-bg);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 32px;
+    border: 1px solid rgba(15,23,42,0.04);
+  }
+
+  // ============ HEADER ============
+  // Contains back button and title
+  .detail-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 2px solid #e0e0e0;
+
+    h1 {
+      margin: 0;
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text);
+      flex: 1;
+      letter-spacing: -0.2px;
+    }
+  }
+
+  // ============ BUTTON STYLES ============
+    /* Back / action buttons used in header and actions row */
+    .btn-back {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid rgba(15,23,42,0.06);
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.16s ease;
+
+      &:hover {
+        color: var(--text);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(2,6,23,0.06);
+      }
+    }
+
+    .btn-print {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 10px 30px rgba(37,99,235,0.12);
+      transition: transform 120ms, box-shadow 120ms, opacity 120ms;
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 40px rgba(37,99,235,0.14);
+      }
+
+      &:active { transform: translateY(1px); }
+    }
+
+  // ============ SECTIONS ============
+  // Generic section wrapper used for each block (info, products, totals)
+  .detail-section {
+    margin-bottom: 28px;
+
+    h2 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      margin: 0 0 14px 0;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(15,23,42,0.04);
+    }
+  }
+
+  // ============ INFO GRID ============
+  // Two-column responsive grid for order/customer info
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+  }
+
+  .info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    strong {
+      font-size: 13px;
+      text-transform: uppercase;
+      color: #6b7280;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+    }
+
+    span {
+      font-size: 14px;
+      color: #1f2937;
+      word-break: break-word;
+    }
+  }
+
+  // ============ STATUS SECTION ============
+  // Small dropdown menu and pill for changing order status
+  .status-section {
+    position: relative;
+    display: inline-block;
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 120px;
+    padding: 6px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    background: #f5f5f5;
+    cursor: pointer;
+    border: none;
+    transition: transform 0.12s ease, box-shadow 0.2s ease;
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+    }
+  }
+
+  .status-clickable {
+    cursor: pointer;
+  }
+
+  .status-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    width: 180px;
+    background: #fff;
+    border: 1px solid #dbe3ef;
+    border-radius: 10px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+    padding: 6px;
+    z-index: 40;
+  }
+
+  .status-option {
+    width: 100%;
+    background: transparent;
+    border: none;
+    padding: 4px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    transition: background 0.15s;
+
+    &:hover,
+    &.active {
+      background: #f3f7ff;
+    }
+
+    .status-pill {
+      min-width: 140px;
+    }
+  }
+
+  // ============ STATUS COLORS ============
+  // Color variants used on `.status-pill` to indicate business status
+  .status--cho-thanh-toan {
+    color: #92400e;
+    background: #fff7e6;
+  }
+
+  .status--da-thanh-toan {
+    color: #0b7d44;
+    background: #e6fff2;
+  }
+
+  .status--cod {
+    color: #b91c1c;
+    background: #fff3f0;
+  }
+
+  .status--dang-giao {
+    color: #1e3a8a;
+    background: #e8f2ff;
+  }
+
+  .status--hoan-thanh {
+    color: #056c65;
+    background: #e6fffb;
+  }
+
+  .status--da-huy {
+    color: #b91c1c;
+    background: #fff0f0;
+  }
+
+  .status--tra-hang {
+    color: #6a1b9a;
+    background: #f5e6ff;
+  }
+
+  // ============ PRODUCTS TABLE ============
+  // Wrapper provides a fixed max-height and always-visible scrollbar
+  // so that the user sees the table is scrollable on long orders.
+  .order-products-table-wrapper {
+    background: transparent;
+    border-radius: 8px;
+    margin: 0;
+    max-height: 400px;
+    /* Always show scrollbar area to indicate scrollable region */
+    overflow-y: scroll;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  }
+
+  /* Custom thin scrollbar for webkit browsers (visual polish) */
+  .order-products-table-wrapper::-webkit-scrollbar {
+    width: 10px;
+  }
+  .order-products-table-wrapper::-webkit-scrollbar-track {
+    background: rgba(15,23,42,0.02);
+    border-radius: 8px;
+  }
+  .order-products-table-wrapper::-webkit-scrollbar-thumb {
+    background: rgba(15,23,42,0.08);
+    border-radius: 8px;
+  }
+
+  .order-products-table {
+    table-layout: fixed;
+    border-collapse: collapse;
+    border-left: 1px solid #e6e6e6;
+    border-right: 1px solid #e6e6e6;
+    width: 100%;
+
+    th + th,
+    td + td {
+      border-left: 1px solid #e6e6e6;
+    }
+
+    th,
+    td {
+      padding: 10px 8px;
+      vertical-align: top;
+      border-bottom: 1px solid #f3f3f3;
+      font-size: 13px;
+    }
+
+    th {
+      background: linear-gradient(180deg, rgba(250,250,251,1), rgba(247,249,250,1));
+      font-weight: 700;
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    // Product image cell
+    .product-image-cell {
+      text-align: center;
+      padding: 6px 4px;
+    }
+
+    .product-thumbnail {
+      max-width: 64px;
+      max-height: 64px;
+      border-radius: 6px;
+      object-fit: cover;
+      border: 1px solid rgba(15,23,42,0.06);
+      box-shadow: 0 6px 18px rgba(2,6,23,0.04);
+    }
+
+    .product-thumbnail-placeholder {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 60px;
+      height: 60px;
+      background: #f5f5f5;
+      border: 1px dashed #ddd;
+      border-radius: 4px;
+      font-size: 24px;
+      color: #ccc;
+    }
+
+    // Price column: shows original (struck) and sale price variants
+    .product-price-cell {
+      .price-original {
+        color: #9ca3af;
+        font-size: 13px;
+        text-decoration: line-through;
+        margin-bottom: 4px;
+      }
+
+      .price-sale {
+        color: #b91c1c;
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .price-single {
+        color: #111827;
+        font-size: 14px;
+        font-weight: 600;
+      }
+    }
+
+    // Expand/collapse inventory details button
+    .btn-expand-inventory {
+      background: #f0f0f0;
+      border: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      color: #666;
+      transition: background 0.15s, color 0.15s;
+      padding: 0;
+
+      &:hover {
+        background: #e0e0e0;
+        color: #333;
+      }
+    }
+
+    // Expanded row styling (applies when a row is opened)
+    &.expanded-row {
+      background: rgba(245,247,250,0.6);
+    }
+
+    // Row hover effect for readability during scanning
+    tbody tr:hover td {
+      background: rgba(250,250,251,0.6);
+    }
+
+    // Sticky header while scrolling table
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(4px);
+    }
+  }
+
+  // Inventory detail row (shown when a product is expanded)
+  .inventory-detail-row {
+    background: #f9f9f9;
+
+    td {
+      padding: 0 !important;
+      border-bottom: 1px solid #e6e6e6 !important;
+    }
+  }
+
+  // Inner card for inventory details (batch, barcode, expiry)
+  .inventory-details {
+    padding: 12px 16px;
+    background: #fff;
+    border-left: 3px solid #0ea5a4;
+  }
+
+  // Grid layout for inventory detail pairs
+  .inventory-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+
+  // Simple label/value pair used inside inventory details
+  .info-pair {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    strong {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: #6b7280;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+
+    span {
+      font-size: 13px;
+      color: #1f2937;
+      word-break: break-word;
+    }
+  }
+
+  .no-inventory {
+    color: #9ca3af;
+    font-size: 13px;
+    font-style: italic;
+    margin: 0;
+  }
+
+  .product-name-cell {
+    display: block;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-wrap: break-word;
+    word-break: break-word;
+    line-height: 1.4;
+    max-height: none;
+    text-overflow: clip;
+    overflow: visible;
+  }
+
+  // ============ TOTALS ============
+  // Totals card showing total items and total price
+  .totals-section {
+    display: flex;
+    gap: 24px;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 16px;
+    background: #f9f9f9;
+    border-radius: 8px;
+  }
+
+  .total-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+
+    span {
+      font-size: 13px;
+      color: #6b7280;
+      font-weight: 500;
+    }
+
+    strong {
+      font-size: 16px;
+      color: #1f2937;
+      font-weight: 700;
+    }
+
+    &.highlight {
+      strong {
+        font-size: 18px;
+        color: #2563eb;
+      }
+    }
+  }
+
+  // ============ ACTION BUTTONS ============
+  // Bottom action row (print, etc.)
+  .detail-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 2px solid #e0e0e0;
+  }
+
+  // ============ MODAL ============
+  // Overlay + modal for confirming status changes
+  .status-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.38);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1200;
+  }
+
+  .status-confirm-modal {
+    width: min(92vw, 420px);
+    background: #fff;
+    border-radius: 12px;
+    padding: 18px 20px;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.25);
+
+    h4 {
+      margin: 0 0 10px;
+      color: #1f2937;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    p {
+      margin: 0 0 8px;
+      color: #374151;
+      font-size: 14px;
+
+      &:last-of-type {
+        margin-bottom: 0;
+      }
+    }
+  }
+
+  .status-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 14px;
+
+    button {
+      border: none;
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.2s;
+
+      &:first-child {
+        background: #edf2f7;
+        color: #334155;
+
+        &:hover {
+          background: #e0e7f1;
+        }
+      }
+
+      &:last-child {
+        background: #2563eb;
+        color: #fff;
+
+        &:hover {
+          background: #1d4ed8;
+        }
+      }
+    }
+  }
+}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width: 768px) {
+  .order-detail-page {
+  .order-products-table-wrapper {
+    background: transparent;
+    border-radius: 8px;
+    margin: 0;
+    max-height: 400px;
+    /* Use auto overflow so sticky headers work reliably */
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+
+    /* Hide native scrollbars while keeping scrollable behavior */
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  /* Hide scrollbars for WebKit-based browsers */
+  .order-products-table-wrapper::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+      gap: 12px;
+
+      h1 {
+        font-size: 20px;
+      }
+    }
+
+    .info-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .totals-section {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .total-item {
+      align-items: flex-start;
+    }
+
+    .detail-actions {
+      flex-direction: column;
+
+      button {
+        width: 100%;
+      }
+    }
+
+    .order-products-table {
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 50; /* above row content */
+      backdrop-filter: blur(4px);
+      background: linear-gradient(180deg, rgba(250,250,251,1), rgba(247,249,250,1));
+    }
+    }
+  }
+
+
+@media (max-width: 480px) {
+  .order-detail-page {
+    padding: 12px;
+
+    .order-detail-container {
+      padding: 12px;
+    }
+
+    .detail-header {
+      h1 {
+        font-size: 18px;
+      }
+    }
+
+    .detail-section {
+      margin-bottom: 20px;
+
+      h2 {
+        font-size: 15px;
+      }
+    }
+
+    .info-grid {
+      gap: 12px;
+    }
+
+    .info-item {
+      strong {
+        font-size: 12px;
+      }
+
+      span {
+        font-size: 13px;
+      }
+    }
+
+    .status-pill {
+      min-width: 100px;
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+
+    .status-dropdown {
+      width: 160px;
+      left: -20px;
+    }
+
+    .totals-section {
+      padding: 12px;
+      gap: 12px;
+    }
+
+    .total-item {
+      strong {
+        font-size: 14px;
+      }
+    }
+
+    .order-products-table-wrapper {
+      max-height: 300px;
+    }
+
+    .order-products-table {
+      font-size: 11px;
+
+      th,
+      td {
+        padding: 4px 2px;
+      }
+    }
+
+    .product-name-cell {
+      line-height: 1.3;
+    }
+
+    .btn-back,
+    .btn-print {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    .detail-actions {
+      gap: 8px;
+    }
+
+    .status-confirm-modal {
+      width: 95vw;
+
+      h4 {
+        font-size: 16px;
+      }
+
+      p {
+        font-size: 13px;
+      }
+    }
+
+    .status-confirm-actions {
+      button {
+        padding: 6px 10px;
+        font-size: 12px;
+      }
+    }
+  }
+}

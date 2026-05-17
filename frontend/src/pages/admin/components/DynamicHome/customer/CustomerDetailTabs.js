@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const CustomerDetailTabs = ({
   activeDetailTab,
@@ -21,6 +22,7 @@ const CustomerDetailTabs = ({
   const [orderKeyword, setOrderKeyword] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortDate, setSortDate] = useState("desc");
+  const navigate = useNavigate();
 
   // =========================
   // UNIQUE STATUS LIST
@@ -290,7 +292,15 @@ const CustomerDetailTabs = ({
                       <td>
                         <button
                           className="btn-action detail"
-                          onClick={() => onViewOrderDetail?.(order)}
+                          onClick={() => {
+                            const id = order.OrderID || order.OrderId || order.id || "";
+                            if (id) {
+                              navigate(`/admin/order/${encodeURIComponent(id)}`);
+                            } else {
+                              // Fallback to callback if no id available
+                              onViewOrderDetail?.(order);
+                            }
+                          }}
                         >
                           Chi tiết
                         </button>

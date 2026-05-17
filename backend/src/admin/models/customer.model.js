@@ -13,6 +13,7 @@ const pickColumn = (columns, candidates, fallback = null) => {
   return fallback;
 };
 
+// Hàm kiểm tra xem bảng có tồn tại không
 const getTableColumns = async (pool, tableName) => {
   const result = await pool.request()
     .input("tableName", sql.NVarChar(128), tableName)

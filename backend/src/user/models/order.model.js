@@ -292,7 +292,10 @@ const deductInventoryFromBatch = async (
 
       // 📦 Lấy thông tin lô
       const currentQty = Number(batch.Quantity || 0);
-      const batchId = batch.Id;
+      // `Id` là khoá nội bộ (PK) của BATCH_DETAIL, dùng để cập nhật quantity.
+      const batchRowId = batch.Id;
+      // `BatchId` là mã lô (mã hiển thị), lưu vào ORDER_INVENTORY_DEDUCTION.
+      const batchId = batch.BatchId || null;
       const expiryDate = batch.ExpiryDate || null;
       const barcode = batch.Barcode || "";
 
@@ -303,7 +306,7 @@ const deductInventoryFromBatch = async (
       // 📝 Cập nhật số lượng còn lại trong BATCH_DETAIL
       const updateResult = await transaction
         .request()
-        .input("Id", sql.Int, batchId)
+        .input("Id", sql.Int, batchRowId)
         .input("NewQuantity", sql.Int, newQty).query(`
           UPDATE BATCH_DETAIL
           SET [Quantity] = @NewQuantity
@@ -330,7 +333,8 @@ const deductInventoryFromBatch = async (
             .request()
             .input("OrderID", sql.NVarChar(100), String(orderId || ""))
             .input("ProductID", sql.NVarChar(100), String(productId || ""))
-            .input("BatchID", sql.Int, batchId || null)
+            // Lưu `BatchId` (mã lô) thay vì khoá nội bộ Id.
+            .input("BatchID", sql.NVarChar(100), batchId || null)
             .input("Barcode", sql.NVarChar(100), barcode || null)
             .input("DeductedQty", sql.Int, deductQty)
             .input("ExpiryDate", sql.DateTime, expiryDate || null).query(`
@@ -656,11 +660,12 @@ exports.getOrdersByUserId = async (userId) => {
  - Trừ kho hàng nếu chuyển sang "Đã thanh toán" lần đầu
 --------------------------------------------------*/
 exports.updateBillStatus = async (orderId, newStatus) => {
+  console.log(`🚀 Cập nhật trạng thái đơn hàng ${orderId} → ${newStatus}`);
   const validStatuses = [
     "Đang xử lý",
     "Chờ thanh toán",
     "Đã thanh toán",
-    "Thanh Toán COD",
+    "Thanh toán COD",
     "Đã hủy",
   ];
   //  Kiểm tra status gửi của đơn hàng gửi lên có thuộc trong danh sách ko

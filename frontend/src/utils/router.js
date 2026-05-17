@@ -36,9 +36,9 @@ export const ROUTERS = {
   
       // Nhóm đường dẫn đơn hàng (Order)
       ORDER: {
-        INDEX: "admin/order",                 // Danh sách đơn hàng: /admin/order
-        ADD: "admin/order/add",               // Thêm đơn hàng: /admin/order/add
-        DETAIL: "admin/order/detail/:id",     // Chi tiết đơn hàng: /admin/order/detail/123
+        INDEX: "order",                 // Danh sách đơn hàng: /admin/order
+        ADD: "order/add",               // Thêm đơn hàng: /admin/order/add
+        DETAIL: "order/detail/:id",     // Chi tiết đơn hàng: /admin/order/detail/123
       },
 
       SHIPMENT: {

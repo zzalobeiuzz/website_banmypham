@@ -89,7 +89,6 @@ exports.addProduct = async (req, res) => {
 //=======================LẤY THÔNG TIN SẢN PHẨM ĐỂ HIỂN THỊ CHI TIẾT==============================
 exports.handleProductDetail = async (req, res) => {
   try {
-
     const { code } = req.query;
     // 🟢 Bước 1: Lấy thông tin sản phẩm chính
     const result = await productService.getProductDetail(code);

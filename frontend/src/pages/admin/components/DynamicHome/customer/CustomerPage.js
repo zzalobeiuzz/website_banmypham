@@ -331,6 +331,37 @@ const fetchCustomers = async () => {
     }
   };
 
+  // Xem chi tiết đơn hàng (khi bấm từ tab lịch sử đơn hàng)
+  const [showOrderDetailPopup, setShowOrderDetailPopup] = useState(false);
+  const [orderDetailData, setOrderDetailData] = useState(null);
+
+  const handleViewOrderDetail = async (order) => {
+    try {
+      setLoading(true);
+      // gọi API admin orders (từ BILL/BILL_DETAIL) và tìm order theo id
+      const res = await request("GET", `${API_BASE}/api/admin/orders`);
+      if (!res?.success) throw new Error("Không lấy được dữ liệu đơn hàng");
+      const orders = Array.isArray(res.data) ? res.data : [];
+      const found = orders.find((o) => String(o.id || o.OrderID || o.OrderId) === String(order.OrderID || order.OrderId || order.id));
+      if (!found) {
+        showPopup({ status: "warning", message: "Không tìm thấy đơn hàng" });
+        return;
+      }
+      setOrderDetailData(found);
+      setShowOrderDetailPopup(true);
+    } catch (err) {
+      console.error("Lỗi lấy chi tiết đơn hàng:", err);
+      showPopup({ status: "error", message: err.message || "Lỗi khi lấy chi tiết đơn hàng" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const closeOrderDetailPopup = () => {
+    setShowOrderDetailPopup(false);
+    setOrderDetailData(null);
+  };
+
     useEffect(() => {
       fetchCustomers();
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -347,6 +378,52 @@ const fetchCustomers = async () => {
   const handleCloseAvatarEditor = () => {
     setAvatarEditorSource("");
     setShowAvatarEditor(false);
+  };
+
+  // Simple Order detail popup JSX
+  const OrderDetailPopup = ({ open, order, onClose }) => {
+    if (!open || !order) return null;
+    return (
+      <div className="detail-popup-overlay" onClick={onClose}>
+        <div className="detail-popup-shell" onClick={(e) => e.stopPropagation()}>
+          <div className="detail-popup">
+            <div className="popup-header">
+              <h2>{`Chi tiết đơn ${order.id || order.OrderId || order.OrderID}`}</h2>
+              <button className="close-btn" onClick={onClose}>×</button>
+            </div>
+            <div className="popup-body">
+              <div className="orders-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Sản phẩm</th>
+                      <th>Số lượng</th>
+                      <th>Giá</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(order.details || []).map((it, idx) => (
+                      <tr key={idx}>
+                        <td>{it.name}</td>
+                        <td>{it.qty}</td>
+                        <td>{it.price}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="order-meta">
+                <div>Trạng thái: {order.status}</div>
+                <div>Ngày: {order.date}</div>
+                <div>Tổng: {order.total}</div>
+                <div>Địa chỉ: {order.address}</div>
+                <div>Điện thoại: {order.phone}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const handleCreateCustomer = async () => {
@@ -848,7 +925,10 @@ const fetchCustomers = async () => {
         isSavingCustomer={isSavingCustomer}
         openUpdateConfirmPopup={openUpdateConfirmPopup}
         editMessage={editMessage}
+        onViewOrderDetail={handleViewOrderDetail}
       />
+
+      <OrderDetailPopup open={showOrderDetailPopup} order={orderDetailData} onClose={closeOrderDetailPopup} />
 
       {showResetPasswordPopup && (
         <div

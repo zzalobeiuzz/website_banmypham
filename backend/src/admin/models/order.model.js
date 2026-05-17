@@ -1,8 +1,8 @@
 const { connectDB } = require("../../config/connect");
 const sql = require("mssql");
 
-const BILL_TABLE = "BILL";
-const BILL_DETAIL_TABLE = "BILL_DETAIL";
+const ORDERS_TABLE = "ORDERS";
+const ORDER_DETAILS_TABLE = "ORDER_DETAILS";
 
 const toNumber = (value) => {
   if (value === null || value === undefined) return 0;
@@ -48,74 +48,35 @@ const tableExists = async (pool, tableName) => {
 };
 
 exports.getAllOrdersFromBill = async () => {
+  console.log("📥-------- Đang tải danh sách đơn hàng từ ORDERS -----------");
   const pool = await connectDB();
 
-  const hasBill = await tableExists(pool, BILL_TABLE);
-  const hasBillDetail = await tableExists(pool, BILL_DETAIL_TABLE);
-
-  if (!hasBill || !hasBillDetail) {
-    throw new Error("Không tìm thấy bảng BILL hoặc BILL_DETAIL trong cơ sở dữ liệu.");
-  }
-
-  const billCols = await getTableColumns(pool, BILL_TABLE);
-  const detailCols = await getTableColumns(pool, BILL_DETAIL_TABLE);
-
-  const billIdCol = pickColumn(billCols, ["BillID", "OrderID", "ID", "idBill", "BillId"]);
-  const billDateCol = pickColumn(billCols, ["OrderDate", "BillDate", "CreatedAt", "CreatedDate", "DateCreated"]);
-  const billStatusCol = pickColumn(billCols, ["Status", "OrderStatus", "BillStatus"], null);
-  const billTotalCol = pickColumn(billCols, ["TotalPrice", "TotalAmount", "Total", "Amount", "GrandTotal"], null);
-  const customerNameCol = pickColumn(billCols, ["CustomerName", "FullName", "Name", "CustomerFullName"], null);
-  const customerPhoneCol = pickColumn(billCols, ["CustomerPhone", "Phone", "PhoneNumber", "Mobile"], null);
-  const customerAddressCol = pickColumn(billCols, ["CustomerAddress", "Address", "ShippingAddress"], null);
-
-  const detailBillIdCol = pickColumn(detailCols, ["BillID", "OrderID", "idBill", "BillId"]);
-  const detailProductIdCol = pickColumn(detailCols, ["ProductID", "ProductId", "IDProduct"], null);
-  const detailProductNameCol = pickColumn(detailCols, ["ProductName", "Name"], null);
-  const detailQtyCol = pickColumn(detailCols, ["Quantity", "Qty", "SoLuong"], null);
-  const detailUnitPriceCol = pickColumn(detailCols, ["UnitPrice", "Price", "DonGia"], null);
-  const detailLineTotalCol = pickColumn(detailCols, ["TotalPrice", "Amount", "ThanhTien", "LineTotal"], null);
-
-  if (!billIdCol || !detailBillIdCol) {
-    throw new Error("Thiếu cột khóa liên kết BILL/BILL_DETAIL (BillID/OrderID).");
-  }
-
-  const productTableExists = await tableExists(pool, "PRODUCT");
-  const productCols = productTableExists ? await getTableColumns(pool, "PRODUCT") : [];
-  const productIdCol = productTableExists ? pickColumn(productCols, ["ProductID", "ProductId", "ID"]) : null;
-  const productNameCol = productTableExists ? pickColumn(productCols, ["ProductName", "Name"]) : null;
-
-  const billSql = `
+  const ordersSql = `
     SELECT
-      CAST(B.[${billIdCol}] AS NVARCHAR(100)) AS OrderId,
-      ${customerNameCol ? `CAST(B.[${customerNameCol}] AS NVARCHAR(255))` : "NULL"} AS CustomerName,
-      ${customerPhoneCol ? `CAST(B.[${customerPhoneCol}] AS NVARCHAR(100))` : "NULL"} AS CustomerPhone,
-      ${customerAddressCol ? `CAST(B.[${customerAddressCol}] AS NVARCHAR(500))` : "NULL"} AS CustomerAddress,
-      ${billStatusCol ? `CAST(B.[${billStatusCol}] AS NVARCHAR(100))` : "N'Đang xử lý'"} AS Status,
-      ${billDateCol ? `CONVERT(VARCHAR(10), TRY_CAST(B.[${billDateCol}] AS DATETIME), 23)` : "NULL"} AS OrderDate,
-      ${billTotalCol ? `CAST(B.[${billTotalCol}] AS NVARCHAR(100))` : "NULL"} AS TotalRaw
-    FROM ${BILL_TABLE} B
-    ORDER BY ${billDateCol ? `TRY_CAST(B.[${billDateCol}] AS DATETIME) DESC` : `B.[${billIdCol}] DESC`}
+      CAST(O.[OrderID] AS NVARCHAR(100)) AS OrderId,
+      CAST(O.[CustomerName] AS NVARCHAR(255)) AS CustomerName,
+      CAST(O.[CustomerPhone] AS NVARCHAR(50)) AS CustomerPhone,
+      CAST(O.[CustomerAddress] AS NVARCHAR(500)) AS CustomerAddress,
+      CAST(O.[Status] AS NVARCHAR(100)) AS Status,
+      CONVERT(VARCHAR(10), TRY_CAST(O.[CreatedAt] AS DATETIME), 23) AS OrderDate,
+      CAST(O.[Total] AS DECIMAL(18,2)) AS TotalRaw
+    FROM ${ORDERS_TABLE} O
+    ORDER BY TRY_CAST(O.[CreatedAt] AS DATETIME) DESC, O.[OrderID] DESC
   `;
 
   const detailSql = `
     SELECT
-      CAST(D.[${detailBillIdCol}] AS NVARCHAR(100)) AS OrderId,
-      ${productTableExists && detailProductIdCol && productIdCol && productNameCol
-        ? `CAST(COALESCE(P.[${productNameCol}], ${detailProductNameCol ? `D.[${detailProductNameCol}]` : "NULL"}, N'Sản phẩm') AS NVARCHAR(255))`
-        : detailProductNameCol
-          ? `CAST(COALESCE(D.[${detailProductNameCol}], N'Sản phẩm') AS NVARCHAR(255))`
-          : "N'Sản phẩm'"} AS ProductName,
-      ${detailQtyCol ? `TRY_CAST(D.[${detailQtyCol}] AS INT)` : "1"} AS Quantity,
-      ${detailUnitPriceCol ? `CAST(D.[${detailUnitPriceCol}] AS NVARCHAR(100))` : "NULL"} AS UnitPriceRaw,
-      ${detailLineTotalCol ? `CAST(D.[${detailLineTotalCol}] AS NVARCHAR(100))` : "NULL"} AS LineTotalRaw
-    FROM ${BILL_DETAIL_TABLE} D
-    ${productTableExists && detailProductIdCol && productIdCol
-      ? `LEFT JOIN PRODUCT P ON CAST(P.[${productIdCol}] AS NVARCHAR(100)) = CAST(D.[${detailProductIdCol}] AS NVARCHAR(100))`
-      : ""}
+      CAST(D.[OrderID] AS NVARCHAR(100)) AS OrderId,
+      CAST(COALESCE(P.[ProductName], N'Sản phẩm') AS NVARCHAR(255)) AS ProductName,
+      TRY_CAST(D.[Quantity] AS INT) AS Quantity,
+      CAST(COALESCE(D.[SalePrice], D.[OriginalPrice]) AS DECIMAL(18,2)) AS UnitPriceRaw,
+      CAST(D.[LineTotal] AS DECIMAL(18,2)) AS LineTotalRaw
+    FROM ${ORDER_DETAILS_TABLE} D
+    LEFT JOIN PRODUCT P ON CAST(P.[ProductID] AS NVARCHAR(100)) = CAST(D.[ProductID] AS NVARCHAR(100))
   `;
 
-  const [billRes, detailRes] = await Promise.all([
-    pool.request().query(billSql),
+  const [orderRes, detailRes] = await Promise.all([
+    pool.request().query(ordersSql),
     pool.request().query(detailSql),
   ]);
 
@@ -143,7 +104,7 @@ exports.getAllOrdersFromBill = async () => {
     return acc;
   }, {});
 
-  return (billRes.recordset || []).map((row) => {
+  return (orderRes.recordset || []).map((row) => {
     const id = String(row?.OrderId || "");
     const details = detailByOrder[id] || [];
 
@@ -165,4 +126,107 @@ exports.getAllOrdersFromBill = async () => {
       phone: String(row?.CustomerPhone || ""),
     };
   });
+};
+
+exports.getOrderDetailFromBill = async (orderId) => {
+  const safeOrderId = String(orderId || "").trim();
+  if (!safeOrderId) {
+    throw new Error("Thiếu mã đơn hàng.");
+  }
+
+  const pool = await connectDB();
+  const detailSql = `
+    SELECT
+      CAST(O.[OrderID] AS NVARCHAR(100)) AS OrderId,
+      CAST(O.[CustomerName] AS NVARCHAR(255)) AS CustomerName,
+      CAST(O.[CustomerPhone] AS NVARCHAR(50)) AS CustomerPhone,
+      CAST(O.[CustomerAddress] AS NVARCHAR(500)) AS CustomerAddress,
+      CAST(O.[Status] AS NVARCHAR(100)) AS Status,
+      CONVERT(VARCHAR(10), TRY_CAST(O.[CreatedAt] AS DATETIME), 23) AS OrderDate,
+      CAST(O.[Total] AS DECIMAL(18,2)) AS TotalRaw,
+      CAST(COALESCE(P.[ProductName], N'Sản phẩm') AS NVARCHAR(255)) AS ProductName,
+      CAST(COALESCE(D.[ProductID], '') AS NVARCHAR(100)) AS ProductID,
+      CAST(P.[Image] AS NVARCHAR(500)) AS ProductImage,
+      TRY_CAST(D.[Quantity] AS INT) AS Quantity,
+      CAST(D.[OriginalPrice] AS DECIMAL(18,2)) AS OriginalPriceRaw,
+      CAST(D.[SalePrice] AS DECIMAL(18,2)) AS SalePriceRaw,
+      CAST(COALESCE(D.[SalePrice], D.[OriginalPrice]) AS DECIMAL(18,2)) AS UnitPriceRaw,
+      CAST(D.[LineTotal] AS DECIMAL(18,2)) AS LineTotalRaw,
+      -- Inventory deduction (pick the first matching row if any)
+      OID.BatchID AS DeductBatchID,
+      OID.Barcode AS DeductBarcode,
+      OID.DeductedQty AS DeductedQty,
+      OID.ExpiryDate AS DeductExpiryDate
+    FROM ${ORDERS_TABLE} O
+    LEFT JOIN ${ORDER_DETAILS_TABLE} D ON CAST(D.[OrderID] AS NVARCHAR(100)) = CAST(O.[OrderID] AS NVARCHAR(100))
+    LEFT JOIN PRODUCT P ON CAST(P.[ProductID] AS NVARCHAR(100)) = CAST(D.[ProductID] AS NVARCHAR(100))
+    OUTER APPLY (
+      SELECT TOP 1
+        BatchID,
+        Barcode,
+        DeductedQty,
+        ExpiryDate
+      FROM ORDER_INVENTORY_DEDUCTION OID
+      WHERE CAST(OID.OrderID AS NVARCHAR(100)) = CAST(O.OrderID AS NVARCHAR(100))
+        AND CAST(OID.ProductID AS NVARCHAR(100)) = CAST(D.ProductID AS NVARCHAR(100))
+      ORDER BY OID.ID ASC
+    ) OID
+    WHERE CAST(O.[OrderID] AS NVARCHAR(100)) = @orderId
+  `;
+
+  const result = await pool.request().input("orderId", sql.NVarChar(100), safeOrderId).query(detailSql);
+  const rows = result.recordset || [];
+  const row = rows[0];
+  if (!row) return null;
+
+  const details = rows
+    .filter((item) => item?.ProductName || item?.Quantity)
+    .map((detailRow) => {
+      const qty = Number(detailRow?.Quantity || 0) || 0;
+      const unitPrice = detailRow?.UnitPriceRaw !== null && detailRow?.UnitPriceRaw !== undefined
+        ? toNumber(detailRow.UnitPriceRaw)
+        : (() => {
+            const line = toNumber(detailRow?.LineTotalRaw);
+            if (!line || !qty) return 0;
+            return line / qty;
+          })();
+
+      return {
+        id: String(detailRow?.ProductID || ""),
+        name: String(detailRow?.ProductName || "Sản phẩm"),
+        qty: qty || 1,
+        // formatted for display
+        price: formatMoney(unitPrice),
+        originalPrice: formatMoney(detailRow?.OriginalPriceRaw || 0),
+        salePrice: formatMoney(detailRow?.SalePriceRaw || 0),
+        lineTotal: formatMoney(detailRow?.LineTotalRaw || 0),
+        // raw numeric values
+        originalPriceRaw: Number(detailRow?.OriginalPriceRaw || 0) || 0,
+        salePriceRaw: Number(detailRow?.SalePriceRaw || 0) || 0,
+        lineTotalRaw: Number(detailRow?.LineTotalRaw || 0) || 0,
+        image: detailRow?.ProductImage || "",
+        batchId: detailRow?.DeductBatchID || null,
+        barcode: detailRow?.DeductBarcode || "",
+        deductedQty: Number(detailRow?.DeductedQty || 0) || 0,
+        expiryDate: detailRow?.DeductExpiryDate ? String(detailRow.DeductExpiryDate) : "",
+      };
+    });
+
+  const detailTotal = details.reduce((sum, item) => {
+    const amount = toNumber(item.price);
+    return sum + amount * (Number(item.qty) || 0);
+  }, 0);
+
+  const rawTotal = row?.TotalRaw !== null && row?.TotalRaw !== undefined ? toNumber(row.TotalRaw) : detailTotal;
+
+  return {
+    id: String(row?.OrderId || ""),
+    customer: String(row?.CustomerName || "Khách hàng"),
+    date: String(row?.OrderDate || ""),
+    total: formatMoney(rawTotal),
+    status: String(row?.Status || "Đang xử lý"),
+    details,
+    address: String(row?.CustomerAddress || ""),
+    phone: String(row?.CustomerPhone || ""),
+  };
 };

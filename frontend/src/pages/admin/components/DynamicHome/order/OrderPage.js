@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import ToolBar from "../../ToolBar";
 import useHttp from "../../../../../hooks/useHttp";
 import { API_BASE } from "../../../../../constants";
@@ -9,21 +10,34 @@ const EXPANDED_WIDTH = "100%";
 const TRANSITION_TIME = 350; // ms
 const WEEK_DAYS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
 const ORDER_STATUSES = [
-  "Chờ xác nhận",
-  "Đang xử lý",
+  "Tất cả",
+  "Chờ thanh toán",
+  "Đã thanh toán",
+  "Thanh toán COD",
   "Đang giao",
-  "Đã giao",
   "Hoàn thành",
-  "Đã hủy",
+  "Hủy đơn",
   "Trả hàng",
 ];
+
+// Explicit slug mapping to avoid unicode/normalization edge-cases in class names
+const STATUS_SLUGS = {
+  "Tất cả": "tat-ca",
+  "Chờ thanh toán": "cho-thanh-toan",
+  "Đã thanh toán": "da-thanh-toan",
+  "Thanh toán COD": "thanh-toan-cod",
+  "Đang giao": "dang-giao",
+  "Hoàn thành": "hoan-thanh",
+  "Hủy đơn": "huy-don",
+  "Trả hàng": "tra-hang",
+};
 
 const normalizeOrder = (raw) => ({
   id: String(raw?.id || raw?.OrderID || raw?.BillID || ""),
   customer: String(raw?.customer || raw?.CustomerName || "Khách hàng"),
   date: String(raw?.date || raw?.OrderDate || ""),
   total: String(raw?.total || raw?.TotalPrice || "0₫"),
-  status: String(raw?.status || raw?.Status || "Đang xử lý"),
+  status: String(raw?.status || raw?.Status || "Chờ thanh toán"),
   details: Array.isArray(raw?.details)
     ? raw.details.map((item) => ({
         name: String(item?.name || item?.ProductName || "Sản phẩm"),
@@ -37,6 +51,7 @@ const normalizeOrder = (raw) => ({
 
 const OrderPage = () => {
   const { request } = useHttp();
+  const navigate = useNavigate();
   const [searchKeyword, setSearchKeyword] = useState("");
   const [orders, setOrders] = useState([]);
   const [initialStatusMap, setInitialStatusMap] = useState({});
@@ -59,16 +74,8 @@ const OrderPage = () => {
   const [filterStatus, setFilterStatus] = useState("Tất cả");
 
   // Danh sách trạng thái dùng cho nút filter
-  const statusFilters = [
-    "Tất cả",
-    "Chờ xác nhận",
-    "Đang giao",
-    "Đã giao",
-    "Đã hủy",
-    "Trả hàng",
-    "Hoàn thành",
-    "Đang xử lý", // thêm trạng thái thực tế có trong ordersData
-  ];
+  // reuse the single source of truth for statuses
+  const statusFilters = ORDER_STATUSES;
 
   // ==========Chỉ cho phép sửa những đơn chưa giao, chưa hoàn thành, chưa trả hàng==================
   const canEdit = (status) => {
@@ -78,12 +85,12 @@ const OrderPage = () => {
 
   // Trả về class màu tương ứng cho từng trạng thái để tái sử dụng ở nhiều chỗ.
   const getStatusClass = (status) => {
-    if (status === "Hoàn thành") return "status--hoan-thanh";
-    if (status === "Đang xử lý") return "status--dang-xu-ly";
-    if (status === "Chờ xác nhận") return "status--cho-xac-nhan";
+    if (status === "Chờ thanh toán") return "status--cho-thanh-toan";
+    if (status === "Đã thanh toán") return "status--da-thanh-toan";
+    if (status === "Thanh toán COD") return "status--cod";
     if (status === "Đang giao") return "status--dang-giao";
-    if (status === "Đã giao") return "status--da-giao";
-    if (status === "Đã hủy") return "status--da-huy";
+    if (status === "Hoàn thành") return "status--hoan-thanh";
+    if (status === "Hủy đơn") return "status--da-huy";
     if (status === "Trả hàng") return "status--tra-hang";
     return "";
   };
@@ -297,21 +304,27 @@ const OrderPage = () => {
         >
           {/* 🔹 Bộ lọc trạng thái đơn hàng */}
           <div className="order-status-filters">
-            {statusFilters.map((status) => (
-              // Một nút cho mỗi trạng thái trong mảng statusFilters
-              <button
-                key={status}
-                // thêm class "filter-button--active" nếu trạng thái đang chọn trùng với status
-                className={
-                  "filter-button" +
-                  (filterStatus === status ? " filter-button--active" : "")
-                }
-                // khi click: set state filterStatus -> sẽ làm filteredOrders cập nhật
-                onClick={() => setFilterStatus(status)}
-              >
-                {status /* hiển thị tên trạng thái trên nút */}
-              </button>
-            ))}
+            {statusFilters.map((status) => {
+              const slug = STATUS_SLUGS[status] || String(status)
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .toLowerCase()
+                .replace(/\s+/g, "-")
+                .replace(/[^a-z0-9-]/g, "");
+
+              return (
+                <button
+                  key={status}
+                  className={
+                    `filter-button filter-${slug}` +
+                    (filterStatus === status ? " filter-button--active" : "")
+                  }
+                  onClick={() => setFilterStatus(status)}
+                >
+                  {status}
+                </button>
+              );
+            })}
           </div>
 
           {/* Bảng danh sách đơn hàng */}
@@ -461,7 +474,7 @@ const OrderPage = () => {
 
                       {openStatusMenuOrderId === order.id && (
                         <div className="status-dropdown" role="menu" aria-label="Chọn trạng thái">
-                          {ORDER_STATUSES.map((status) => (
+                          {ORDER_STATUSES.filter((s) => s !== "Tất cả").map((status) => (
                             <button
                               type="button"
                               key={status}
@@ -582,6 +595,16 @@ const OrderPage = () => {
                   }}
                 >
                   🖨 In
+                </button>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+                <button
+                  type="button"
+                  className="btn-view-full"
+                  onClick={() => navigate(`/admin/order/${selectedOrder.id}`)}
+                >
+                  🔍 Xem chi tiết
                 </button>
               </div>
             </div>

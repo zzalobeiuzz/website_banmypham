@@ -13,6 +13,7 @@ const CustomerDetailModal = ({
   resetPasswordMessage,
   activeDetailTab,
   setActiveDetailTab,
+  onViewOrderDetail,
   isEditingCustomer,
   openEditCustomerMode,
   cancelEditCustomerMode,
@@ -90,6 +91,7 @@ const CustomerDetailModal = ({
               formatPrice={formatPrice}
               customerDetail={customerDetail}
               resolveAvatarSrc={resolveAvatarSrc}
+              onViewOrderDetail={onViewOrderDetail}
             />
             </div>
         </div>

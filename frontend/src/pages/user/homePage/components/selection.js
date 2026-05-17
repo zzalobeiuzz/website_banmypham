@@ -550,7 +550,7 @@ const Select = ({ title }) => {
                           </div>
                         </div>
 
-                        <div className="product-id px-2">{`Mã sản phẩm: ${product.ProductID}`}</div>
+                        <div className="product-id px-2">{` ID: ${product.ProductID}`}</div>
                         <div className="product-title px-2">{product.ProductName}</div>
 
                         {title === "Flash Sale" && (

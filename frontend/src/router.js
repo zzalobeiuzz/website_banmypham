@@ -26,6 +26,7 @@ import BatchesPage from "./pages/admin/components/DynamicHome/batches/BatchesPag
 import BatchDetailPage from "./pages/admin/components/DynamicHome/batches/BatchDetailPage.js";
 import OrderPage from "./pages/admin/components/DynamicHome/order/OrderPage.js";
 import AddOrder from "./pages/admin/components/DynamicHome/order/AddOrder.js";
+import OrderDetailPage from "./pages/admin/components/DynamicHome/order/OrderDetailPage.js";
 import CustomerPage from "./pages/admin/components/DynamicHome/customer/CustomerPage.js";
 import BrandPage from "./pages/admin/components/DynamicHome/brand/BrandPage.js";
 import BrandProductsPage from "./pages/admin/components/DynamicHome/brand/BrandProductsPage.js";
@@ -79,12 +80,16 @@ const adminRoutes = [
     ],
   },
   {
-    path: ROUTERS.ADMIN.ORDER.INDEX || "order", // 📦 Đơn hàng
+    path: ROUTERS.ADMIN.ORDER.INDEX.replace("admin/", "") || "order", // 📦 Đơn hàng
     children: [
       { index: true, element: <OrderPage /> }, // 🏠 Trang danh sách đơn hàng (/admin/order)
       {
-        path: ROUTERS.ADMIN.ORDER.ADD.replace("order/", ""), // ➕ Thêm đơn hàng (/admin/order/add)
+        path: ROUTERS.ADMIN.ORDER.ADD.replace("admin/order/", ""), // ➕ Thêm đơn hàng (/admin/order/add)
         element: <AddOrder />,
+      },
+      {
+        path: ":orderId", // 🔍 Chi tiết đơn hàng (/admin/order/:orderId)
+        element: <OrderDetailPage />,
       },
     ],
   },
