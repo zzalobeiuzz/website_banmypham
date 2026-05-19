@@ -42,7 +42,6 @@ exports.getProductsByBatchId = async (req, res) => {
   try {
     const { batchId } = req.params;
     const result = await batchService.getProductsByBatchId(batchId);
-
     if (!result.success) {
       return res.status(400).json(result);
     }
@@ -103,6 +102,7 @@ exports.deleteBatch = async (req, res) => {
 
 exports.updateProductInBatch = async (req, res) => {
   try {
+    console.log("Received updateProductInBatch request with params and body:", req.params, req.body);
     const { batchId } = req.params;
     const {
       productId,
@@ -110,6 +110,7 @@ exports.updateProductInBatch = async (req, res) => {
       newBarcode,
       quantity,
       isActive,
+      expiryDate,
     } = req.body;
 
     const result = await batchService.updateProductInBatch({
@@ -119,6 +120,7 @@ exports.updateProductInBatch = async (req, res) => {
       newBarcode,
       quantity,
       isActive,
+      expiryDate,
     });
 
     if (!result.success) {
@@ -136,6 +138,7 @@ exports.updateProductInBatch = async (req, res) => {
 };
 
 exports.addProductToBatch = async (req, res) => {
+  console.log("------------Đang xử lý thêm sản phẩm vào lô:", req.params, req.body);
   try {
     const { batchId } = req.params;
     const {
@@ -143,6 +146,7 @@ exports.addProductToBatch = async (req, res) => {
       barcode,
       quantity,
       isActive,
+      expiryDate,
     } = req.body;
 
     const result = await batchService.addProductToBatch({
@@ -151,6 +155,7 @@ exports.addProductToBatch = async (req, res) => {
       barcode,
       quantity,
       isActive,
+      expiryDate,
     });
 
     if (!result.success) {

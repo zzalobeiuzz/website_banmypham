@@ -203,7 +203,8 @@
     border-radius: 12px;
     text-align: center;
     box-shadow: 0 0 12px rgba(0, 0, 0, 0.3);
-    max-width: 400px;
+    min-width: 400px;
+    max-width: 450px;
     min-height: 280px;
   }
 

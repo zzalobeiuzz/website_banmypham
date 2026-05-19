@@ -156,6 +156,7 @@ exports.updateProductInBatch = async ({
   newBarcode,
   quantity,
   isActive,
+  expiryDate,
 }) => {
   try {
     const batchIdTrimmed = String(batchId || "").trim();
@@ -185,6 +186,7 @@ exports.updateProductInBatch = async ({
       newBarcode: newBarcodeTrimmed,
       quantity: normalizedQty,
       isActive: Number(isActive || 0) === 1 ? 1 : 0,
+      expiryDate: expiryDate ? String(expiryDate).trim() : "",
     });
 
     if (updatedRows <= 0) {
@@ -213,6 +215,7 @@ exports.addProductToBatch = async ({
   barcode,
   quantity,
   isActive,
+  expiryDate,
 }) => {
   try {
     const batchIdTrimmed = String(batchId || "").trim();
@@ -264,6 +267,7 @@ exports.addProductToBatch = async ({
       barcode: barcodeTrimmed,
       quantity: normalizedQty,
       isActive: Number(isActive || 0) === 1 ? 1 : 0,
+      expiryDate: expiryDate ? String(expiryDate).trim() : "",
     });
 
     if (insertedRows <= 0) {

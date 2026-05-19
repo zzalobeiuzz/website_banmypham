@@ -255,6 +255,7 @@ exports.addProductToBatch = async ({
   barcode,
   quantity,
   isActive,
+  expiryDate,
 }) => {
   const pool = await connectDB();
 
@@ -289,6 +290,12 @@ exports.addProductToBatch = async ({
         ELSE NULL
       END AS ActiveColumn,
       CASE
+        WHEN COL_LENGTH('BATCH_DETAIL', 'ExpiryDate') IS NOT NULL THEN 'ExpiryDate'
+        WHEN COL_LENGTH('BATCH_DETAIL', 'ExpiredDate') IS NOT NULL THEN 'ExpiredDate'
+        WHEN COL_LENGTH('BATCH_DETAIL', 'ExpireDate') IS NOT NULL THEN 'ExpireDate'
+        ELSE NULL
+      END AS ExpiryColumn,
+      CASE
         WHEN COL_LENGTH('BATCH_DETAIL', 'CreatedAt') IS NOT NULL THEN 'CreatedAt'
         ELSE NULL
       END AS CreatedAtColumn
@@ -313,12 +320,18 @@ exports.addProductToBatch = async ({
     values.push("GETDATE()");
   }
 
+  if (row.ExpiryColumn) {
+    columns.push(`[${row.ExpiryColumn}]`);
+    values.push("@ExpiryDate");
+  }
+
   const result = await pool.request()
     .input("BatchID", sql.NVarChar(100), String(batchId || "").trim())
     .input("ProductID", sql.NVarChar(100), String(productId || "").trim())
     .input("Barcode", sql.NVarChar(100), String(barcode || "").trim())
     .input("Quantity", sql.Int, Number(quantity || 0))
     .input("IsActive", sql.Bit, Number(isActive || 0) === 1 ? 1 : 0)
+    .input("ExpiryDate", sql.Date, expiryDate ? new Date(String(expiryDate)) : null)
     .query(`
       INSERT INTO BATCH_DETAIL (${columns.join(", ")})
       VALUES (${values.join(", ")});
@@ -336,6 +349,7 @@ exports.updateProductInBatch = async ({
   newBarcode,
   quantity,
   isActive,
+  expiryDate,
 }) => {
   const pool = await connectDB();
 
@@ -369,6 +383,12 @@ exports.updateProductInBatch = async ({
         WHEN COL_LENGTH('BATCH_DETAIL', 'isActive') IS NOT NULL THEN 'isActive'
         ELSE NULL
       END AS ActiveColumn
+      ,CASE
+        WHEN COL_LENGTH('BATCH_DETAIL', 'ExpiryDate') IS NOT NULL THEN 'ExpiryDate'
+        WHEN COL_LENGTH('BATCH_DETAIL', 'ExpiredDate') IS NOT NULL THEN 'ExpiredDate'
+        WHEN COL_LENGTH('BATCH_DETAIL', 'ExpireDate') IS NOT NULL THEN 'ExpireDate'
+        ELSE NULL
+      END AS ExpiryColumn
   `);
 
   const row = meta.recordset?.[0] || {};
@@ -382,19 +402,32 @@ exports.updateProductInBatch = async ({
     `CAST([${row.BarcodeColumn}] AS NVARCHAR(100)) = @OldBarcode`,
   ];
 
-  const result = await pool.request()
+  const request = pool.request()
     .input("BatchID", sql.NVarChar(100), String(batchId || "").trim())
     .input("ProductID", sql.NVarChar(100), String(productId || "").trim())
     .input("OldBarcode", sql.NVarChar(100), String(oldBarcode || "").trim())
     .input("NewBarcode", sql.NVarChar(100), String(newBarcode || "").trim())
     .input("Quantity", sql.Int, Number(quantity || 0))
-    .input("IsActive", sql.Bit, Number(isActive || 0) === 1 ? 1 : 0)
-    .query(`
+    .input("IsActive", sql.Bit, Number(isActive || 0) === 1 ? 1 : 0);
+
+  if (row.ExpiryColumn) {
+    request.input("ExpiryDate", sql.Date, expiryDate ? new Date(String(expiryDate)) : null);
+  }
+
+  const setLines = [
+    `[${row.BarcodeColumn}] = @NewBarcode`,
+    `[${row.QuantityColumn}] = @Quantity`,
+    `[${row.ActiveColumn}] = @IsActive`,
+  ];
+
+  if (row.ExpiryColumn) {
+    setLines.push(`[${row.ExpiryColumn}] = @ExpiryDate`);
+  }
+
+  const result = await request.query(`
       UPDATE BATCH_DETAIL
       SET
-        [${row.BarcodeColumn}] = @NewBarcode,
-        [${row.QuantityColumn}] = @Quantity,
-        [${row.ActiveColumn}] = @IsActive
+        ${setLines.join(",\n        ")}
       WHERE ${whereParts.join(" AND ")}
 
       SELECT @@ROWCOUNT AS UpdatedRows;

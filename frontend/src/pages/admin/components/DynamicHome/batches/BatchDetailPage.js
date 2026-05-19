@@ -6,6 +6,7 @@ import useHttp from "../../../../../hooks/useHttp";
 import AdminLoadingScreen from "../../shared/AdminLoadingScreen";
 import useMinimumLoading from "../../useMinimumLoading";
 import Notification from "../../shared/Notification";
+import PopupNotification from "../../shared/PopupNotification";
 import ProductAssignPicker from "../shared/ProductAssignPicker";
 import "./batch-detail.scss";
 
@@ -29,6 +30,7 @@ const BatchDetailPage = () => {
   const [newProductRows, setNewProductRows] = useState([]);
   const [activePickerRowId, setActivePickerRowId] = useState(null);
   const [notify, setNotify] = useState({ open: false, status: "info", message: "" });
+  const [popupNotify, setPopupNotify] = useState({ open: false, status: "success", message: "" });
 
   const decodedBatchId = useMemo(
     () => decodeURIComponent(String(batchId || "")).trim(),
@@ -142,7 +144,6 @@ const BatchDetailPage = () => {
       })
       .slice(0, 120);
   }, [allProducts, searchKeyword]);
-
   useEffect(() => {
     const loadDetail = async () => {
       if (!decodedBatchId) {
@@ -155,11 +156,14 @@ const BatchDetailPage = () => {
         setLoading(true);
 
         const [batchesRes, productsRes, allProductsRes] = await Promise.all([
+          // Lấy danh sách tất cả lô hàng để tìm thông tin meta của lô hiện tại (như ngày tạo, ghi chú...)
           request("GET", `${API_BASE}/api/admin/batches`),
+          // Lấy sản phẩm của lô hàng hiện tại
           request("GET", `${API_BASE}/api/admin/batches/${encodeURIComponent(decodedBatchId)}/products`),
+          // Lấy tất cả sản phẩm để dùng cho dropdown khi thêm mới sản phẩm vào lô
           request("GET", `${API_BASE}/api/user/products/loadAllProducts`),
         ]);
-
+        console.log("Loaded batch detail data:", { batchesRes, productsRes, allProductsRes });
         const allBatches = Array.isArray(batchesRes?.data) ? batchesRes.data : [];
         const foundBatch = allBatches.find((item) => String(item?.ID || "").trim() === decodedBatchId);
         const resolvedBatch = foundBatch || { ID: decodedBatchId, CreatedAt: null, Note: "" };
@@ -214,6 +218,7 @@ const BatchDetailPage = () => {
         barcode: String(item?.Barcode || "").trim(),
         quantity: String(Number(item?.Quantity || 0)),
         isActive: Number(item?.IsActive || 0) === 1 ? 1 : 0,
+        expiryDate: String(item?.ExpiryDate || item?.expiryDate || "").split('T')[0],
       };
     });
     return next;
@@ -313,6 +318,7 @@ const BatchDetailPage = () => {
         productId: String(draft?.productId || "").trim(),
         oldBarcode: String(draft?.oldBarcode || "").trim(),
         newBarcode: String(draft?.barcode || "").trim(),
+        expiryDate: String(draft?.expiryDate || "").trim(),
         quantity: Number(draft?.quantity || 0),
         isActive: Number(draft?.isActive || 0) === 1 ? 1 : 0,
       };
@@ -406,29 +412,48 @@ const BatchDetailPage = () => {
     }
 
     try {
+      // Bắt đầu lưu: bật trạng thái đang lưu để disable UI
       setIsSavingAll(true);
+
+      // 1) Thêm từng sản phẩm mới vào lô (POST /batches/:batchId/products)
+      // Mỗi payload trong `creates` đã chứa { batchId, productId, barcode, quantity, isActive, expiryDate }
       for (const payload of creates) {
         const res = await request("POST", `${API_BASE}/api/admin/batches/${encodeURIComponent(decodedBatchId)}/products`, payload);
         if (!res?.success) {
+          // Nếu có lỗi khi thêm 1 sản phẩm, dừng quá trình và báo lỗi
           throw new Error(res?.message || "Không thể thêm sản phẩm vào lô.");
         }
       }
 
+      // 2) Cập nhật các sản phẩm hiện có trong lô (PUT /batches/:batchId/products)
+      // Mỗi payload trong `changes` đã chứa { productId, oldBarcode, newBarcode, quantity, isActive }
       for (const payload of changes) {
         const res = await request("PUT", `${API_BASE}/api/admin/batches/${encodeURIComponent(decodedBatchId)}/products`, payload);
         if (!res?.success) {
+          // Nếu có lỗi khi cập nhật 1 dòng, dừng và báo lỗi
           throw new Error(res?.message || "Không thể cập nhật sản phẩm trong lô.");
         }
       }
 
+      // 3) Cập nhật thông tin chung của lô (ví dụ: ghi chú hoặc đổi mã lô)
+      // Backend yêu cầu `newBatchId` trong body khi gọi PUT /batches/:batchId
+      // Ở đây nếu mã lô không đổi, ta gửi lại `decodedBatchId` làm `newBatchId`.
       const batchRes = await request("PUT", `${API_BASE}/api/admin/batches/${encodeURIComponent(decodedBatchId)}`, {
+        newBatchId: decodedBatchId,
         note: nextNote,
       });
       if (!batchRes?.success) {
         throw new Error(batchRes?.message || "Không thể cập nhật lô hàng.");
       }
 
-      setProducts(nextProducts);
+      // Refresh products list from server so newly created rows are shown
+      try {
+        const refreshed = await request("GET", `${API_BASE}/api/admin/batches/${encodeURIComponent(decodedBatchId)}/products`);
+        setProducts(Array.isArray(refreshed?.data) ? refreshed.data : nextProducts);
+      } catch (err) {
+        // fallback to local nextProducts if refresh fails
+        setProducts(nextProducts);
+      }
 
       setBatchMeta((prev) => ({
         ...(prev || {}),
@@ -436,6 +461,9 @@ const BatchDetailPage = () => {
       }));
       setNewProductRows([]);
       setActivePickerRowId(null);
+
+      // show shared success popup and reset UI
+      setPopupNotify({ open: true, status: "success", message: "Lưu thành công" });
       handleCancelEditAll();
     } catch (error) {
       showPopup({ status: "error", message: error?.message || "Không thể lưu chỉnh sửa." });
@@ -452,8 +480,16 @@ const BatchDetailPage = () => {
     handleStartEditAll();
   };
 
+  // popupNotify is used to show the shared Lottie-based success popup
+
   return (
     <div className="lo-hang-detail-page">
+      <PopupNotification
+        open={popupNotify.open}
+        status={popupNotify.status}
+        message={popupNotify.message}
+        onClose={() => setPopupNotify((p) => ({ ...p, open: false }))}
+      />
       <Notification
         open={notify.open}
         status={notify.status}
@@ -664,6 +700,7 @@ const BatchDetailPage = () => {
                     <th>Mã sản phẩm</th>
                     <th>Tên sản phẩm</th>
                     <th>Barcode</th>
+                    <th>Hạn sử dụng</th>
                     <th>Số lượng</th>
                     <th>Trạng thái</th>
                   </tr>
@@ -676,6 +713,7 @@ const BatchDetailPage = () => {
                       barcode: String(item?.Barcode || "").trim(),
                       quantity: String(Number(item?.Quantity || 0)),
                       isActive: Number(item?.IsActive || 0) === 1 ? 1 : 0,
+                      expiryDate: String(item?.ExpiryDate || item?.expiryDate || "").split('T')[0],
                     };
 
                     return (
@@ -703,6 +741,22 @@ const BatchDetailPage = () => {
                           />
                         ) : (
                           item?.Barcode || ""
+                        )}
+                      </td>
+                      <td>
+                        {isEditingAll ? (
+                          <input
+                            className="inline-input"
+                            type="date"
+                            value={draft.expiryDate || ""}
+                            onChange={(e) => handleDraftChange(rowKey, "expiryDate", e.target.value)}
+                          />
+                        ) : (
+                          draft?.expiryDate ? (
+                            <strong>{formatDateOnly(draft.expiryDate)}</strong>
+                          ) : (
+                            <span>Chưa có</span>
+                          )
                         )}
                       </td>
                       <td>

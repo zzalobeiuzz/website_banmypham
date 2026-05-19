@@ -466,7 +466,18 @@
       }
 
       .inline-select {
-        padding-right: 4px;
+        padding-right: 30px;
+        background-position: right 8px center;
+        background-repeat: no-repeat;
+      }
+
+      /* For add-row selects and other compact selects, ensure the dropdown arrow doesn't overlap text */
+      select.add-product-row__input,
+      .add-product-row select,
+      .inline-select {
+        -webkit-appearance: menulist-button;
+        appearance: menulist-button;
+        padding-right: 30px;
       }
 
       .inline-input:focus,
