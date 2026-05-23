@@ -31,6 +31,7 @@ import CustomerPage from "./pages/admin/components/DynamicHome/customer/Customer
 import BrandPage from "./pages/admin/components/DynamicHome/brand/BrandPage.js";
 import BrandProductsPage from "./pages/admin/components/DynamicHome/brand/BrandProductsPage.js";
 import AccountPage from "./pages/admin/components/DynamicHome/account/AccountPage.js";
+import AdminChatPage from "./pages/admin/components/DynamicHome/chat/AdminChatPage.js";
 
 import { ROUTERS } from "./utils/router";
 
@@ -110,6 +111,12 @@ const adminRoutes = [
     path: ROUTERS.ADMIN.ACCOUNT.INDEX || "account", // 👤 Tài khoản
     children: [
       { index: true, element: <AccountPage /> },
+    ],
+  },
+  {
+    path: "chat",
+    children: [
+      { index: true, element: <AdminChatPage /> },
     ],
   },
 ];

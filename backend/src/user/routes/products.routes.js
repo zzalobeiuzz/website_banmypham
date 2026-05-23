@@ -2,14 +2,14 @@
 const express = require("express");
 const router = express.Router();
 const {
-  getSaleProductsHandler,
-  getHotProductsHandler,
-  getFeaturedBrandsHandler,
-  getCategoryHandler,
-  getProductsHandler,
-  getProductDetailHandler,
-  getBrandDetailPageHandler,
-  getCartProductsHandler
+	getSaleProductsHandler,
+	getHotProductsHandler,
+	getFeaturedBrandsHandler,
+	getCategoryHandler,
+	getProductsHandler,
+	getBrandDetailPageHandler,
+	getProductDetailHandler,
+	getCartProductsHandler,
 } = require("../controllers/products.controller");
 
 // Định nghĩa các route trong Express Router

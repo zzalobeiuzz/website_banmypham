@@ -1,13 +1,13 @@
 const express = require("express");
 const router = express.Router();
 
-const AdminRouter = require("./routes/account.routes");
-const ProductRouter = require("./routes/product.routes");
-const CategoryRouter = require("./routes/category.routes");
-const BrandRouter = require("./routes/brand.routes");
-const BatchRouter = require("./routes/batch.routes");
-const CustomerRouter = require("./routes/customer.routes");
-const OrderRouter = require("./routes/order.routes");
+const AdminRouter = require("./account/account.routes");
+const ProductRouter = require("./product/product.routes");
+const CategoryRouter = require("./category/category.routes");
+const BrandRouter = require("./brand/brand.routes");
+const BatchRouter = require("./batch/batch.routes");
+const CustomerRouter = require("./customer/customer.routes");
+const OrderRouter = require("./order/order.routes");
 
 // Route gốc /api/admin: kiểm tra phiên admin + refresh token
 router.use("", AdminRouter);

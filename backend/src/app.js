@@ -29,6 +29,7 @@ const paymentRoutes = require("./payment/app");
 app.use("/api/user", userRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/payment", paymentRoutes);
+app.use("/api/chat", require("./chat/chat.routes"));
 app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
 app.get("/", (req, res) => {

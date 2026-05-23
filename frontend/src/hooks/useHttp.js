@@ -26,7 +26,8 @@ const useHttp = () => {
 
     const isAdminApi = typeof url === "string" && url.includes("/api/admin/");
     const isUserApi = typeof url === "string" && url.includes("/api/user/");
-    const isProtectedApi = isAdminApi || isUserApi;
+    const isChatApi = typeof url === "string" && url.includes("/api/chat/");
+    const isProtectedApi = isAdminApi || isUserApi || isChatApi;
 
     const sendRequest = async (overrideHeaders = {}) => {
       const safeHeaders = headers && typeof headers === "object" && !Array.isArray(headers) ? headers : {};

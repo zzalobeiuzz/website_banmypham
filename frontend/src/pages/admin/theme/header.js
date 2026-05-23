@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./theme.scss";
 import { UPLOAD_BASE } from "../../../constants";
 
@@ -8,14 +9,28 @@ const navItems = [
   { icon: "icons8-bell.gif", label: "Thông báo", className: "notification" },
 ];
 
-const Header = () => {
+const Header = ({ chatBadgeCount = 0, chatRooms = [] }) => {
   const [isActive, setIsActive] = useState(false);
+  const [openMenu, setOpenMenu] = useState("");
+  const navigate = useNavigate();
 
   const toggleSearch = () => {
     setIsActive((prev) => !prev);
   };
 
   const user = JSON.parse(localStorage.getItem("user"));
+
+  const unreadRooms = useMemo(
+    () => (Array.isArray(chatRooms) ? chatRooms.filter((room) => Number(room?.UnreadCount || 0) > 0) : []),
+    [chatRooms],
+  );
+
+  useEffect(() => {
+    const handleClickOutside = () => setOpenMenu("");
+    window.addEventListener("click", handleClickOutside);
+
+    return () => window.removeEventListener("click", handleClickOutside);
+  }, []);
 
   return (
     <header>
@@ -63,24 +78,72 @@ const Header = () => {
         {/* Menu */}
         <div className="function_button">
           <ul className="nav">
-            {navItems.map(({ icon, label, className }, i) => (
-              <li key={i}>
-                <button className={className}>
-                  <img
-                    src={`${UPLOAD_BASE}/icons/${icon}`}
-                    alt={label}
-                    loading="lazy"
-                  />
-                  {label}
-                  <img
-                    src={`${UPLOAD_BASE}/icons/icons-arrow-down.png`}
-                    alt="arrow"
-                    className="arrow-down"
-                    loading="lazy"
-                  />
-                </button>
-              </li>
-            ))}
+            {navItems.map(({ icon, label, className }, i) => {
+              const isNotification = className === "notification";
+
+              return (
+                <li key={i} className="nav-item-wrapper">
+                  <button
+                    className={className}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (className === "chat") {
+                        navigate("/admin/chat");
+                        return;
+                      }
+
+                      if (isNotification) {
+                        setOpenMenu((prev) => (prev === "notification" ? "" : "notification"));
+                      }
+                    }}
+                  >
+                    <img
+                      src={`${UPLOAD_BASE}/icons/${icon}`}
+                      alt={label}
+                      loading="lazy"
+                    />
+                    {className === "chat" && Number(chatBadgeCount || 0) > 0 && (
+                      <span className="nav-badge">{chatBadgeCount > 99 ? "99+" : chatBadgeCount}</span>
+                    )}
+                    {className === "notification" && Number(chatBadgeCount || 0) > 0 && (
+                      <span className="nav-badge nav-badge--notification">{chatBadgeCount > 99 ? "99+" : chatBadgeCount}</span>
+                    )}
+                    {label}
+                    <img
+                      src={`${UPLOAD_BASE}/icons/icons-arrow-down.png`}
+                      alt="arrow"
+                      className="arrow-down"
+                      loading="lazy"
+                    />
+                  </button>
+
+                  {isNotification && openMenu === "notification" && (
+                    <div className="notification-dropdown" onClick={(e) => e.stopPropagation()}>
+                      <div className="notification-dropdown__header">Phòng có tin nhắn mới</div>
+                      {unreadRooms.length > 0 ? (
+                        unreadRooms.map((room) => (
+                          <button
+                            key={room.RoomID}
+                            type="button"
+                            className="notification-dropdown__item"
+                            onClick={() => {
+                              setOpenMenu("");
+                              navigate("/admin/chat");
+                            }}
+                          >
+                            <span className="notification-dropdown__title">{room.RoomTitle}</span>
+                            <span className="notification-dropdown__count">{room.UnreadCount}</span>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="notification-dropdown__empty">Không có tin nhắn mới</div>
+                      )}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
 
