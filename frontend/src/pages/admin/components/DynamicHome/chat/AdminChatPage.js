@@ -1,17 +1,22 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { io } from "socket.io-client";
 import { API_BASE, UPLOAD_BASE } from "../../../../../constants";
 import useHttp from "../../../../../hooks/useHttp";
+import RoomList from "./components/RoomList";
+import ConversationPanel from "./components/ConversationPanel";
 import "./admin-chat.scss";
 
 const SOCKET_URL = String(process.env.REACT_APP_SOCKET_URL || API_BASE || window.location.origin).replace(/\/$/, "");
 
+// Chuẩn hóa ID user để so sánh sender nhất quán
 const resolveChatUserId = (value) => String(value || "").trim().toLowerCase();
 
+// Tên hiển thị phòng chat
 const resolveRoomTitle = (room) => {
   return String(room?.ParticipantName || room?.CreatedBy || room?.RoomKey || "").trim() || `Phòng #${room?.RoomID || ""}`;
 };
 
+// Avatar phòng chat (hỗ trợ URL tuyệt đối và đường dẫn upload nội bộ)
 const resolveRoomAvatar = (room) => {
   const value = String(room?.ParticipantAvatar || "").trim();
   if (!value) return `${UPLOAD_BASE}/icons/icons8-web-account.png`;
@@ -21,22 +26,51 @@ const resolveRoomAvatar = (room) => {
   return `${UPLOAD_BASE}/${normalized}`;
 };
 
+// Định dạng thời gian khi click vào message (sử dụng UTC để giữ nguyên giờ từ DB):
+// - Cùng ngày (theo UTC): chỉ giờ
+// - Khác ngày: ngày + giờ (theo UTC)
 const formatMessageTime = (value) => {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return "";
 
   const now = new Date();
-  const isSameDay = date.toDateString() === now.toDateString();
+  const isSameDayUTC =
+    date.getUTCFullYear() === now.getUTCFullYear() &&
+    date.getUTCMonth() === now.getUTCMonth() &&
+    date.getUTCDate() === now.getUTCDate();
 
-  if (isSameDay) {
-    return new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit" }).format(date);
+  if (isSameDayUTC) {
+    return new Intl.DateTimeFormat("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "UTC",
+    }).format(date);
   }
 
-  return new Intl.DateTimeFormat("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+  }).format(date);
 };
+
+const SettingsIcon = () => (
+  <img
+    src={`${UPLOAD_BASE}/icons/icons8-setting-96.png`}
+    alt=""
+    aria-hidden="true"
+    className="chat-settings-icon"
+    width="20"
+    height="20"
+  />
+);
 
 const AdminChatPage = () => {
   const { request } = useHttp();
+  // Ref socket để emit/listen sự kiện realtime
   const socketRef = useRef(null);
   const messageEndRef = useRef(null);
   const selectedRoomIdRef = useRef(0);
@@ -61,6 +95,123 @@ const AdminChatPage = () => {
   const [unreadCounts, setUnreadCounts] = useState({});
 
   const currentRoomId = useMemo(() => Number(selectedRoom?.RoomID || 0), [selectedRoom]);
+
+  const messagesContainerRef = useRef(null);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [hasMoreOlder, setHasMoreOlder] = useState(true);
+  
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const skipAutoScrollRef = useRef(false);
+
+  // Notification sound for admin
+  const adminAudioRef = useRef(null);
+  const [adminSoundMuted, setAdminSoundMuted] = useState(localStorage.getItem("adminChatSoundMuted") === "true");
+  const [showSettings, setShowSettings] = useState(false);
+  const [showSoundMenu, setShowSoundMenu] = useState(false);
+  const adminSettingsRef = useRef(null);
+
+  const initAdminAudio = useCallback(() => {
+    if (adminAudioRef.current) return;
+    try {
+      const src = (API_BASE || "").replace(/\/$/, "") + '/uploads/assets/sounds/notification.mp3';
+      adminAudioRef.current = new Audio(src);
+      adminAudioRef.current.preload = 'auto';
+      adminAudioRef.current.muted = adminSoundMuted;
+    } catch (e) {}
+  }, [adminSoundMuted]);
+
+  const tryPlayAdminNotification = useCallback(() => {
+    if (adminSoundMuted) return;
+    if (!adminAudioRef.current) {
+      initAdminAudio();
+    }
+    const a = adminAudioRef.current;
+    if (!a) return;
+    try {
+      a.currentTime = 0;
+      a.play().catch(() => {});
+    } catch (e) {}
+  }, [adminSoundMuted, initAdminAudio]);
+
+  // Init audio right away so admins can receive sounds without opening any room.
+  useEffect(() => {
+    try {
+      initAdminAudio();
+      const a = adminAudioRef.current;
+      if (a && !adminSoundMuted) {
+        a.muted = true;
+        a.play()
+          .then(() => {
+            try { a.pause(); } catch (e) {}
+            a.muted = adminSoundMuted;
+          })
+          .catch(() => {
+            try { a.muted = adminSoundMuted; } catch (e) {}
+          });
+      }
+    } catch (e) {}
+  }, [initAdminAudio, adminSoundMuted]);
+
+  // Warm up audio on first user interaction so browsers allow future play()
+  useEffect(() => {
+    const warm = () => {
+      try {
+        initAdminAudio();
+        const a = adminAudioRef.current;
+        if (a) {
+          // Play muted briefly to satisfy autoplay policies
+          a.muted = true;
+          a.play()
+            .then(() => {
+              try { a.pause(); } catch (e) {}
+              a.muted = adminSoundMuted;
+            })
+            .catch(() => {
+              try { a.muted = adminSoundMuted; } catch (e) {}
+            });
+        }
+      } catch (e) {}
+
+      try {
+        document.removeEventListener('click', warm);
+        document.removeEventListener('touchstart', warm);
+      } catch (e) {}
+    };
+
+    document.addEventListener('click', warm, { once: true });
+    document.addEventListener('touchstart', warm, { once: true });
+
+    return () => {
+      try {
+        document.removeEventListener('click', warm);
+        document.removeEventListener('touchstart', warm);
+      } catch (e) {}
+    };
+  }, [initAdminAudio, adminSoundMuted]);
+
+  // Đồng bộ unread tổng và danh sách phòng cho header/layout admin
+  const syncAdminUnreadAndRooms = (nextUnreadCounts, nextRooms) => {
+    const totalUnread = Object.values(nextUnreadCounts).reduce((sum, value) => sum + Number(value || 0), 0);
+
+    try {
+      if (typeof window.__setAdminUnreadCount === "function") {
+        window.__setAdminUnreadCount(totalUnread);
+      } else {
+        window.dispatchEvent(new CustomEvent("admin-unread-sync", { detail: totalUnread }));
+      }
+
+      window.dispatchEvent(
+        new CustomEvent("admin-rooms-sync", {
+          detail: {
+            rooms: nextRooms,
+            totalUnread,
+          },
+        }),
+      );
+    } catch (e) {
+      // ignore
+    }
+  };
 
   useEffect(() => {
     selectedRoomIdRef.current = currentRoomId;
@@ -87,6 +238,19 @@ const AdminChatPage = () => {
     }
   }, [unreadCounts]);
 
+  // close admin settings when clicking outside
+  useEffect(() => {
+    if (!showSettings) return undefined;
+    const onDoc = (e) => {
+      if (adminSettingsRef.current && !adminSettingsRef.current.contains(e.target)) {
+        setShowSettings(false);
+        setShowSoundMenu(false);
+      }
+    };
+    document.addEventListener('click', onDoc);
+    return () => document.removeEventListener('click', onDoc);
+  }, [showSettings]);
+
   const fetchRooms = React.useCallback(async () => {
     try {
       setLoadingRooms(true);
@@ -105,19 +269,7 @@ const AdminChatPage = () => {
       });
       setUnreadCounts(counts);
 
-      const totalUnread = normalizedRooms.reduce((sum, room) => sum + Number(room?.UnreadCount || 0), 0);
-      try {
-        window.dispatchEvent(
-          new CustomEvent("admin-rooms-sync", {
-            detail: {
-              rooms: normalizedRooms,
-              totalUnread,
-            },
-          }),
-        );
-      } catch (e) {
-        // ignore
-      }
+      syncAdminUnreadAndRooms(counts, normalizedRooms);
     } catch (error) {
       setConnectionStatus(error?.message || "Không thể tải danh sách phòng chat.");
     } finally {
@@ -133,221 +285,279 @@ const AdminChatPage = () => {
     fetchRoomsRef.current?.();
   }, []);
 
-  useEffect(() => {
-    let createdLocalSocket = false;
-    let socket = window.__adminSocket__ || null;
+  // Chuẩn hóa payload message socket/API về model dùng trong UI
+  const normalizeMessage = (message) => {
+    const id = String(message?.MessageID || message?.id || `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+    const roomId = Number(message?.RoomID || message?.room?.RoomID || 0);
+    const senderId = resolveChatUserId(message?.SenderID || message?.senderId || "");
+    const text = String(message?.MessageText || message?.text || "");
+    // Support multiple possible createdAt field names returned from server
+    const rawCreatedAt = message?.CreatedAt ?? message?.createdAt ?? message?.created_at ?? message?.Created_At;
+    const createdAt = rawCreatedAt ? new Date(rawCreatedAt) : new Date();
 
-    if (!socket) {
-      socket = io(SOCKET_URL, {
-        transports: ["websocket"],
-        auth: { token: localStorage.getItem("accessToken") },
-        reconnection: true,
-        reconnectionAttempts: Infinity,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-        timeout: 20000,
-      });
-      window.__adminSocket__ = socket;
-      createdLocalSocket = true;
-    }
+    return { id, roomId, senderId, text, createdAt };
+  };
 
-    socketRef.current = socket;
+  // Loại message trùng theo id để tránh React warning và tin nhắn bị lặp
+  const mergeUniqueMessages = (nextMessages) => {
+    const seen = new Set();
 
-    const normalizeMessage = (message) => {
-      const id = String(message?.MessageID || message?.id || `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
-      const roomId = Number(message?.RoomID || message?.room?.RoomID || 0);
-      const senderId = resolveChatUserId(message?.SenderID || "");
-      const text = String(message?.MessageText || message?.text || "");
-      const rawCreatedAt = message?.CreatedAt;
-      const createdAt = rawCreatedAt ? new Date(rawCreatedAt) : new Date();
+    return nextMessages.filter((message) => {
+      const key = String(message?.id || "");
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
 
-      try {
-        console.debug("[AdminChat] normalizeMessage", {
-          rawCreatedAt,
-          parsed: createdAt.toString(),
-          tzOffsetMin: createdAt.getTimezoneOffset(),
-        });
-      } catch (e) {
-        // ignore
-      }
+    // Khởi tạo socket và đăng ký toàn bộ sự kiện chat realtime cho admin
+    useEffect(() => {
+      const handleConnect = () => setConnectionStatus("Đã kết nối");
+      const handleReconnect = () => setConnectionStatus("Đã kết nối (tự phục hồi)");
+      const handleReconnectAttempt = () => setConnectionStatus("Đang thử kết nối lại...");
+      const handleReconnectError = () => setConnectionStatus("Lỗi khi thử kết nối lại");
+      const handleReconnectFailed = () => setConnectionStatus("Không thể kết nối lại");
+      const handleDisconnect = () => setConnectionStatus("Mất kết nối");
+      const handleConnectTimeout = () => setConnectionStatus("Kết nối timeout");
 
-      return { id, roomId, senderId, text, createdAt };
-    };
+      const handleConnectError = (err) => {
+        console.warn("[AdminChat] connect_error", err?.message || err);
+        const errMsg = String(err?.message || err || "").toLowerCase();
 
-    const handleConnect = () => setConnectionStatus("Đã kết nối");
-    const handleReconnect = () => setConnectionStatus("Đã kết nối (tự phục hồi)");
-    const handleReconnectAttempt = () => setConnectionStatus("Đang thử kết nối lại...");
-    const handleReconnectError = () => setConnectionStatus("Lỗi khi thử kết nối lại");
-    const handleReconnectFailed = () => setConnectionStatus("Không thể kết nối lại");
-    const handleDisconnect = () => setConnectionStatus("Mất kết nối");
-    const handleConnectTimeout = () => setConnectionStatus("Kết nối timeout");
+        if (errMsg.includes("token") || errMsg.includes("không hợp lệ") || errMsg.includes("invalid")) {
+          (async () => {
+            try {
+              const refreshToken = localStorage.getItem("refreshToken");
+              if (!refreshToken) throw new Error("no-refresh-token");
 
-    const handleConnectError = (err) => {
-      console.warn("[AdminChat] connect_error", err?.message || err);
-      const errMsg = String(err?.message || err || "").toLowerCase();
+              const resp = await fetch(`${API_BASE}/api/admin/refresh-token`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ refreshToken }),
+              });
 
-      if (errMsg.includes("token") || errMsg.includes("không hợp lệ") || errMsg.includes("invalid")) {
-        (async () => {
-          try {
-            const refreshToken = localStorage.getItem("refreshToken");
-            if (!refreshToken) throw new Error("no-refresh-token");
+              if (!resp.ok) throw new Error(`refresh-failed:${resp.status}`);
 
-            const resp = await fetch(`${API_BASE}/api/admin/refresh-token`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ refreshToken }),
-            });
-
-            if (!resp.ok) throw new Error(`refresh-failed:${resp.status}`);
-
-            const data = await resp.json();
-            if (data?.accessToken) {
-              localStorage.setItem("accessToken", data.accessToken);
-              try {
-                socket.auth = { token: data.accessToken };
-              } catch (e) {}
-              socket.connect();
-              setConnectionStatus("Làm mới phiên — đang kết nối lại...");
-              return;
+              const data = await resp.json();
+              if (data?.accessToken) {
+                localStorage.setItem("accessToken", data.accessToken);
+                try {
+                  if (socketRef.current) socketRef.current.auth = { token: data.accessToken };
+                } catch (e) {}
+                try {
+                  socketRef.current?.connect();
+                } catch (e) {}
+                setConnectionStatus("Làm mới phiên — đang kết nối lại...");
+                return;
+              }
+            } catch (e) {
+              console.warn("[AdminChat] token refresh failed", e);
             }
-          } catch (e) {
-            console.warn("[AdminChat] token refresh failed", e);
-          }
 
-          setConnectionStatus("Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.");
-          try {
-            window.dispatchEvent(new Event("open-login"));
-          } catch (e) {}
-        })();
-        return;
-      }
-
-      setConnectionStatus(err?.message || "Lỗi kết nối");
-    };
-
-    const handleChatJoined = (payload) => {
-      if (Number(payload?.room?.RoomID || 0) !== Number(selectedRoomIdRef.current || 0)) return;
-      if (Array.isArray(payload?.messages)) {
-        setMessages(payload.messages.map(normalizeMessage));
-      }
-    };
-
-    const mergeRoomFromMessage = (roomId, payload, isSelectedRoom) => {
-      const senderRole = Number(payload?.senderRole || payload?.SenderRole || 0);
-      const nextLastMessageText = payload?.MessageText || payload?.text || "";
-      const nextLastMessageAt = new Date().toISOString();
-
-      setRooms((prev) => {
-        const updated = prev.map((room) => {
-          if (Number(room.RoomID) !== roomId) return room;
-
-          return {
-            ...room,
-            LastMessageText: nextLastMessageText || room.LastMessageText,
-            LastMessageAt: nextLastMessageAt,
-          };
-        });
-
-        const sorted = updated.sort((a, b) => {
-          const aTime = new Date(a.LastMessageAt || a.UpdatedAt || a.CreatedAt || 0).getTime();
-          const bTime = new Date(b.LastMessageAt || b.UpdatedAt || b.CreatedAt || 0).getTime();
-          return bTime - aTime;
-        });
-
-        return sorted;
-      });
-
-      if (!isSelectedRoom && senderRole !== 1) {
-        setUnreadCounts((prev) => {
-          const key = String(roomId || "0");
-          const prevCount = Number(prev[key] || 0);
-          return { ...prev, [key]: prevCount + 1 };
-        });
-      }
-    };
-
-    const handleChatMessage = (payload) => {
-      const roomId = Number(payload?.RoomID || payload?.room?.RoomID || 0);
-      const senderRole = Number(payload?.senderRole || payload?.SenderRole || 0);
-
-      mergeRoomFromMessage(roomId, payload, roomId === Number(selectedRoomIdRef.current || 0));
-
-      if (roomId === Number(selectedRoomIdRef.current || 0)) {
-        setMessages((prev) => [...prev, normalizeMessage(payload)]);
-      }
-
-      if (senderRole === 1) {
-        return;
-      }
-
-      // Re-sync with server so the room list always reflects the latest message preview/order.
-      fetchRoomsRef.current?.();
-    };
-
-    const handleRoomUpdated = (payload) => {
-      const updatedRoom = payload?.room;
-      if (!updatedRoom?.RoomID) return;
-
-      setRooms((prev) => {
-        const exists = prev.some((room) => Number(room.RoomID) === Number(updatedRoom.RoomID));
-        if (!exists) {
-          return [updatedRoom, ...prev];
+            setConnectionStatus("Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.");
+            try {
+              window.dispatchEvent(new Event("open-login"));
+            } catch (e) {}
+          })();
+          return;
         }
 
-        return prev.map((room) =>
-          Number(room.RoomID) === Number(updatedRoom.RoomID) ? { ...room, ...updatedRoom } : room,
-        );
-      });
+        setConnectionStatus(err?.message || "Lỗi kết nối");
+      };
 
-      fetchRoomsRef.current?.();
-    };
+      const handleChatJoined = (payload) => {
+        if (Number(payload?.room?.RoomID || 0) !== Number(selectedRoomIdRef.current || 0)) return;
+        if (Array.isArray(payload?.messages)) {
+          setHasMoreOlder((payload.messages || []).length > 0);
+          setMessages(mergeUniqueMessages(payload.messages.map(normalizeMessage)));
+        }
+      };
 
-    socket.on("connect", handleConnect);
-    socket.on("reconnect", handleReconnect);
-    socket.on("reconnect_attempt", handleReconnectAttempt);
-    socket.on("reconnect_error", handleReconnectError);
-    socket.on("reconnect_failed", handleReconnectFailed);
-    socket.on("disconnect", handleDisconnect);
-    socket.on("connect_error", handleConnectError);
-    socket.on("connect_timeout", handleConnectTimeout);
-    socket.on("chat:joined", handleChatJoined);
-    socket.on("chat:message", handleChatMessage);
-    socket.on("chat:room-updated", handleRoomUpdated);
+      // Cập nhật preview phòng khi có tin nhắn mới
+      const mergeRoomFromMessage = (roomId, payload, isSelectedRoom) => {
+        const senderRole = Number(payload?.senderRole || payload?.SenderRole || 0);
+        const nextLastMessageText = payload?.MessageText || payload?.text || "";
+        const nextLastMessageAt = new Date().toISOString();
 
-    return () => {
-      try {
-        socket.off("connect", handleConnect);
-        socket.off("reconnect", handleReconnect);
-        socket.off("reconnect_attempt", handleReconnectAttempt);
-        socket.off("reconnect_error", handleReconnectError);
-        socket.off("reconnect_failed", handleReconnectFailed);
-        socket.off("disconnect", handleDisconnect);
-        socket.off("connect_error", handleConnectError);
-        socket.off("connect_timeout", handleConnectTimeout);
-        socket.off("chat:joined", handleChatJoined);
-        socket.off("chat:message", handleChatMessage);
-        socket.off("chat:room-updated", handleRoomUpdated);
-      } catch (e) {}
+        setRooms((prev) => {
+          const updated = prev.map((room) => {
+            if (Number(room.RoomID) !== roomId) return room;
 
-      if (createdLocalSocket) {
+            return {
+              ...room,
+              LastMessageText: nextLastMessageText || room.LastMessageText,
+              LastMessageAt: nextLastMessageAt,
+            };
+          });
+
+          const sorted = updated.sort((a, b) => {
+            const aTime = new Date(a.LastMessageAt || a.UpdatedAt || a.CreatedAt || 0).getTime();
+            const bTime = new Date(b.LastMessageAt || b.UpdatedAt || b.CreatedAt || 0).getTime();
+            return bTime - aTime;
+          });
+
+          return sorted;
+        });
+
+        if (!isSelectedRoom && senderRole !== 1) {
+          setUnreadCounts((prev) => {
+            const key = String(roomId || "0");
+            const prevCount = Number(prev[key] || 0);
+            return { ...prev, [key]: prevCount + 1 };
+          });
+        }
+      };
+
+      // Nhận tin nhắn realtime
+      const handleChatMessage = (payload) => {
+        const roomId = Number(payload?.RoomID || payload?.room?.RoomID || 0);
+        const senderRole = Number(payload?.senderRole || payload?.SenderRole || 0);
+
+        mergeRoomFromMessage(roomId, payload, roomId === Number(selectedRoomIdRef.current || 0));
+
+        if (roomId === Number(selectedRoomIdRef.current || 0)) {
+          setMessages((prev) => mergeUniqueMessages([...prev, normalizeMessage(payload)]));
+        }
+
+        if (senderRole === 1) {
+          return;
+        }
+
+        // Play notification for incoming customer messages when not focused on that room or tab
         try {
-          socket.disconnect();
+          const isSelected = roomId === Number(selectedRoomIdRef.current || 0);
+          if (!isSelected || document.visibilityState !== 'visible') {
+            tryPlayAdminNotification();
+          }
         } catch (e) {}
+
+        // Re-sync with server so the room list always reflects the latest message preview/order.
+        fetchRoomsRef.current?.();
+      };
+
+      // Global admin notification: arrives even when the room is not opened/joined yet
+      const handleAdminNotify = (payload) => {
+        const roomId = Number(payload?.RoomID || payload?.room?.RoomID || 0);
+        const senderRole = Number(payload?.senderRole || payload?.SenderRole || 0);
+
+        if (!roomId || senderRole === 1) return;
+
+        mergeRoomFromMessage(roomId, payload, roomId === Number(selectedRoomIdRef.current || 0));
+
+        // Increase unread count when the room is not currently selected
+        if (roomId !== Number(selectedRoomIdRef.current || 0)) {
+          setUnreadCounts((prev) => {
+            const key = String(roomId || "0");
+            const prevCount = Number(prev[key] || 0);
+            return { ...prev, [key]: prevCount + 1 };
+          });
+        }
+
+        // Play sound whenever the admin is not actively viewing that room
         try {
-          delete window.__adminSocket__;
+          const isSelected = roomId === Number(selectedRoomIdRef.current || 0);
+          if (!isSelected || document.visibilityState !== 'visible') {
+            tryPlayAdminNotification();
+          }
         } catch (e) {}
+
+        fetchRoomsRef.current?.();
+      };
+
+      // Nhận cập nhật thông tin phòng (danh sách admin)
+      const handleRoomUpdated = (payload) => {
+        const updatedRoom = payload?.room;
+        if (!updatedRoom?.RoomID) return;
+
+        setRooms((prev) => {
+          const exists = prev.some((room) => Number(room.RoomID) === Number(updatedRoom.RoomID));
+          if (!exists) {
+            return [updatedRoom, ...prev];
+          }
+
+          return prev.map((room) =>
+            Number(room.RoomID) === Number(updatedRoom.RoomID) ? { ...room, ...updatedRoom } : room,
+          );
+        });
+
+        fetchRoomsRef.current?.();
+      };
+
+      // socket init + event binding
+      let createdLocalSocket = false;
+      let socket = window.__adminSocket__ || null;
+
+      if (!socket) {
+        socket = io(SOCKET_URL, {
+          transports: ["websocket"],
+          auth: { token: localStorage.getItem("accessToken") },
+          reconnection: true,
+          reconnectionAttempts: Infinity,
+          reconnectionDelay: 1000,
+          reconnectionDelayMax: 5000,
+          timeout: 20000,
+        });
+        window.__adminSocket__ = socket;
+        createdLocalSocket = true;
       }
 
-      socketRef.current = null;
-    };
-  }, []);
+      socketRef.current = socket;
 
+      // Đăng ký sự kiện socket
+      socket.on("connect", handleConnect);
+      socket.on("reconnect", handleReconnect);
+      socket.on("reconnect_attempt", handleReconnectAttempt);
+      socket.on("reconnect_error", handleReconnectError);
+      socket.on("reconnect_failed", handleReconnectFailed);
+      socket.on("disconnect", handleDisconnect);
+      socket.on("connect_error", handleConnectError);
+      socket.on("connect_timeout", handleConnectTimeout);
+      socket.on("chat:joined", handleChatJoined);
+      socket.on("chat:message", handleChatMessage);
+      socket.on("chat:admin-notify", handleAdminNotify);
+      socket.on("chat:room-updated", handleRoomUpdated);
+
+      return () => {
+        try {
+          socket.off("connect", handleConnect);
+          socket.off("reconnect", handleReconnect);
+          socket.off("reconnect_attempt", handleReconnectAttempt);
+          socket.off("reconnect_error", handleReconnectError);
+          socket.off("reconnect_failed", handleReconnectFailed);
+          socket.off("disconnect", handleDisconnect);
+          socket.off("connect_error", handleConnectError);
+          socket.off("connect_timeout", handleConnectTimeout);
+          socket.off("chat:joined", handleChatJoined);
+          socket.off("chat:message", handleChatMessage);
+          socket.off("chat:admin-notify", handleAdminNotify);
+          socket.off("chat:room-updated", handleRoomUpdated);
+        } catch (e) {}
+
+        if (createdLocalSocket) {
+          try {
+            socket.disconnect();
+          } catch (e) {}
+          try {
+            delete window.__adminSocket__;
+          } catch (e) {}
+        }
+
+        socketRef.current = null;
+      };
+    }, [tryPlayAdminNotification]);
+
+    
+
+
+  // Khi danh sách message thay đổi thì auto scroll xuống cuối (trừ lúc đang prepend tin cũ)
   useEffect(() => {
-    if (messageEndRef.current) {
-      messageEndRef.current.scrollIntoView({ behavior: "smooth" });
+    if (skipAutoScrollRef.current) return;
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
   }, [messages]);
 
+  // Chọn phòng chat: reset unread cục bộ và join room qua socket
   const selectRoom = async (room) => {
     const nextRoomId = Number(room.RoomID || 0);
     const nextRooms = rooms.map((currentRoom) =>
@@ -360,34 +570,13 @@ const AdminChatPage = () => {
 
     setSelectedRoom(room);
     setMessages([]);
+    setHasMoreOlder(true);
     setSelectedMessageId(null);
     setUnreadCounts(nextUnreadCounts);
     setRooms(nextRooms);
     window.__adminSelectedRoomId = nextRoomId;
 
-    const totalUnread = Object.values(nextUnreadCounts).reduce((sum, value) => sum + Number(value || 0), 0);
-    try {
-      if (typeof window.__setAdminUnreadCount === "function") {
-        window.__setAdminUnreadCount(totalUnread);
-      } else {
-        window.dispatchEvent(
-          new CustomEvent("admin-unread-sync", {
-            detail: totalUnread,
-          }),
-        );
-      }
-
-      window.dispatchEvent(
-        new CustomEvent("admin-rooms-sync", {
-          detail: {
-            rooms: nextRooms,
-            totalUnread,
-          },
-        }),
-      );
-    } catch (e) {
-      // ignore
-    }
+    syncAdminUnreadAndRooms(nextUnreadCounts, nextRooms);
 
     try {
       const socket = socketRef.current;
@@ -395,14 +584,14 @@ const AdminChatPage = () => {
 
       socket.emit("chat:join", { roomId: room.RoomID }, (ack) => {
         if (ack?.success && Array.isArray(ack?.messages)) {
-          const normalized = ack.messages.map((message) => ({
-            id: String(message?.MessageID || message?.id || `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`),
-            roomId: Number(message?.RoomID || room.RoomID),
-            senderId: resolveChatUserId(message?.SenderID || ""),
-            text: String(message?.MessageText || message?.text || ""),
-            createdAt: message?.CreatedAt ? new Date(message.CreatedAt) : new Date(),
-          }));
+          const normalized = mergeUniqueMessages(ack.messages.map((m) => normalizeMessage(m)));
           setMessages(normalized);
+          // ensure container scrolls to bottom when first loading room
+          requestAnimationFrame(() => {
+            try {
+              if (messagesContainerRef.current) messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+            } catch (e) {}
+          });
         }
       });
 
@@ -412,6 +601,68 @@ const AdminChatPage = () => {
     }
   };
 
+  // Tải thêm tin nhắn cũ khi cuộn lên đầu khung chat
+  const loadOlderMessages = () => {
+    if (!selectedRoom || !socketRef.current || loadingOlder || !hasMoreOlder) return;
+    const socket = socketRef.current;
+    const earliest = messages?.[0]?.createdAt;
+    const before = earliest ? earliest.toISOString() : null;
+    const limit = 50;
+    setLoadingOlder(true);
+    const prevScrollHeight = messagesContainerRef.current?.scrollHeight || 0;
+    // Request older messages
+    socket.emit("chat:join", { roomId: selectedRoom.RoomID, before, limit }, (ack) => {
+      try {
+        if (ack?.success && Array.isArray(ack.messages) && ack.messages.length) {
+          const older = mergeUniqueMessages(ack.messages.map(normalizeMessage));
+          // prevent auto scroll to bottom
+          skipAutoScrollRef.current = true;
+          setMessages((prev) => mergeUniqueMessages([...older, ...prev]));
+          requestAnimationFrame(() => {
+            try {
+              if (messagesContainerRef.current) {
+                messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight - prevScrollHeight;
+              }
+            } catch (e) {}
+            // allow auto-scroll again shortly after
+            setTimeout(() => (skipAutoScrollRef.current = false), 50);
+          });
+
+          if (ack.messages.length < limit) {
+            setHasMoreOlder(false);
+          }
+        } else {
+          setHasMoreOlder(false);
+        }
+      } finally {
+        setLoadingOlder(false);
+      }
+    });
+  };
+
+  // Theo dõi cuộn để: 1) lazy-load tin cũ, 2) bật/tắt nút kéo xuống cuối
+  const handleMessagesScroll = (e) => {
+    try {
+      const el = e.target;
+      if (el.scrollTop <= 80) {
+        loadOlderMessages();
+      }
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 120;
+      setShowScrollToBottom(!atBottom);
+    } catch (e) {}
+  };
+
+  // Cuộn nhanh xuống cuối danh sách tin nhắn
+  const scrollToBottom = () => {
+    try {
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      }
+      setShowScrollToBottom(false);
+    } catch (e) {}
+  };
+
+  // Gửi tin nhắn hiện tại trong phòng đã chọn
   const sendMessage = () => {
     const text = String(draftMessage || "").trim();
     if (!text || !selectedRoom?.RoomID || !socketRef.current) return;
@@ -429,6 +680,29 @@ const AdminChatPage = () => {
     setDraftMessage("");
   };
 
+  // Xóa tin nhắn (optimistic) - sẽ emit socket để backend xử lý nếu có
+  const handleDeleteMessage = async (messageId) => {
+    try {
+      if (!messageId) return;
+      // confirm
+      if (!window.confirm || !window.confirm("Bạn có chắc muốn xóa tin nhắn này?")) return;
+
+      // optimistic remove
+      setMessages((prev) => prev.filter((m) => String(m.id) !== String(messageId)));
+
+      // notify backend via socket if possible
+      try {
+        if (socketRef.current && socketRef.current.connected && selectedRoom?.RoomID) {
+          socketRef.current.emit("chat:delete", { roomId: selectedRoom.RoomID, messageId });
+        }
+      } catch (e) {
+        console.warn("Emit chat:delete failed", e);
+      }
+    } catch (e) {
+      console.warn("delete message failed", e);
+    }
+  };
+
   return (
     <div className="admin-chat-page">
       <div className="admin-chat-page__header">
@@ -436,96 +710,112 @@ const AdminChatPage = () => {
           <h2>Chat với khách hàng</h2>
           <p>{connectionStatus}</p>
         </div>
+        <div className="admin-chat-page__header-actions" ref={adminSettingsRef}>
+          <button
+            type="button"
+            className="admin-chat-page__settings-btn"
+            onClick={() => {
+              setShowSettings((s) => !s);
+              setShowSoundMenu(false);
+            }}
+            title="Cài đặt chat"
+            aria-label="Cài đặt chat"
+          >
+            <SettingsIcon />
+          </button>
+
+          {showSettings && (
+            <div className="admin-chat-page__settings">
+              <div className="admin-chat-page__settings-row">
+                <span className="admin-chat-page__settings-label">Thông báo</span>
+                <div className="admin-chat-page__settings-dropdown">
+                  <button
+                    type="button"
+                    className="admin-chat-page__settings-trigger"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowSoundMenu((prev) => !prev);
+                    }}
+                    aria-haspopup="menu"
+                    aria-expanded={showSoundMenu}
+                  >
+                    <span>{adminSoundMuted ? 'Tắt' : 'Bật'}</span>
+                    <span className="admin-chat-page__settings-caret" aria-hidden="true">▾</span>
+                  </button>
+
+                  {showSoundMenu && (
+                    <div className="admin-chat-page__settings-menu" role="menu">
+                      <button
+                        type="button"
+                        className={`admin-chat-page__settings-option${adminSoundMuted ? '' : ' is-active'}`}
+                        onClick={() => {
+                          const next = false;
+                          setAdminSoundMuted(next);
+                          setShowSoundMenu(false);
+                          try { localStorage.setItem('adminChatSoundMuted', 'false'); } catch (e) {}
+                          try {
+                            if (!adminAudioRef.current) initAdminAudio();
+                            if (adminAudioRef.current) adminAudioRef.current.muted = next;
+                          } catch (e) {}
+                        }}
+                      >
+                        Bật
+                      </button>
+                      <button
+                        type="button"
+                        className={`admin-chat-page__settings-option${adminSoundMuted ? ' is-active' : ''}`}
+                        onClick={() => {
+                          const next = true;
+                          setAdminSoundMuted(next);
+                          setShowSoundMenu(false);
+                          try { localStorage.setItem('adminChatSoundMuted', 'true'); } catch (e) {}
+                          try {
+                            if (!adminAudioRef.current) initAdminAudio();
+                            if (adminAudioRef.current) adminAudioRef.current.muted = next;
+                          } catch (e) {}
+                        }}
+                      >
+                        Tắt
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="admin-chat-page__body">
-        <aside className="admin-chat-page__rooms">
-          <div className="admin-chat-page__rooms-title">Danh sách phòng</div>
-          {loadingRooms ? (
-            <div className="admin-chat-page__empty">Đang tải...</div>
-          ) : rooms.length === 0 ? (
-            <div className="admin-chat-page__empty">Chưa có phòng chat nào.</div>
-          ) : (
-            rooms.map((room) => (
-              <button
-                key={room.RoomID}
-                type="button"
-                className={`admin-chat-page__room ${Number(selectedRoom?.RoomID) === Number(room.RoomID) ? "active" : ""}`}
-                onClick={() => selectRoom(room)}
-              >
-                <div className="admin-chat-page__room-avatar-wrapper">
-                  <img src={resolveRoomAvatar(room)} alt={resolveRoomTitle(room)} className="admin-chat-page__room-avatar" />
-                  {Number(unreadCounts[String(room.RoomID)] || 0) > 0 && (
-                    <span className="admin-chat-page__room-badge">{unreadCounts[String(room.RoomID)]}</span>
-                  )}
-                </div>
-                <div className="admin-chat-page__room-content">
-                  <strong>{resolveRoomTitle(room)}</strong>
-                  <span>{room.LastMessageText || "Chưa có tin nhắn"}</span>
-                </div>
-              </button>
-            ))
-          )}
-        </aside>
+        <RoomList
+          rooms={rooms}
+          loadingRooms={loadingRooms}
+          selectedRoomId={selectedRoom?.RoomID}
+          unreadCounts={unreadCounts}
+          onSelectRoom={selectRoom}
+          resolveRoomAvatar={resolveRoomAvatar}
+          resolveRoomTitle={resolveRoomTitle}
+        />
 
-        <section className="admin-chat-page__conversation">
-          {selectedRoom ? (
-            <>
-              <div className="admin-chat-page__conversation-header">
-                <div className="admin-chat-page__conversation-header-title">
-                  <img
-                    src={resolveRoomAvatar(selectedRoom)}
-                    alt={resolveRoomTitle(selectedRoom)}
-                    className="admin-chat-page__conversation-avatar"
-                  />
-                  <strong>{resolveRoomTitle(selectedRoom)}</strong>
-                </div>
-                <span>{selectedRoom.RoomType || "private"}</span>
-              </div>
-
-              <div className="admin-chat-page__messages">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`admin-chat-page__message ${message.senderId === currentUserId ? "admin" : "user"}`}
-                  >
-                    <button
-                      type="button"
-                      className="admin-chat-page__message-bubble"
-                      onClick={() => setSelectedMessageId((prev) => (prev === message.id ? null : message.id))}
-                    >
-                      <span className="admin-chat-page__message-text">{message.text}</span>
-                      {selectedMessageId === message.id && (
-                        <span className="admin-chat-page__message-time">{formatMessageTime(message.createdAt)}</span>
-                      )}
-                    </button>
-                  </div>
-                ))}
-                <div ref={messageEndRef} />
-              </div>
-
-              <div className="admin-chat-page__composer">
-                <textarea
-                  value={draftMessage}
-                  onChange={(e) => setDraftMessage(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      sendMessage();
-                    }
-                  }}
-                  placeholder="Nhập phản hồi..."
-                  rows={2}
-                />
-                <button type="button" onClick={sendMessage}>
-                  Gửi
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="admin-chat-page__empty admin-chat-page__empty--center">Chọn một phòng để xem tin nhắn.</div>
-          )}
-        </section>
+        <ConversationPanel
+          selectedRoom={selectedRoom}
+          resolveRoomAvatar={resolveRoomAvatar}
+          resolveRoomTitle={resolveRoomTitle}
+          messages={messages}
+          currentUserId={currentUserId}
+          selectedMessageId={selectedMessageId}
+          setSelectedMessageId={setSelectedMessageId}
+          messagesContainerRef={messagesContainerRef}
+          handleMessagesScroll={handleMessagesScroll}
+          messageEndRef={messageEndRef}
+          formatMessageTime={formatMessageTime}
+          showScrollToBottom={showScrollToBottom}
+          scrollToBottom={scrollToBottom}
+          draftMessage={draftMessage}
+          setDraftMessage={setDraftMessage}
+          sendMessage={sendMessage}
+          onDeleteMessage={handleDeleteMessage}
+        />
       </div>
     </div>
   );

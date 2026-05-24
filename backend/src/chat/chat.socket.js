@@ -1,5 +1,12 @@
 const jwt = require("jsonwebtoken"); // Thư viện dùng để verify JWT token
 const chatService = require("./chat.service"); // Service xử lý logic chat/database
+const {
+  getSupportRoomForUser,
+  markSeen,
+  getRoomDetail,
+  sendMessage,
+  getRoomById,
+} = chatService;
 
 // Lấy secret key từ biến môi trường
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -88,7 +95,7 @@ exports.attachChatSocket = (io) => {
          * Tự động lấy/tạo phòng support
          */
         const supportRoom =
-          await chatService.getSupportRoomForUser({ user });
+          await getSupportRoomForUser({ user });
 
         // Join room chat của user
         socket.join(String(supportRoom.room.RoomID));
@@ -120,28 +127,37 @@ exports.attachChatSocket = (io) => {
           throw new Error("Thiếu mã phòng chat.");
         }
 
-        if (isAdmin) {
-          await chatService.markSeen({ roomId, user });
+        // Nếu socket chưa join room này thì đây là lần tham gia thực sự;
+        // nếu socket đã ở trong room và client truyền `before` thì đây là yêu cầu paginated (tải tin nhắn cũ)
+        const alreadyInRoom = socket.rooms.has(String(roomId));
+
+        // Nếu client chưa ở trong room thì đánh dấu đã xem (cho admin) và join
+        if (!alreadyInRoom) {
+          if (isAdmin) {
+            await markSeen({ roomId, user });
+          }
         }
 
-        // 2. Lấy chi tiết room sau khi đã cập nhật trạng thái đã xem
-        const data =
-          await chatService.getRoomDetail({ roomId, user });
+        // Hỗ trợ param `before` và `limit` để tải tin nhắn cũ
+        const before = payload?.before || null;
+        const limit = Number(payload?.limit || 100);
 
-        // Join room socket
-        socket.join(String(roomId));
+        // Lấy chi tiết room (và tin nhắn theo yêu cầu)
+        const data = await getRoomDetail({ roomId, user, before, limit })
+        // Nếu đây là lần join thực sự thì join socket và emit chat:joined
+        if (!alreadyInRoom) {
+          socket.join(String(roomId));
+          socket.emit("chat:joined", data);
 
-        // Thông báo join thành công
-        socket.emit("chat:joined", data);
-
-        if (isAdmin) {
-          io.to(String(roomId)).emit("chat:seen-updated", {
-            roomId,
-            viewerId: user.id,
-          });
+          if (isAdmin) {
+            io.to(String(roomId)).emit("chat:seen-updated", {
+              roomId,
+              viewerId: user.id,
+            });
+          }
         }
 
-        // Callback ACK trả về cho client
+        // Gửi ACK cho client (trong trường hợp paginated vẫn trả về messages)
         if (typeof ack === "function") {
           ack({
             success: true,
@@ -184,7 +200,7 @@ exports.attachChatSocket = (io) => {
          * Lưu tin nhắn vào database
          */
         const message =
-          await chatService.sendMessage({
+          await sendMessage({
             roomId,
             user,
             messageText: payload.messageText,
@@ -194,7 +210,7 @@ exports.attachChatSocket = (io) => {
 
         // Lấy thông tin room mới nhất
         const room =
-          await chatService.getRoomById(roomId);
+          await getRoomById(roomId);
 
         // Payload broadcast
         const broadcastPayload = {
@@ -211,6 +227,12 @@ exports.attachChatSocket = (io) => {
           "chat:message",
           broadcastPayload
         );
+
+        // Gửi thông báo riêng cho admin để họ nghe tiếng ngay cả khi chưa mở room
+        // Chỉ gửi với tin nhắn từ user, tránh lặp khi admin tự gửi tin
+        if (Number(user?.role || 0) !== 1) {
+          io.to("admins").emit("chat:admin-notify", broadcastPayload);
+        }
 
         /**
          * Update room list cho admin
@@ -271,7 +293,7 @@ exports.attachChatSocket = (io) => {
         /**
          * Update trạng thái seen trong DB
          */
-        await chatService.markSeen({
+        await markSeen({
           roomId,
           user,
         });

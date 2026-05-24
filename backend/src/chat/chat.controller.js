@@ -4,6 +4,7 @@ const {
 	listRoomsForAdmin: listRoomsForAdminService,
 	markSeen,
 } = require("./chat.service");
+const { getLinkPreview } = require("./linkPreview.service");
 
 async function getMySupportRoom(req, res) {
 	try {
@@ -45,9 +46,19 @@ async function markRoomSeen(req, res) {
 	}
 }
 
+async function getLinkPreviewHandler(req, res) {
+	try {
+		const preview = await getLinkPreview({ url: req.body?.url || req.query?.url });
+		return res.json({ success: true, data: preview });
+	} catch (error) {
+		return res.status(400).json({ success: false, message: error.message || "Không thể tạo xem trước liên kết." });
+	}
+}
+
 module.exports = {
 	getMySupportRoom,
 	getRoomMessages,
 	listRoomsForAdmin,
 	markRoomSeen,
+	getLinkPreview: getLinkPreviewHandler,
 };

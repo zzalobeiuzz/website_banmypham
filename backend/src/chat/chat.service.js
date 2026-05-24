@@ -38,17 +38,17 @@ exports.getOrCreateSupportRoom = async ({ userId }) => {
 	return getOrCreateSupportRoom({ userId });
 };
 
-// Lấy chi tiết phòng chat và tin nhắn
-exports.getRoomDetail = async ({ roomId, user }) => {
-	// Lấy phòng chat
-	const room = await resolveRoomAccess({ roomId, user });
-	// Lấy tin nhán của phòng chat
-	const messages = await listMessages({ roomId, limit: 100 });
+// Lấy chi tiết phòng chat và tin nhắn (hỗ trợ phân trang trước)
+exports.getRoomDetail = async ({ roomId, user, before = null, limit = 15 }) => {
+ 	// Lấy phòng chat
+ 	const room = await resolveRoomAccess({ roomId, user });
+ 	// Lấy tin nhắn của phòng chat (có thể truyền `before` để lấy các bản ghi cũ hơn)
+ 	const messages = await listMessages({ roomId, limit, before });
 
-	return {
-		room: normalizeRoom(room),
-		messages,
-	};
+ 	return {
+ 		room: normalizeRoom(room),
+ 		messages,
+ 	};
 };
 
 // Lấy phòng chat theo ID người dùng 
@@ -65,8 +65,8 @@ exports.getSupportRoomForUser = async ({ user }) => {
 		});
 	}
 
-	// Lấy tin nhắn của phòng chat
-	const messages = await listMessages({ roomId: room.RoomID, limit: 100 });
+	// Lấy tin nhắn của phòng chat (giữ mặc định nhỏ để tránh trả quá nhiều)
+	const messages = await listMessages({ roomId: room.RoomID, limit: 15 });
 	return {
 		room: normalizeRoom(room),
 		messages,

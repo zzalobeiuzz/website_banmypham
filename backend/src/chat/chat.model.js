@@ -176,13 +176,22 @@ exports.listRooms = async () => {
 		return (result.recordset || []).map(normalizeRoom);
 };
 
-// Lấy tin nhán của phòng chat
-exports.listMessages = async ({ roomId, limit = 100 }) => {
+// Lấy tin nhắn của phòng chat với hỗ trợ tải trước (before) để phân trang ngược
+exports.listMessages = async ({ roomId, limit = 15, before = null }) => {
 	const pool = await connectDB();
-	const result = await pool.request()
-		.input("roomId", sql.Int, roomId)
-		.input("limit", sql.Int, limit)
-		.query(`
+
+	// Debug log to help trace paging requests
+	try {
+		console.log(`[chat.model.listMessages] roomId=${roomId} limit=${limit} before=${before}`);
+	} catch (e) {}
+
+	const req = pool.request().input("roomId", sql.Int, roomId).input("limit", sql.Int, limit);
+
+	let query;
+	if (before) {
+		req.input("before", sql.DateTime2, new Date(before));
+		// Lấy các tin nhắn trước thời điểm `before`, sắp xếp giảm dần rồi đảo lại để trả về theo thứ tự tăng dần
+		query = `
 			SELECT TOP (@limit)
 				MessageID,
 				RoomID,
@@ -193,11 +202,33 @@ exports.listMessages = async ({ roomId, limit = 100 }) => {
 				IsSeen,
 				SeenAt
 			FROM CHAT_MESSAGE
-			WHERE RoomID = @roomId
-			ORDER BY CreatedAt ASC, MessageID ASC
-		`);
-
-	return (result.recordset || []).map(normalizeMessage);
+			WHERE RoomID = @roomId AND CreatedAt < @before
+			ORDER BY CreatedAt DESC, MessageID DESC
+		`;
+		const result = await req.query(query);
+		const rows = (result.recordset || []).map(normalizeMessage);
+		return rows.reverse();
+	} else {
+			// When `before` is not provided, return the most recent `limit` messages.
+			// Select in descending order then reverse to return ascending by CreatedAt to the client.
+			query = `
+				SELECT TOP (@limit)
+					MessageID,
+					RoomID,
+					SenderID,
+					MessageText,
+					MessageType,
+					CreatedAt,
+					IsSeen,
+					SeenAt
+				FROM CHAT_MESSAGE
+				WHERE RoomID = @roomId
+				ORDER BY CreatedAt DESC, MessageID DESC
+			`;
+			const result = await req.query(query);
+			const rows = (result.recordset || []).map(normalizeMessage);
+			return rows.reverse();
+	}
 };
 
 // Tạo tin nhán vào room và đánh dấu đã xem cho tin nhắn cũ
