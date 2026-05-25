@@ -1,8 +1,8 @@
 import React from 'react';
 import { UPLOAD_BASE } from "../../../../constants";
 
-// Header component của floating chat (hiển thị tiêu đề, trạng thái, nút cài đặt và đóng)
-// Các action (mở settings, thay đổi toggle) được truyền từ parent để giữ logic ở 1 nơi
+// Header của khung chat nổi.
+// Component này chỉ lo giao diện, còn logic mở settings/tắt mở âm thanh nằm ở file cha.
 export default function FloatingChatHeader(props) {
   const {
     connectionStatus,

@@ -180,11 +180,6 @@ exports.listRooms = async () => {
 exports.listMessages = async ({ roomId, limit = 15, before = null }) => {
 	const pool = await connectDB();
 
-	// Debug log to help trace paging requests
-	try {
-		console.log(`[chat.model.listMessages] roomId=${roomId} limit=${limit} before=${before}`);
-	} catch (e) {}
-
 	const req = pool.request().input("roomId", sql.Int, roomId).input("limit", sql.Int, limit);
 
 	let query;

@@ -2,6 +2,10 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import { API_BASE, UPLOAD_BASE } from "../../../../constants";
 import { useAuth } from "../../context/AuthContext";
+import ChatCache from "./cache";
+import FloatingChatHeader from "./FloatingChatHeader";
+import FloatingChatMessages from "./FloatingChatMessages";
+import FloatingChatComposer from "./FloatingChatComposer";
 import "./floatingChatIcon.scss";
 
 
@@ -24,8 +28,6 @@ const resolveChatUserId = (value) => {
  * Convert lỗi backend thành text dễ hiểu
  */
 const getFriendlyChatErrorMessage = (message) => {
-  console.log("Original chat error message:", message);
-
   const text = String(message || "").toLowerCase();
 
   /**
@@ -60,17 +62,6 @@ const extractFirstUrl = (value) => {
   if (!match) return "";
   return match[0].replace(/[),.;!?]+$/, "");
 };
-
-const SettingsIcon = () => (
-  <img
-    src={`${UPLOAD_BASE}/icons/icons8-setting-96.png`}
-    alt=""
-    aria-hidden="true"
-    className="chat-settings-icon"
-    width="20"
-    height="20"
-  />
-);
 
 // ======================== COMPONENT CHAT FLOATING =================================
 const FloatingChatIcon = ({
@@ -163,13 +154,6 @@ const FloatingChatIcon = ({
 
       const rawCreatedAt = message?.CreatedAt;
       const createdAt = rawCreatedAt ? new Date(rawCreatedAt) : new Date();
-
-      // Debug logging to diagnose timezone/parse issues (remove in production)
-      try {
-        console.debug("[FloatingChat] normalizeMessage", { rawCreatedAt, parsed: createdAt.toString(), tzOffsetMin: createdAt.getTimezoneOffset() });
-      } catch (e) {
-        // ignore
-      }
 
       return { id, role, text, createdAt };
     },
@@ -328,8 +312,6 @@ const FloatingChatIcon = ({
    * =========================================================
    */
   useEffect(() => {
-    console.log("Đang connect socket");
-
     // Nếu chưa xác thực thì không khởi tạo socket (tránh load dữ liệu của user trước)
     if (!isAuthenticated) {
       setConnectionStatus("Bạn cần đăng nhập để chat.");
@@ -371,29 +353,24 @@ const FloatingChatIcon = ({
      */
     // === KẾT NỐI THÀNH CÔNG ====
     socket.on("connect", () => {
-      console.log("Kết nối Socket thành công:", socket.id);
       if (!mounted) return;
       setConnectionStatus("Đã kết nối");
     });
 
     // Handlers lifecycle: log và cập nhật trạng thái khi socket tự reconnect
-    socket.on("reconnect", (attempt) => {
-      console.debug("[FloatingChat] socket reconnect", attempt);
+    socket.on("reconnect", () => {
       setConnectionStatus("Đã kết nối (tự phục hồi)");
     });
 
-    socket.on("reconnect_attempt", (attempt) => {
-      console.debug("[FloatingChat] reconnect_attempt", attempt);
+    socket.on("reconnect_attempt", () => {
       setConnectionStatus("Đang thử kết nối lại...");
     });
 
-    socket.on("reconnect_error", (err) => {
-      console.warn("[FloatingChat] reconnect_error", err);
+    socket.on("reconnect_error", () => {
       setConnectionStatus("Lỗi khi thử kết nối lại");
     });
 
     socket.on("reconnect_failed", () => {
-      console.warn("[FloatingChat] reconnect_failed");
       setConnectionStatus("Không thể kết nối lại");
     });
 
@@ -401,7 +378,6 @@ const FloatingChatIcon = ({
     // gọi API refresh-token để lấy accessToken mới và thử kết nối lại.
     // Nếu không thể refresh thì yêu cầu user đăng nhập lại.
     socket.on("connect_error", (err) => {
-      console.warn("[FloatingChat] connect_error", err?.message || err);
       const errMsg = String(err?.message || err || "").toLowerCase();
       // Nếu lỗi liên quan token, thử flow refresh
       if (errMsg.includes("token") || errMsg.includes("không hợp lệ") || errMsg.includes("invalid")) {
@@ -427,9 +403,7 @@ const FloatingChatIcon = ({
               setConnectionStatus("Làm mới phiên — đang kết nối lại...");
               return;
             }
-          } catch (e) {
-            console.warn("[FloatingChat] token refresh failed", e);
-          }
+          } catch (e) {}
 
           // Nếu refresh không thành công, yêu cầu user đăng nhập lại
           setConnectionStatus("Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.");
@@ -441,31 +415,30 @@ const FloatingChatIcon = ({
       setConnectionStatus(err?.message || "Lỗi kết nối");
     });
 
-    socket.on("connect_timeout", (timeout) => {
-      console.warn("[FloatingChat] connect_timeout", timeout);
+    socket.on("connect_timeout", () => {
       setConnectionStatus("Kết nối timeout");
     });
 
     // === MẤT KẾT NỐI ===
     socket.on("disconnect", () => {
-      console.log("Mất kết nối Socket:", socket.id);
       if (!mounted) return;
       setConnectionStatus("Mất kết nối");
     });
 
     // === SẲN SÀNG CHAT ===
     socket.on("chat:ready", (payload) => {
-      console.log("Sẳn sàng chat:", socket.id);
       if (!mounted) return;
       // * 1. Nhận thông tin được trả về 
 
       const nextRoom = payload?.room || null;
-      console.log("Chat ready with room:", nextRoom);
       // Chuẩn hóa tin nhắn cũ (nếu có) and keep only last page to avoid loading whole history
       const limit = 15;
       const nextMessages = Array.isArray(payload?.messages)
         ? payload.messages.map(normalizeMessage)
         : [];
+      const cachedRoom = nextRoom?.RoomID ? ChatCache.getRoomCache(nextRoom.RoomID) : null;
+      const cachedMessages = Array.isArray(cachedRoom?.messages) ? cachedRoom.messages : [];
+      const resolvedMessages = cachedMessages.length > 0 ? cachedMessages : nextMessages;
 
       // Cập nhật room và tin nhắn vào state
       setRoom(nextRoom);
@@ -474,13 +447,13 @@ const FloatingChatIcon = ({
         markCurrentRoomAsSeen(nextRoom.RoomID);
       }
 
-      if (nextMessages.length > 0) {
-        if (nextMessages.length > limit) {
-          setMessages(nextMessages.slice(-limit));
+      if (resolvedMessages.length > 0) {
+        if (resolvedMessages.length > limit) {
+          setMessages(resolvedMessages.slice(-limit));
           setHasMoreOlder(true);
         } else {
-          setMessages(nextMessages);
-          setHasMoreOlder(nextMessages.length >= limit);
+          setMessages(resolvedMessages);
+          setHasMoreOlder(resolvedMessages.length >= limit);
         }
       } else {
         // seed a friendly message when there's no history
@@ -522,15 +495,22 @@ const FloatingChatIcon = ({
       // Cập nhật tin nhắn cũ nếu có — only keep recent page-sized chunk
       try {
         const limit = 15;
-        if (Array.isArray(payload?.messages) && payload.messages.length > 0) {
-          const normalized = payload.messages.map(normalizeMessage);
-          if (normalized.length > limit) {
-            const last = normalized.slice(-limit);
+        const currentRoomId = payload?.room?.RoomID || room?.RoomID || null;
+        const cachedRoom = currentRoomId ? ChatCache.getRoomCache(currentRoomId) : null;
+        const cachedMessages = Array.isArray(cachedRoom?.messages) ? cachedRoom.messages : [];
+        const normalized = Array.isArray(payload?.messages) && payload.messages.length > 0
+          ? payload.messages.map(normalizeMessage)
+          : [];
+        const resolvedMessages = cachedMessages.length > 0 ? cachedMessages : normalized;
+
+        if (resolvedMessages.length > 0) {
+          if (resolvedMessages.length > limit) {
+            const last = resolvedMessages.slice(-limit);
             setMessages(last);
             setHasMoreOlder(true);
           } else {
-            setMessages(normalized);
-            setHasMoreOlder(normalized.length >= limit);
+            setMessages(resolvedMessages);
+            setHasMoreOlder(resolvedMessages.length >= limit);
           }
         }
       } catch (e) {
@@ -573,13 +553,7 @@ const FloatingChatIcon = ({
 
         // Nếu panel đang đóng và tin nhắn từ agent (không phải user), tăng badge
         if (!isOpen && nextMessage.role !== "user") {
-          setUnreadCount((c) => {
-            const next = c + 1;
-            try {
-              console.debug("[FloatingChat] increment unreadCount", { prev: c, next });
-            } catch (e) {}
-            return next;
-          });
+          setUnreadCount((c) => c + 1);
 
           // Try to play notification sound when panel closed and message from agent
           tryPlayNotification();
@@ -596,7 +570,6 @@ const FloatingChatIcon = ({
         // optimistic remove
         setMessages((prev) => prev.filter((m) => String(m.id) !== String(messageId)));
       } catch (e) {
-        console.warn("handleDeleteRequest failed", e);
       }
     };
 
@@ -659,12 +632,11 @@ const FloatingChatIcon = ({
   useEffect(() => {
     if (isOpen && socketRef.current && !socketRef.current.connected) {
       try {
-        console.debug("[FloatingChat] opening panel — forcing socket.connect()");
         // Cập nhật token (nếu thay đổi) trước khi connect, để server nhận auth mới khi reconnect
         try { socketRef.current.auth = { token: localStorage.getItem("accessToken") }; } catch (e) {}
         socketRef.current.connect();
       } catch (e) {
-        console.warn("[FloatingChat] socket.connect() failed", e);
+        // ignore connect error in UI layer
       }
     }
   }, [isOpen]);
@@ -760,13 +732,6 @@ const FloatingChatIcon = ({
 
     markCurrentRoomAsSeen(room.RoomID);
   }, [isOpen, room?.RoomID, markCurrentRoomAsSeen]);
-
-  // Debug log unreadCount changes (temporary)
-  useEffect(() => {
-    try {
-      console.debug("[FloatingChat] unreadCount changed", { unreadCount, isOpen });
-    } catch (e) {}
-  }, [unreadCount, isOpen]);
 
   // Update document title as a fallback indicator for unread messages
   useEffect(() => {
@@ -966,16 +931,47 @@ const FloatingChatIcon = ({
     );
   };
 
+  // Xử lý xóa tin nhắn ở tầng cha để component con chỉ cần gọi callback
+  const handleDeleteMessage = useCallback((message) => {
+    try {
+      if (!message?.id) return;
+      if (!window.confirm || !window.confirm("Bạn có chắc muốn xóa tin nhắn này?")) return;
+
+      setMessages((prev) => prev.filter((item) => String(item.id) !== String(message.id)));
+
+      try {
+        if (socketRef.current && socketRef.current.connected && room?.RoomID) {
+          socketRef.current.emit("chat:delete", { roomId: room.RoomID, messageId: message.id });
+        }
+      } catch (e) {
+        // bỏ qua lỗi emit xóa
+      }
+    } catch (e) {
+      // bỏ qua lỗi UI xóa tin nhắn
+    }
+  }, [room?.RoomID]);
+
+  // Lưu dữ liệu đang có vào RAM theo từng room để khi mở lại vẫn dùng lại ngay
+  useEffect(() => {
+    if (!room?.RoomID) return;
+    try {
+      ChatCache.setRoomCache(room.RoomID, {
+        messages,
+        hasMoreOlder,
+      });
+    } catch (e) {
+      // bỏ qua lỗi cache RAM
+    }
+  }, [room?.RoomID, messages, hasMoreOlder]);
+
   const loadOlderMessages = useCallback(() => {
     try {
       if (!room?.RoomID || !socketRef.current || loadingOlder || !hasMoreOlder) {
-        console.debug('[FloatingChat] loadOlderMessages prevented:', { roomId: room?.RoomID, socket: !!socketRef.current, loadingOlder, hasMoreOlder });
         return;
       }
       const earliest = messages?.[0]?.createdAt;
       const before = earliest ? new Date(earliest).toISOString() : null;
       const limit = 15;
-      console.debug('[FloatingChat] loadOlderMessages emit', { roomId: room.RoomID, before, limit });
       setLoadingOlder(true);
       try { if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current); } catch (e) {}
       loadingTimeoutRef.current = setTimeout(() => {
@@ -985,11 +981,16 @@ const FloatingChatIcon = ({
 
       socketRef.current.emit('chat:join', { roomId: room.RoomID, before, limit }, (ack) => {
         try {
-          console.debug('[FloatingChat] chat:join ack', ack && { success: ack.success, messagesLength: Array.isArray(ack.messages) ? ack.messages.length : 0 });
           if (ack?.success && Array.isArray(ack.messages) && ack.messages.length) {
             const older = mergeUniqueMessages(ack.messages.map(normalizeMessage));
             skipAutoScrollRef.current = true;
             setMessages((prev) => mergeUniqueMessages([...older, ...prev]));
+            try {
+              ChatCache.setRoomCache(room.RoomID, {
+                messages: mergeUniqueMessages([...older, ...messages]),
+                hasMoreOlder: ack.messages.length >= limit,
+              });
+            } catch (e) {}
             requestAnimationFrame(() => {
               try {
                 if (messagesContainerRef.current) {
@@ -1052,215 +1053,43 @@ const FloatingChatIcon = ({
     <>
       {isOpen && (
         <div className="floating-chat-panel">
-          <div className="floating-chat-panel__header">
-            <div>
-              <div className="floating-chat-panel__title">
-                Hỗ trợ trực tuyến
-              </div>
-              <div className="floating-chat-panel__status">
-                {connectionStatus || "Phản hồi nhanh cho bạn"}
-              </div>
-            </div>
-            <div className="floating-chat-panel__header-actions">
-              <div className="floating-chat-panel__header-settings" ref={settingsRef}>
-                <button
-                  type="button"
-                  className="floating-chat-panel__settings-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowSettings((s) => !s);
-                    setShowSoundMenu(false);
-                  }}
-                  title="Cài đặt chat"
-                  aria-label="Cài đặt chat"
-                >
-                  <SettingsIcon />
-                </button>
+          <FloatingChatHeader
+            connectionStatus={connectionStatus}
+            onToggleSettings={() => {
+              setShowSettings((value) => !value);
+              setShowSoundMenu(false);
+            }}
+            showSettings={showSettings}
+            settingsRef={settingsRef}
+            onToggleSoundMenu={() => setShowSoundMenu((value) => !value)}
+            showSoundMenu={showSoundMenu}
+            soundMuted={soundMuted}
+            onSetSoundMuted={(nextMuted) => {
+              setSoundMuted(nextMuted);
+              setShowSoundMenu(false);
+              try { localStorage.setItem('chatSoundMuted', nextMuted ? 'true' : 'false'); } catch (e) {}
+              try { if (audioRef.current) audioRef.current.muted = nextMuted; } catch (e) {}
+            }}
+            onClose={() => setIsOpen(false)}
+          />
 
-                {showSettings && (
-                  <div className="floating-chat-panel__settings">
-                    <div className="floating-chat-panel__settings-row">
-                      <span className="floating-chat-panel__settings-label">Thông báo</span>
-                      <div className="floating-chat-panel__settings-dropdown">
-                        <button
-                          type="button"
-                          className="floating-chat-panel__settings-trigger"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowSoundMenu((prev) => !prev);
-                          }}
-                          aria-haspopup="menu"
-                          aria-expanded={showSoundMenu}
-                        >
-                          <span>{soundMuted ? 'Tắt' : 'Bật'}</span>
-                          <span className="floating-chat-panel__settings-caret" aria-hidden="true">▾</span>
-                        </button>
-
-                        {showSoundMenu && (
-                          <div className="floating-chat-panel__settings-menu" role="menu">
-                            <button
-                              type="button"
-                              className={`floating-chat-panel__settings-option${soundMuted ? '' : ' is-active'}`}
-                              onClick={() => {
-                                const next = false;
-                                setSoundMuted(next);
-                                setShowSoundMenu(false);
-                                try { localStorage.setItem('chatSoundMuted', 'false'); } catch (e) {}
-                                try { if (audioRef.current) audioRef.current.muted = next; } catch (e) {}
-                              }}
-                            >
-                              Bật
-                            </button>
-                            <button
-                              type="button"
-                              className={`floating-chat-panel__settings-option${soundMuted ? ' is-active' : ''}`}
-                              onClick={() => {
-                                const next = true;
-                                setSoundMuted(next);
-                                setShowSoundMenu(false);
-                                try { localStorage.setItem('chatSoundMuted', 'true'); } catch (e) {}
-                                try { if (audioRef.current) audioRef.current.muted = next; } catch (e) {}
-                              }}
-                            >
-                              Tắt
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                aria-label="Đóng chat"
-                className="floating-chat-panel__close"
-              >
-                ×
-              </button>
-            </div>
-          </div>
-
-          <div className="floating-chat-panel__messages" ref={messagesContainerRef} onScroll={handleMessagesScroll}>
-            <div ref={topSentinelRef} className="floating-chat-panel__top-sentinel" aria-hidden />
-            {loadingOlder && (
-              <div className="floating-chat-panel__loading-older">Đang tải...</div>
-            )}
-            {messages.map((message) => {
-              const isUser = message.role === "user";
-              const messagePreviewUrl = extractFirstUrl(message.text);
-              const messagePreview = messagePreviewUrl ? previewCache[messagePreviewUrl] : null;
-              const isOnlyLink = messagePreviewUrl && message.text && message.text.trim() === messagePreviewUrl;
-
-              return (
-                <React.Fragment key={message.id}>
-                  <div
-                    className={`floating-chat-panel__message-row floating-chat-panel__message-row--${message.role}`}
-                    style={{ position: "relative" }}
-                  >
-                    {/* Render bubble / avatar / actions in the row */}
-                    {isUser ? (
-                      <>
-                        <div className="floating-chat-panel__actions" aria-hidden>
-                          <button
-                            type="button"
-                            className="floating-chat-panel__action-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (!window.confirm || !window.confirm("Bạn có chắc muốn xóa tin nhắn này?")) return;
-                              setMessages((prev) => prev.filter((m) => String(m.id) !== String(message.id)));
-                              try {
-                                if (socketRef.current && socketRef.current.connected && room?.RoomID) {
-                                  socketRef.current.emit("chat:delete", { roomId: room.RoomID, messageId: message.id });
-                                }
-                              } catch (e) {
-                                console.warn("emit chat:delete failed", e);
-                              }
-                            }}
-                            title="Xóa tin nhắn"
-                          >
-                            …
-                          </button>
-                        </div>
-
-                        {isOnlyLink && messagePreview ? (
-                          <div className="floating-chat-panel__message-preview floating-chat-panel__message-preview--user floating-chat-panel__message-preview--inline">
-                            {renderPreviewCard(messagePreview)}
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            className="floating-chat-panel__bubble"
-                            onClick={() => setSelectedMessageId((prev) => (prev === message.id ? null : message.id))}
-                          >
-                            <span className="floating-chat-panel__message-text">{message.text}</span>
-                            {selectedMessageId === message.id && (
-                              <span className="floating-chat-panel__message-time">{formatMessageTime(message.createdAt)}</span>
-                            )}
-                          </button>
-                        )}
-
-                        <img src={resolveAvatarSrc(user?.avatar)} alt="avatar" className="floating-chat-panel__avatar" />
-                      </>
-                    ) : (
-                      <>
-                        <img src={resolveSupportIcon()} alt="support" className="floating-chat-panel__avatar floating-chat-panel__avatar--left" />
-
-                        {isOnlyLink && messagePreview ? (
-                          <div className="floating-chat-panel__message-preview floating-chat-panel__message-preview--agent floating-chat-panel__message-preview--inline">
-                            {renderPreviewCard(messagePreview)}
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            className="floating-chat-panel__bubble"
-                            onClick={() => setSelectedMessageId((prev) => (prev === message.id ? null : message.id))}
-                          >
-                            <span className="floating-chat-panel__message-text">{message.text}</span>
-                            {selectedMessageId === message.id && (
-                              <span className="floating-chat-panel__message-time">{formatMessageTime(message.createdAt)}</span>
-                            )}
-                          </button>
-                        )}
-
-                        <div className="floating-chat-panel__actions" aria-hidden>
-                          <button
-                            type="button"
-                            className="floating-chat-panel__action-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (!window.confirm || !window.confirm("Bạn có chắc muốn xóa tin nhắn này?")) return;
-                              setMessages((prev) => prev.filter((m) => String(m.id) !== String(message.id)));
-                              try {
-                                if (socketRef.current && socketRef.current.connected && room?.RoomID) {
-                                  socketRef.current.emit("chat:delete", { roomId: room.RoomID, messageId: message.id });
-                                }
-                              } catch (e) {
-                                console.warn("emit chat:delete failed", e);
-                              }
-                            }}
-                            title="Xóa tin nhắn"
-                          >
-                            …
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Mixed text + URL keeps preview as a separate line below */}
-                  {!isOnlyLink && messagePreview && (
-                    <div className={`floating-chat-panel__message-preview floating-chat-panel__message-preview--${message.role}`}>
-                      {renderPreviewCard(messagePreview)}
-                    </div>
-                  )}
-                </React.Fragment>
-              );
-            })}
-            <div ref={messagesEndRef} />
-          </div>
+          <FloatingChatMessages
+            messages={messages}
+            messagesContainerRef={messagesContainerRef}
+            topSentinelRef={topSentinelRef}
+            loadingOlder={loadingOlder}
+            handleMessagesScroll={handleMessagesScroll}
+            messagesEndRef={messagesEndRef}
+            resolveAvatarSrc={resolveAvatarSrc}
+            resolveSupportIcon={resolveSupportIcon}
+            renderPreviewCard={renderPreviewCard}
+            selectedMessageId={selectedMessageId}
+            setSelectedMessageId={setSelectedMessageId}
+            previewCache={previewCache}
+            currentUserAvatar={user?.avatar}
+            onDeleteMessage={handleDeleteMessage}
+            formatMessageTime={formatMessageTime}
+          />
 
           {draftPreview && (
             <div className="floating-chat-panel__draft-preview">
@@ -1268,34 +1097,13 @@ const FloatingChatIcon = ({
             </div>
           )}
 
-          <div className="floating-chat-panel__composer">
-            <textarea
-              rows={2}
-              value={draftMessage}
-              onChange={(e) => setDraftMessage(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  sendMessage();
-                }
-              }}
-              placeholder={
-                isAuthenticated
-                  ? "Nhập nội dung..."
-                  : "Vui lòng đăng nhập để chat"
-              }
-              disabled={!isAuthenticated || isConnecting}
-              className="floating-chat-panel__input"
-            />
-            <button
-              type="button"
-              onClick={sendMessage}
-              disabled={!isAuthenticated || isConnecting}
-              className="floating-chat-panel__send"
-            >
-              Gửi
-            </button>
-          </div>
+          <FloatingChatComposer
+            draftMessage={draftMessage}
+            setDraftMessage={setDraftMessage}
+            sendMessage={sendMessage}
+            isAuthenticated={isAuthenticated}
+            isConnecting={isConnecting}
+          />
         </div>
       )}
 

@@ -1,6 +1,7 @@
 import React from 'react';
 
-// Composer (ô nhập + nút gửi) của floating chat
+// Khu vực soạn tin nhắn của chat nổi.
+// Toàn bộ trạng thái nhập liệu vẫn nằm ở file cha để dễ kiểm soát.
 export default function FloatingChatComposer(props) {
   const { draftMessage, setDraftMessage, sendMessage, isAuthenticated, isConnecting } = props;
 

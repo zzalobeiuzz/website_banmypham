@@ -15,3 +15,11 @@ exports.clearRoomCache = (roomId) => {
 };
 
 exports.clearAll = () => cache.clear();
+
+// Để import theo kiểu ESModule vẫn dùng được trong CRA/Babel
+exports.default = {
+  getRoomCache: exports.getRoomCache,
+  setRoomCache: exports.setRoomCache,
+  clearRoomCache: exports.clearRoomCache,
+  clearAll: exports.clearAll,
+};

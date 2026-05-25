@@ -4,6 +4,7 @@ import { API_BASE, UPLOAD_BASE } from "../../../../../constants";
 import useHttp from "../../../../../hooks/useHttp";
 import RoomList from "./components/RoomList";
 import ConversationPanel from "./components/ConversationPanel";
+import ChatCache from "./cache";
 import "./admin-chat.scss";
 
 const SOCKET_URL = String(process.env.REACT_APP_SOCKET_URL || API_BASE || window.location.origin).replace(/\/$/, "");
@@ -75,6 +76,8 @@ const AdminChatPage = () => {
   const messageEndRef = useRef(null);
   const selectedRoomIdRef = useRef(0);
   const fetchRoomsRef = useRef(null);
+  // Track rooms that client explicitly cleared unread for — used to override server counts
+  const clearedRoomsRef = useRef(new Set());
 
   const currentUserId = useMemo(() => {
     try {
@@ -262,11 +265,19 @@ const AdminChatPage = () => {
         Number(room.RoomID) === activeRoomId ? { ...room, UnreadCount: 0 } : room,
       );
 
+      // Build counts and apply client-cleared overrides
       setRooms(normalizedRooms);
       const counts = {};
       normalizedRooms.forEach((room) => {
         counts[String(room.RoomID)] = Number(room.UnreadCount || 0);
       });
+
+      // Ensure rooms the client explicitly cleared stay zero until new messages arrive
+      try {
+        clearedRoomsRef.current.forEach((rid) => {
+          counts[String(rid)] = 0;
+        });
+      } catch (e) {}
       setUnreadCounts(counts);
 
       syncAdminUnreadAndRooms(counts, normalizedRooms);
@@ -309,6 +320,20 @@ const AdminChatPage = () => {
       return true;
     });
   };
+
+  // Lưu state tin nhắn của room hiện tại vào RAM để quay lại room thì dùng lại ngay
+  useEffect(() => {
+    if (!selectedRoom?.RoomID) return;
+
+    try {
+      ChatCache.setRoomCache(selectedRoom.RoomID, {
+        messages,
+        hasMoreOlder,
+      });
+    } catch (e) {
+      // ignore
+    }
+  }, [selectedRoom?.RoomID, messages, hasMoreOlder]);
 
     // Khởi tạo socket và đăng ký toàn bộ sự kiện chat realtime cho admin
     useEffect(() => {
@@ -375,7 +400,7 @@ const AdminChatPage = () => {
 
       // Cập nhật preview phòng khi có tin nhắn mới
       const mergeRoomFromMessage = (roomId, payload, isSelectedRoom) => {
-        const senderRole = Number(payload?.senderRole || payload?.SenderRole || 0);
+        // senderRole intentionally not used here; unread counts handled in notify
         const nextLastMessageText = payload?.MessageText || payload?.text || "";
         const nextLastMessageAt = new Date().toISOString();
 
@@ -399,13 +424,7 @@ const AdminChatPage = () => {
           return sorted;
         });
 
-        if (!isSelectedRoom && senderRole !== 1) {
-          setUnreadCounts((prev) => {
-            const key = String(roomId || "0");
-            const prevCount = Number(prev[key] || 0);
-            return { ...prev, [key]: prevCount + 1 };
-          });
-        }
+        // NOTE: unread count is managed by admin notify event to avoid double-counting
       };
 
       // Nhận tin nhắn realtime
@@ -431,8 +450,7 @@ const AdminChatPage = () => {
           }
         } catch (e) {}
 
-        // Re-sync with server so the room list always reflects the latest message preview/order.
-        fetchRoomsRef.current?.();
+        // Do not re-fetch full room list here; update local state only to avoid UI reset
       };
 
       // Global admin notification: arrives even when the room is not opened/joined yet
@@ -446,6 +464,8 @@ const AdminChatPage = () => {
 
         // Increase unread count when the room is not currently selected
         if (roomId !== Number(selectedRoomIdRef.current || 0)) {
+          // New notification should remove any client-cleared override for that room
+          try { clearedRoomsRef.current.delete(roomId); } catch (e) {}
           setUnreadCounts((prev) => {
             const key = String(roomId || "0");
             const prevCount = Number(prev[key] || 0);
@@ -461,7 +481,7 @@ const AdminChatPage = () => {
           }
         } catch (e) {}
 
-        fetchRoomsRef.current?.();
+        // Do not re-fetch full room list here; update local state only to avoid UI reset
       };
 
       // Nhận cập nhật thông tin phòng (danh sách admin)
@@ -480,7 +500,7 @@ const AdminChatPage = () => {
           );
         });
 
-        fetchRoomsRef.current?.();
+        // Do not re-fetch full room list here; update local state only to avoid UI reset
       };
 
       // socket init + event binding
@@ -569,14 +589,34 @@ const AdminChatPage = () => {
     };
 
     setSelectedRoom(room);
-    setMessages([]);
-    setHasMoreOlder(true);
     setSelectedMessageId(null);
     setUnreadCounts(nextUnreadCounts);
     setRooms(nextRooms);
     window.__adminSelectedRoomId = nextRoomId;
 
+    // ensure ref used by fetchRooms is up-to-date so server response
+    // will be normalized with this room marked as active (UnreadCount = 0)
+    selectedRoomIdRef.current = nextRoomId;
+
     syncAdminUnreadAndRooms(nextUnreadCounts, nextRooms);
+
+    // Reset room-local UI state when switching rooms
+    setDraftMessage("");
+    setShowScrollToBottom(false);
+    setLoadingOlder(false);
+
+    // Keep track that client cleared this room's unread state
+    try { clearedRoomsRef.current.add(nextRoomId); } catch (e) {}
+
+    // Ưu tiên dữ liệu đã có trong RAM để quay lại room là hiện ngay, không bị trống.
+    const cachedRoom = ChatCache.getRoomCache(nextRoomId);
+    if (cachedRoom?.messages) {
+      setMessages(mergeUniqueMessages(cachedRoom.messages));
+      setHasMoreOlder(Boolean(cachedRoom.hasMoreOlder));
+    } else {
+      setMessages([]);
+      setHasMoreOlder(true);
+    }
 
     try {
       const socket = socketRef.current;
@@ -586,6 +626,14 @@ const AdminChatPage = () => {
         if (ack?.success && Array.isArray(ack?.messages)) {
           const normalized = mergeUniqueMessages(ack.messages.map((m) => normalizeMessage(m)));
           setMessages(normalized);
+          try {
+            ChatCache.setRoomCache(room.RoomID, {
+              messages: normalized,
+              hasMoreOlder: normalized.length > 0,
+            });
+          } catch (e) {
+            // ignore
+          }
           // ensure container scrolls to bottom when first loading room
           requestAnimationFrame(() => {
             try {
@@ -593,9 +641,12 @@ const AdminChatPage = () => {
             } catch (e) {}
           });
         }
-      });
 
-      fetchRooms();
+        // Explicitly request server to mark this room as seen (idempotent)
+        try {
+          if (socketRef.current) socketRef.current.emit('chat:seen', { roomId: room.RoomID });
+        } catch (e) {}
+      });
     } catch (error) {
       setConnectionStatus(error?.message || "Không thể tải tin nhắn.");
     }
@@ -618,6 +669,14 @@ const AdminChatPage = () => {
           // prevent auto scroll to bottom
           skipAutoScrollRef.current = true;
           setMessages((prev) => mergeUniqueMessages([...older, ...prev]));
+          try {
+            ChatCache.setRoomCache(selectedRoom.RoomID, {
+              messages: mergeUniqueMessages([...older, ...messages]),
+              hasMoreOlder: ack.messages.length >= limit,
+            });
+          } catch (e) {
+            // ignore
+          }
           requestAnimationFrame(() => {
             try {
               if (messagesContainerRef.current) {
@@ -798,6 +857,7 @@ const AdminChatPage = () => {
         />
 
         <ConversationPanel
+          key={`conv-${selectedRoom?.RoomID || 'none'}`}
           selectedRoom={selectedRoom}
           resolveRoomAvatar={resolveRoomAvatar}
           resolveRoomTitle={resolveRoomTitle}
