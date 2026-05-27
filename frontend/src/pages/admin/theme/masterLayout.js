@@ -35,7 +35,7 @@ const initAdminSocket = () => {
 
 const AdminMasterLayout = () => {
   const [adminUnreadCount, setAdminUnreadCount] = useState(0);
-  const [adminUnreadRooms, setAdminUnreadRooms] = useState([]);
+  const [adminChatRooms, setAdminChatRooms] = useState([]);
 
   const syncUnreadStateFromRooms = useCallback(async () => {
     try {
@@ -50,16 +50,9 @@ const AdminMasterLayout = () => {
       const payload = await response.json();
       const rooms = Array.isArray(payload?.data) ? payload.data : [];
       const total = rooms.reduce((sum, room) => sum + Number(room?.UnreadCount || 0), 0);
-      const unreadRooms = rooms
-        .filter((room) => Number(room?.UnreadCount || 0) > 0)
-        .map((room) => ({
-          RoomID: room.RoomID,
-          RoomTitle: room.ParticipantName || room.CreatedBy || room.RoomKey || `Phòng #${room.RoomID}`,
-          UnreadCount: Number(room.UnreadCount || 0),
-        }));
 
       setAdminUnreadCount(total);
-      setAdminUnreadRooms(unreadRooms);
+      setAdminChatRooms(rooms);
     } catch (e) {
       // ignore
     }
@@ -82,18 +75,7 @@ const AdminMasterLayout = () => {
     const handleRoomsSync = (event) => {
       const rooms = Array.isArray(event?.detail?.rooms) ? event.detail.rooms : [];
       const total = Number(event?.detail?.totalUnread || 0);
-
-      if (rooms.length > 0) {
-        const unreadRooms = rooms
-          .filter((room) => Number(room?.UnreadCount || 0) > 0)
-          .map((room) => ({
-            RoomID: room.RoomID,
-            RoomTitle: room.ParticipantName || room.CreatedBy || room.RoomKey || `Phòng #${room.RoomID}`,
-            UnreadCount: Number(room.UnreadCount || 0),
-          }));
-
-        setAdminUnreadRooms(unreadRooms);
-      }
+      setAdminChatRooms(rooms);
 
       if (!Number.isNaN(total)) {
         setAdminUnreadCount(total);
@@ -158,7 +140,7 @@ const AdminMasterLayout = () => {
         flexDirection: "column",
       }}
     >
-      <Header chatBadgeCount={adminUnreadCount} chatRooms={adminUnreadRooms} />
+      <Header chatBadgeCount={adminUnreadCount} chatRooms={adminChatRooms} />
       <div style={{ display: "flex", flex: 1 }}>
         {/* <Sidebar /> */} {/* Bỏ comment nếu có sidebar */}
         <div style={{ flex: 1, minWidth: 0 }}>

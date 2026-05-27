@@ -165,6 +165,238 @@ header {
 
         &.nav-item-wrapper {
           position: relative;
+
+          .chat-nav-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+
+            &__main {
+              display: flex;
+              align-items: center;
+              gap: 6px;
+              background: none;
+              border: none;
+              padding: 6px 10px;
+              cursor: pointer;
+              position: relative;
+              border-radius: 8px;
+
+              > img:first-child {
+                width: 25px;
+                height: 25px;
+                flex-shrink: 0;
+              }
+            }
+
+            &__label {
+              display: inline-flex;
+              align-items: center;
+            }
+
+            .arrow-down {
+              width: 15px;
+              margin-left: -2px;
+            }
+          }
+
+          // ===================== CHAT DROPDOWN =====================
+          .chat-dropdown {
+              position: absolute;
+              top: calc(100% + 10px);
+              width: 400px;
+              max-height: 78vh;
+              background: #fff;
+              border: 1px solid rgba(15, 23, 42, 0.08);
+              border-radius: 14px;
+              box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
+              z-index: 6000;
+              padding: 20px 15px 10px 10px;
+              display: flex;
+              flex-direction: column;
+              gap: 8px;
+
+              .chat-dropdown__header-row {
+                padding-left: 10px;
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                gap: 10px;
+              }
+
+              .chat-dropdown__heading {
+                font-size: 18px;
+                line-height: 1;
+                font-weight: 800;
+                color: #111827;
+              }
+
+              .chat-dropdown__header-actions {
+                display: flex;
+                gap: 6px;
+                align-items: center;
+                justify-content: center;
+              }
+
+              .chat-dropdown__icon-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 28px;
+                height: 28px;
+                border-radius: 50%;
+                border: none;
+                background: #f1f5f9;
+                color: #334155;
+                font-size: 14px;
+                padding: 0;
+                line-height: 1;
+              }
+
+              .chat-dropdown__search {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                background: #f1f5f9;
+                border-radius: 999px;
+                padding: 7px 10px;
+
+                img {
+                  width: 16px;
+                  height: 16px;
+                  opacity: 0.7;
+                }
+
+                input {
+                  width: 100%;
+                  border: none;
+                  outline: none;
+                  background: transparent;
+                  font-size: 14px;
+                  color: #0f172a;
+                }
+              }
+
+              .chat-dropdown__tabs {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding-top: 5px;
+              }
+
+              .chat-dropdown__tab {
+                border: none;
+                background: transparent;
+                border-radius: 999px;
+                padding: 6px 12px;
+                font-size: 13px;
+                font-weight: 600;
+                color: #111827;
+
+                &.is-active {
+                  background: #dbeafe;
+                  color: #2563eb;
+                  font-weight: 700;
+                }
+              }
+
+              .chat-dropdown__list {
+                max-height: 340px;
+                overflow-y: auto;
+                padding-right: 6px;
+                display: flex;
+                flex-direction: column;
+                gap: 1px;
+              }
+
+              .chat-dropdown__item {
+                width: 100%;
+                border: none;
+                background: transparent;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 6px;
+                border-radius: 10px;
+                text-align: left;
+
+                &:hover {
+                  background: #f8fafc;
+                }
+
+                &.is-unread {
+                  background: #f8fbff;
+                }
+              }
+
+              .chat-dropdown__avatar {
+                width: 42px;
+                height: 42px;
+                border-radius: 50%;
+                object-fit: cover;
+                flex-shrink: 0;
+              }
+
+              .chat-dropdown__content {
+                flex: 1;
+                min-width: 0;
+              }
+
+              .chat-dropdown__row {
+                display: flex;
+                align-items: baseline;
+                justify-content: space-between;
+                gap: 8px;
+              }
+
+              .chat-dropdown__row--preview {
+                margin-top: 2px;
+                align-items: center;
+              }
+
+              .chat-dropdown__time {
+                font-size: 12px;
+                color: #6b7280;
+                white-space: nowrap;
+              }
+
+              .chat-dropdown__title {
+                font-size: 13px;
+                font-weight: 700;
+                color: #111827;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+              }
+
+              .chat-dropdown__preview {
+                font-size: 12px;
+                color: #6b7280;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+              }
+
+              .chat-dropdown__count {
+                min-width: 20px;
+                height: 20px;
+                border-radius: 999px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                background: #2563eb;
+                color: #fff;
+                font-size: 11px;
+                font-weight: 700;
+                padding: 10px 8px;
+              }
+
+              .chat-dropdown__empty {
+                padding: 16px 8px;
+                color: #64748b;
+                font-size: 13px;
+              }
+          }
         }
 
         button {
@@ -302,4 +534,3 @@ header {
   }
 }
 
-//********************************************FOOTER*******************************************

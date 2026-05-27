@@ -17,11 +17,12 @@ export default function FloatingChatMessageItem(props) {
     formatMessageTime,
   } = props;
 
-  const isUser = message.role === 'user';
+  const displayRole = message.role;
+  const isUser = displayRole === 'user';
 
   return (
     <React.Fragment>
-      <div className={`floating-chat-panel__message-row floating-chat-panel__message-row--${message.role}`} style={{ position: 'relative' }}>
+      <div className={`floating-chat-panel__message-row floating-chat-panel__message-row--${displayRole}`} style={{ position: 'relative' }}>
         {isUser ? (
           <>
             <div className="floating-chat-panel__actions" aria-hidden>
@@ -36,7 +37,7 @@ export default function FloatingChatMessageItem(props) {
             </div>
 
             {isOnlyLink && messagePreview ? (
-              <div className="floating-chat-panel__message-preview floating-chat-panel__message-preview--user floating-chat-panel__message-preview--inline">
+              <div className={`floating-chat-panel__message-preview floating-chat-panel__message-preview--${isUser ? 'user' : 'agent'} floating-chat-panel__message-preview--inline`}>
                 {renderPreviewCard(messagePreview)}
               </div>
             ) : (
@@ -61,7 +62,7 @@ export default function FloatingChatMessageItem(props) {
             <img src={resolveSupportIcon()} alt="support" className="floating-chat-panel__avatar floating-chat-panel__avatar--left" />
 
             {isOnlyLink && messagePreview ? (
-              <div className="floating-chat-panel__message-preview floating-chat-panel__message-preview--agent floating-chat-panel__message-preview--inline">
+              <div className={`floating-chat-panel__message-preview floating-chat-panel__message-preview--${isUser ? 'user' : 'agent'} floating-chat-panel__message-preview--inline`}>
                 {renderPreviewCard(messagePreview)}
               </div>
             ) : (
@@ -94,7 +95,7 @@ export default function FloatingChatMessageItem(props) {
       </div>
 
       {!isOnlyLink && messagePreview && (
-        <div className={`floating-chat-panel__message-preview floating-chat-panel__message-preview--${message.role}`}>
+        <div className={`floating-chat-panel__message-preview floating-chat-panel__message-preview--${isUser ? 'user' : 'agent'}`}>
           {renderPreviewCard(messagePreview)}
         </div>
       )}

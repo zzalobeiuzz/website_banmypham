@@ -13,7 +13,10 @@ export default function FloatingChatHeader(props) {
     showSoundMenu,
     soundMuted,
     onSetSoundMuted,
+    onToggleMinimize,
     onClose,
+    title,
+    avatarSrc,
   } = props;
 
   const SettingsIcon = () => (
@@ -29,12 +32,29 @@ export default function FloatingChatHeader(props) {
 
   return (
     <div className="floating-chat-panel__header">
-      <div>
-        <div className="floating-chat-panel__title">Hỗ trợ trực tuyến</div>
-        <div className="floating-chat-panel__status">{connectionStatus || 'Phản hồi nhanh cho bạn'}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {avatarSrc && (
+          <img src={avatarSrc} alt="avatar" className="floating-chat-panel__header-avatar" width="36" height="36" />
+        )}
+        <div>
+          <div className="floating-chat-panel__title">{title || 'Hỗ trợ trực tuyến'}</div>
+          <div className="floating-chat-panel__status">{connectionStatus || 'Phản hồi nhanh cho bạn'}</div>
+        </div>
       </div>
 
       <div className="floating-chat-panel__header-actions">
+        {typeof onToggleMinimize === 'function' && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onToggleMinimize(); }}
+            aria-label="Thu nhỏ chat"
+            className="floating-chat-panel__minimize"
+            title="Thu nhỏ"
+          >
+            –
+          </button>
+        )}
+
         <div className="floating-chat-panel__header-settings" ref={settingsRef}>
           <button
             type="button"

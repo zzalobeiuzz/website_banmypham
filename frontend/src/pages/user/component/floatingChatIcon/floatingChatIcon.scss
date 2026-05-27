@@ -159,6 +159,23 @@
     flex: 0 0 30px;
   }
 
+  &__minimize {
+    border: none;
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 20px;
+    line-height: 1;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 30px;
+  }
+
   .chat-settings-icon {
     display: block;
     width: 18px;
@@ -174,6 +191,7 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    position: relative;
   }
 
   &__top-sentinel {
@@ -187,6 +205,33 @@
     padding: 8px 0;
     font-size: 12px;
     color: #475569;
+  }
+
+  &__jump-to-latest {
+    position: absolute;
+    right: 12px;
+    bottom: 76px;
+    z-index: 3;
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%);
+    color: #fff;
+    border-radius: 999px;
+    font-size: 20px;
+    border: 2px solid rgba(255,255,255,0.08);
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.26);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+
+  &__jump-to-latest:hover {
+    filter: brightness(1.05);
   }
 
   &__message-row {
@@ -258,7 +303,9 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    max-width: 82%;
+    /* limit bubble width: use percent but cap at pixel width */
+    max-width: min(82%, 420px);
+    max-width: 420px; /* fallback */
     padding: 10px 12px;
     border: none;
     border-radius: 14px;
@@ -268,24 +315,17 @@
     box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
     white-space: pre-wrap;
     word-break: break-word;
+    overflow-wrap: anywhere;
     font-size: 12px;
     line-height: 1.5;
     cursor: pointer;
     text-align: left;
   }
 
-  &__message-row--user &__bubble {
-    background: #2563eb;
-    color: #fff;
-    border: none;
-    box-shadow: none;
-  }
-
   &__message-text {
     display: block;
     font-size: 11px;
   }
-
   &__message-time {
     display: block;
     font-size: 10px;
@@ -294,11 +334,19 @@
     margin-top: 2px;
   }
 
-  &__message-row--user &__message-time {
-    color: rgba(255, 255, 255, 0.9);
+  /* Make incoming (agent) messages blue and white text */
+  &__message-row--agent &__bubble {
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    box-shadow: none;
   }
 
   &__message-row--agent &__message-time {
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  &__message-row--user &__message-time {
     color: #475569;
   }
 
@@ -399,7 +447,7 @@
     align-self: center;
 
     .floating-chat-panel__preview-card {
-      max-width: 82%;
+      max-width: 70%;
       margin: 0 !important;
       padding: 10px 12px;
       border-radius: 14px;

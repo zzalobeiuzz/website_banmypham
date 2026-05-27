@@ -78,17 +78,27 @@ const AdminChatPage = () => {
   const fetchRoomsRef = useRef(null);
   // Track rooms that client explicitly cleared unread for — used to override server counts
   const clearedRoomsRef = useRef(new Set());
+  // Dedupe recent admin notifications per-room to avoid counting the same message multiple times
+  const recentNotifyIdsRef = useRef(new Map());
+  // (roomsRef is declared after rooms state to avoid using rooms before it's defined)
 
   const currentUserId = useMemo(() => {
     try {
       const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
-      return resolveChatUserId(storedUser?.id || storedUser?.UserID);
+      // prefer explicit email field if available, fall back to id/UserID
+      return resolveChatUserId(storedUser?.email || storedUser?.id || storedUser?.UserID);
     } catch {
       return "";
     }
   }, []);
 
   const [rooms, setRooms] = useState([]);
+  // Ref to latest rooms array to avoid stale closures inside socket handlers
+  const roomsRef = useRef(rooms);
+
+  useEffect(() => {
+    roomsRef.current = rooms;
+  }, [rooms]);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [messages, setMessages] = useState([]);
   const [draftMessage, setDraftMessage] = useState("");
@@ -102,6 +112,7 @@ const AdminChatPage = () => {
   const messagesContainerRef = useRef(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [hasMoreOlder, setHasMoreOlder] = useState(true);
+  const selectRoomRef = useRef(null);
   
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const skipAutoScrollRef = useRef(false);
@@ -216,6 +227,8 @@ const AdminChatPage = () => {
     }
   };
 
+  
+
   useEffect(() => {
     selectedRoomIdRef.current = currentRoomId;
     window.__adminSelectedRoomId = currentRoomId;
@@ -292,12 +305,29 @@ const AdminChatPage = () => {
     fetchRoomsRef.current = fetchRooms;
   }, [fetchRooms]);
 
+  // Listen for mini-panel seen events to clear unread counts locally
+  useEffect(() => {
+    const onMiniSeen = (e) => {
+      try {
+        const roomId = Number(e?.detail?.roomId || 0);
+        if (!roomId) return;
+        clearedRoomsRef.current.add(roomId);
+        setUnreadCounts((prev) => ({ ...prev, [String(roomId)]: 0 }));
+        // also update rooms list UnreadCount
+        setRooms((prev) => prev.map((r) => (Number(r.RoomID) === roomId ? { ...r, UnreadCount: 0 } : r)));
+      } catch (e) {}
+    };
+
+    window.addEventListener('admin-mini-seen', onMiniSeen);
+    return () => window.removeEventListener('admin-mini-seen', onMiniSeen);
+  }, []);
+
   useEffect(() => {
     fetchRoomsRef.current?.();
   }, []);
 
   // Chuẩn hóa payload message socket/API về model dùng trong UI
-  const normalizeMessage = (message) => {
+  const normalizeMessage = useCallback((message) => {
     const id = String(message?.MessageID || message?.id || `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
     const roomId = Number(message?.RoomID || message?.room?.RoomID || 0);
     const senderId = resolveChatUserId(message?.SenderID || message?.senderId || "");
@@ -306,8 +336,13 @@ const AdminChatPage = () => {
     const rawCreatedAt = message?.CreatedAt ?? message?.createdAt ?? message?.created_at ?? message?.Created_At;
     const createdAt = rawCreatedAt ? new Date(rawCreatedAt) : new Date();
 
-    return { id, roomId, senderId, text, createdAt };
-  };
+    const senderRole = Number(message?.senderRole || message?.SenderRole || 0);
+    // Determine if this message was sent by an admin/agent. Prefer explicit senderRole when available,
+    // also treat explicit 'admin' senderId as admin, otherwise fall back to comparing senderId with currentUserId.
+    const isAdminSender = senderRole === 1 || senderId === "admin" || (senderId && currentUserId && senderId === currentUserId);
+
+    return { id, roomId, senderId, text, createdAt, senderRole, isAdminSender };
+  }, [currentUserId]);
 
   // Loại message trùng theo id để tránh React warning và tin nhắn bị lặp
   const mergeUniqueMessages = (nextMessages) => {
@@ -464,6 +499,26 @@ const AdminChatPage = () => {
 
         // Increase unread count when the room is not currently selected
         if (roomId !== Number(selectedRoomIdRef.current || 0)) {
+          // Dedupe by message id so duplicate notifications do not increment multiple times
+          const msgKey = String(payload?.MessageID || payload?.id || payload?.MessageGUID || `${roomId}_${payload?.CreatedAt || payload?.createdAt || Date.now()}`);
+          try {
+            const map = recentNotifyIdsRef.current;
+            let set = map.get(roomId);
+            if (!set) {
+              set = new Set();
+              map.set(roomId, set);
+            }
+            if (set.has(msgKey)) return;
+            set.add(msgKey);
+            // auto-expire the id after 30s
+            setTimeout(() => {
+              try {
+                set.delete(msgKey);
+                if (set.size === 0) map.delete(roomId);
+              } catch (e) {}
+            }, 30000);
+          } catch (e) {}
+
           // New notification should remove any client-cleared override for that room
           try { clearedRoomsRef.current.delete(roomId); } catch (e) {}
           setUnreadCounts((prev) => {
@@ -489,18 +544,20 @@ const AdminChatPage = () => {
         const updatedRoom = payload?.room;
         if (!updatedRoom?.RoomID) return;
 
-        setRooms((prev) => {
-          const exists = prev.some((room) => Number(room.RoomID) === Number(updatedRoom.RoomID));
-          if (!exists) {
-            return [updatedRoom, ...prev];
-          }
+        const roomIdNum = Number(updatedRoom.RoomID);
+        const exists = Array.isArray(roomsRef.current) && roomsRef.current.some((room) => Number(room.RoomID) === roomIdNum);
 
+        setRooms((prev) => {
+          if (!exists) return [updatedRoom, ...prev];
           return prev.map((room) =>
-            Number(room.RoomID) === Number(updatedRoom.RoomID) ? { ...room, ...updatedRoom } : room,
+            Number(room.RoomID) === roomIdNum ? { ...room, ...updatedRoom } : room,
           );
         });
 
-        // Do not re-fetch full room list here; update local state only to avoid UI reset
+        // Only refresh full list when a new room appears (exists === false)
+        if (!exists) {
+          try { fetchRoomsRef.current?.(); } catch (e) {}
+        }
       };
 
       // socket init + event binding
@@ -564,7 +621,7 @@ const AdminChatPage = () => {
 
         socketRef.current = null;
       };
-    }, [tryPlayAdminNotification]);
+    }, [tryPlayAdminNotification, normalizeMessage]);
 
     
 
@@ -572,8 +629,12 @@ const AdminChatPage = () => {
   // Khi danh sách message thay đổi thì auto scroll xuống cuối (trừ lúc đang prepend tin cũ)
   useEffect(() => {
     if (skipAutoScrollRef.current) return;
-    if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    const container = messagesContainerRef.current;
+    const nearBottom = container
+      ? container.scrollHeight - container.scrollTop - container.clientHeight <= 120
+      : true;
+    if (nearBottom && container) {
+      container.scrollTop = container.scrollHeight;
     }
   }, [messages]);
 
@@ -607,6 +668,7 @@ const AdminChatPage = () => {
 
     // Keep track that client cleared this room's unread state
     try { clearedRoomsRef.current.add(nextRoomId); } catch (e) {}
+    try { recentNotifyIdsRef.current.delete(nextRoomId); } catch (e) {}
 
     // Ưu tiên dữ liệu đã có trong RAM để quay lại room là hiện ngay, không bị trống.
     const cachedRoom = ChatCache.getRoomCache(nextRoomId);
@@ -651,6 +713,20 @@ const AdminChatPage = () => {
       setConnectionStatus(error?.message || "Không thể tải tin nhắn.");
     }
   };
+
+  // Expose selectRoom via ref so external components (header) can instruct page to open a room
+  selectRoomRef.current = selectRoom;
+
+  useEffect(() => {
+    const handleOpenRoom = (event) => {
+      const room = event?.detail;
+      if (!room?.RoomID) return;
+      selectRoomRef.current?.(room);
+    };
+
+    window.addEventListener("admin-open-room", handleOpenRoom);
+    return () => window.removeEventListener("admin-open-room", handleOpenRoom);
+  }, []);
 
   // Tải thêm tin nhắn cũ khi cuộn lên đầu khung chat
   const loadOlderMessages = () => {

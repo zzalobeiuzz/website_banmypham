@@ -460,6 +460,7 @@
   &__message {
     display: flex;
     position: relative;
+    width: 100%;
 
     &.admin {
       justify-content: flex-end;
@@ -468,6 +469,19 @@
     &.user {
       justify-content: flex-start;
     }
+  }
+
+  /* Ensure preview aligns with sender side */
+  .admin-chat-page__message.user .admin-chat-page__message-preview {
+    align-self: flex-start;
+    justify-content: flex-start;
+    padding-left: 12px;
+  }
+
+  .admin-chat-page__message.admin .admin-chat-page__message-preview {
+    align-self: flex-end;
+    justify-content: flex-end;
+    padding-right: 12px;
   }
 
   /* Action ellipsis shown on hover; inline next to the bubble so it follows bubble width */
@@ -508,7 +522,9 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    max-width: 82%;
+    /* limit bubble width: percent with pixel cap */
+    max-width: min(68%, 420px);
+    max-width: 420px; /* fallback for older browsers */
     padding: 10px 12px;
     border: none;
     border-radius: 14px;
@@ -516,6 +532,7 @@
     line-height: 1.5;
     white-space: pre-wrap;
     word-break: break-word;
+    overflow-wrap: anywhere;
     box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
     background: #fff;
     color: #0f172a;
@@ -530,7 +547,7 @@
     align-items: center;
     padding: 6px 8px;
     gap: 8px;
-    max-width: 360px;
+    max-width: 220px;
     margin: 6px 0 0 0;
   }
 
@@ -541,13 +558,14 @@
     background: #fff;
     border: 1px solid #e6eef9;
     border-radius: 10px;
-    padding: 6px;
+    padding: 6px 6px;
     box-shadow: 0 6px 18px rgba(15,23,42,0.04);
+    max-width: 180px;
   }
 
   &__preview-thumb {
-    flex: 0 0 72px;
-    height: 54px;
+    flex: 0 0 40px;
+    height: 40px;
     overflow: hidden;
     border-radius: 8px;
 
@@ -594,7 +612,9 @@
     text-overflow: ellipsis;
   }
 
-  &__message.admin &__message-bubble {
+
+  /* Make incoming (user/customer) messages blue for admin view */
+  &__message.user &__message-bubble {
     background: #2563eb;
     color: #fff;
     border-color: transparent;
@@ -615,11 +635,11 @@
   }
 
   &__message.user &__message-time {
-    color: #475569;
+    color: rgba(255, 255, 255, 0.9);
   }
 
   &__message.admin &__message-time {
-    color: rgba(255, 255, 255, 0.9);
+    color: #475569;
   }
 
   &__composer {
@@ -653,6 +673,36 @@
       min-height: 46px;
       box-shadow: none;
     }
+  }
+
+  /* Strong overrides to ensure admin view shows incoming user messages blue
+     and admin messages white. These rules are placed at the end to increase
+     specificity and use !important where necessary to override compiled CSS. */
+  .admin-chat-page__message.user .admin-chat-page__message-bubble {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .admin-chat-page__message.admin .admin-chat-page__message-bubble {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #dbe4f0 !important;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04) !important;
+  }
+
+  /* Ensure preview cards align with sender side */
+  .admin-chat-page__message.user .admin-chat-page__message-preview {
+    align-self: flex-start !important;
+    justify-content: flex-start !important;
+    padding-left: 12px !important;
+  }
+
+  .admin-chat-page__message.admin .admin-chat-page__message-preview {
+    align-self: flex-end !important;
+    justify-content: flex-end !important;
+    padding-right: 12px !important;
   }
 
   &__empty {

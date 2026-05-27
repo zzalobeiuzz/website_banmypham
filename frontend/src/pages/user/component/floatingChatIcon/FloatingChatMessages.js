@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import FloatingChatMessageItem from './FloatingChatMessageItem';
 
 // Danh sách tin nhắn của chat nổi.
@@ -20,15 +20,48 @@ export default function FloatingChatMessages(props) {
     currentUserAvatar,
     onDeleteMessage,
     formatMessageTime,
+    onJumpVisibilityChange,
   } = props;
+  const { invertRoles = false } = props;
 
   const resolveFirstUrl = (text) => {
     const match = String(text || '').match(/https?:\/\/[^\s<>"]+/i);
     return match ? match[0] : '';
   };
 
+  const syncJumpButtonState = useCallback(() => {
+    const container = messagesContainerRef?.current;
+    if (!container) {
+      onJumpVisibilityChange?.(false);
+      return;
+    }
+
+    const nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 120;
+    onJumpVisibilityChange?.(!nearBottom);
+  }, [messagesContainerRef, onJumpVisibilityChange]);
+
+  useEffect(() => {
+    syncJumpButtonState();
+  }, [messages, loadingOlder, syncJumpButtonState]);
+
+  const handleScroll = (event) => {
+    handleMessagesScroll?.(event);
+    syncJumpButtonState();
+  };
+
+  const scrollToLatest = () => {
+    const container = messagesContainerRef?.current;
+    if (container) {
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+    }
+    if (messagesEndRef?.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+    onJumpVisibilityChange?.(false);
+  };
+
   return (
-    <div className="floating-chat-panel__messages" ref={messagesContainerRef} onScroll={handleMessagesScroll}>
+    <div className="floating-chat-panel__messages" ref={messagesContainerRef} onScroll={handleScroll}>
       <div ref={topSentinelRef} className="floating-chat-panel__top-sentinel" aria-hidden />
       {loadingOlder && (
         <div className="floating-chat-panel__loading-older">Đang tải...</div>
@@ -42,6 +75,7 @@ export default function FloatingChatMessages(props) {
           <FloatingChatMessageItem
             key={message.id}
             message={message}
+            invertRoles={invertRoles}
             isOnlyLink={isOnlyLink}
             messagePreview={messagePreview}
             renderPreviewCard={renderPreviewCard}

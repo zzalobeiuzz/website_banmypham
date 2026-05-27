@@ -97,7 +97,18 @@ const MessageList = ({
         const isOnlyLink = previewUrl && message.text && message.text.trim() === previewUrl;
 
         return (
-          <div key={key} className={`admin-chat-page__message ${message.senderId === currentUserId ? "admin" : "user"}`}>
+          <div
+            key={key}
+            className={`admin-chat-page__message ${
+              typeof message.isAdminSender === "boolean"
+                ? message.isAdminSender
+                  ? "admin"
+                  : "user"
+                : message.senderId === currentUserId
+                ? "admin"
+                : "user"
+            }`}
+          >
             {/* If message is just a URL and we have a preview, render only the preview card */}
             {preview && isOnlyLink ? (
               <div className="admin-chat-page__message-preview">{renderPreviewCard(preview)}</div>

@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
 import "./theme.scss";
 import { UPLOAD_BASE } from "../../../constants";
-import AdminMiniChatPopup from "./AdminMiniChatPopup";
 
 const navItems = [
   { icon: "icons8-menu-50.png", label: "Tất cả", className: "mega_menu" },
@@ -44,15 +42,11 @@ const formatRelativeTime = (value) => {
   }).format(date);
 };
 
-const Header = ({ chatBadgeCount = 0, chatRooms = [], onOpenMiniChatRoom }) => {
+const Header = ({ chatBadgeCount = 0, chatRooms = [], preferredMiniChatRoom = null, onOpenMiniChatRoom = () => {}, onOpenDefaultMiniChat = () => {} }) => {
   const [isActive, setIsActive] = useState(false);
   const [openMenu, setOpenMenu] = useState("");
   const [chatQuery, setChatQuery] = useState("");
   const [chatTab, setChatTab] = useState("all");
-  const [miniChatRooms, setMiniChatRooms] = useState([]);
-  const navigate = useNavigate();
-  const location = useLocation();
-  const isAdminChatPage = location.pathname.startsWith("/admin/chat");
 
   const toggleSearch = () => {
     setIsActive((prev) => !prev);
@@ -99,31 +93,6 @@ const Header = ({ chatBadgeCount = 0, chatRooms = [], onOpenMiniChatRoom }) => {
 
     return () => window.removeEventListener("click", handleClickOutside);
   }, []);
-
-  const openMiniChatRoom = (room) => {
-    if (!room?.RoomID) return;
-
-    setOpenMenu("");
-
-    if (isAdminChatPage) {
-      window.dispatchEvent(new CustomEvent("admin-open-room", { detail: room }));
-      return;
-    }
-
-    setMiniChatRooms((prev) => {
-      // bring existing room to front if already open
-      const exists = prev.find((r) => String(r?.RoomID) === String(room.RoomID));
-      let next = prev.filter((r) => String(r?.RoomID) !== String(room.RoomID));
-      next.unshift(room);
-      // limit to 3
-      if (next.length > 3) next = next.slice(0, 3);
-      return next;
-    });
-  };
-
-  const closeMiniChatRoom = (roomId) => {
-    setMiniChatRooms((prev) => prev.filter((r) => String(r?.RoomID) !== String(roomId)));
-  };
 
   return (
     <header>
@@ -177,48 +146,52 @@ const Header = ({ chatBadgeCount = 0, chatRooms = [], onOpenMiniChatRoom }) => {
               return (
                 <li key={i} className="nav-item-wrapper">
 {className === "chat" ? (
-                    <div className="chat-nav-group" onClick={(e) => e.stopPropagation()}>
-                      <div
-                        className="chat-nav-group__main"
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => {
-                          setOpenMenu("");
-                          navigate("/admin/chat");
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            setOpenMenu("");
-                            navigate("/admin/chat");
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: "6px" }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                  <button
+                    className={className}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenMenu("");
+                          if (preferredMiniChatRoom) {
+                            onOpenMiniChatRoom(preferredMiniChatRoom);
+                          } else {
+                            onOpenDefaultMiniChat();
                           }
                         }}
                       >
                         <img src={`${UPLOAD_BASE}/icons/${icon}`} alt={label} loading="lazy" />
-                        <span className="chat-nav-group__label">{label}</span>
-                        <img
-                          src={`${UPLOAD_BASE}/icons/icons-arrow-down.png`}
-                          alt="arrow"
-                          className="arrow-down"
-                          loading="lazy"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOpenMenu((prev) => (prev === "chat" ? "" : "chat"));
-                          }}
-                        />
                         {Number(chatBadgeCount || 0) > 0 && (
                           <span className="nav-badge">{chatBadgeCount > 99 ? "99+" : chatBadgeCount}</span>
                         )}
-                      </div>
+                        {label}
+                      </button>
+
+                      <button
+                        type="button"
+                        className="chat-dropdown-toggle"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenMenu((prev) => (prev === "chat" ? "" : "chat"));
+                        }}
+                        aria-label="Mở danh sách phòng chat mini"
+                      >
+                        <img src={`${UPLOAD_BASE}/icons/icons-arrow-down.png`} alt="arrow" className="arrow-down" loading="lazy" />
+                      </button>
 
                       {openMenu === "chat" && (
                         <div className="chat-dropdown" onClick={(e) => e.stopPropagation()}>
                           <div className="chat-dropdown__header-row">
                             <div className="chat-dropdown__title-block">
-                              <div className="chat-dropdown__heading">Đoạn chat</div>
+                              <div className="chat-dropdown__title">Đoạn chat</div>
+                              <div className="chat-dropdown__subtitle">Danh sách phòng chat gần nhất</div>
                             </div>
                             <div className="chat-dropdown__header-actions">
                               <button type="button" className="chat-dropdown__icon-btn" aria-label="Tùy chọn">⋯</button>
+                              <button type="button" className="chat-dropdown__icon-btn" aria-label="Phóng to">⤢</button>
                               <button
                                 type="button"
                                 className="chat-dropdown__icon-btn"
@@ -236,7 +209,7 @@ const Header = ({ chatBadgeCount = 0, chatRooms = [], onOpenMiniChatRoom }) => {
                               type="text"
                               value={chatQuery}
                               onChange={(e) => setChatQuery(e.target.value)}
-                              placeholder="Tìm kiếm tin nhắn"
+                              placeholder="Tìm kiếm tin nhăn"
                             />
                           </div>
 
@@ -244,6 +217,7 @@ const Header = ({ chatBadgeCount = 0, chatRooms = [], onOpenMiniChatRoom }) => {
                             {[
                               { key: "all", label: "Tất cả" },
                               { key: "unread", label: "Chưa đọc" },
+                              { key: "group", label: "Nhóm" },
                             ].map((tab) => (
                               <button
                                 key={tab.key}
@@ -271,10 +245,8 @@ const Header = ({ chatBadgeCount = 0, chatRooms = [], onOpenMiniChatRoom }) => {
                                   type="button"
                                   className={`chat-dropdown__item${unread > 0 ? " is-unread" : ""}`}
                                   onClick={() => {
-                                    if (typeof onOpenMiniChatRoom === "function") {
-                                      onOpenMiniChatRoom(room);
-                                    }
-                                    openMiniChatRoom(room);
+                                    setOpenMenu("");
+                                    onOpenMiniChatRoom(room);
                                   }}
                                 >
                                   <img className="chat-dropdown__avatar" src={resolveRoomAvatar(room)} alt={resolveRoomTitle(room)} />
@@ -328,10 +300,8 @@ const Header = ({ chatBadgeCount = 0, chatRooms = [], onOpenMiniChatRoom }) => {
                             type="button"
                             className="notification-dropdown__item"
                             onClick={() => {
-                              if (typeof onOpenMiniChatRoom === "function") {
-                                onOpenMiniChatRoom(room);
-                              }
-                              openMiniChatRoom(room);
+                              setOpenMenu("");
+                              onOpenMiniChatRoom(room);
                             }}
                           >
                             <span className="notification-dropdown__title">{room.RoomTitle}</span>
@@ -361,15 +331,6 @@ const Header = ({ chatBadgeCount = 0, chatRooms = [], onOpenMiniChatRoom }) => {
           </button>
           <span className="name_admin">{user?.name || "Admin"}</span>
         </div>
-
-        {miniChatRooms.map((r, idx) => (
-          <AdminMiniChatPopup
-            key={r.RoomID}
-            room={r}
-            offsetIndex={idx}
-            onClose={() => closeMiniChatRoom(r.RoomID)}
-          />
-        ))}
       </div>
     </header>
   );

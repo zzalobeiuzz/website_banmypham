@@ -85,6 +85,7 @@ const FloatingChatIcon = ({
   const [connectionStatus, setConnectionStatus] = useState("offline"); // Trạng thái kết nối
   const [isConnecting, setIsConnecting] = useState(false);// Đang kết nối socket
   const [selectedMessageId, setSelectedMessageId] = useState(null);
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   // Lưu preview cho ô nhập và cache preview của các URL đã tải
   const [draftPreview, setDraftPreview] = useState(null);
@@ -758,7 +759,13 @@ const FloatingChatIcon = ({
         return;
       }
 
-      if (messagesEndRef.current && isOpen) {
+      // Only auto-scroll when user is already at (or near) the bottom.
+      const container = messagesContainerRef.current;
+      const nearBottom = container
+        ? container.scrollHeight - container.scrollTop - container.clientHeight <= 120
+        : true;
+
+      if (nearBottom && messagesEndRef.current && isOpen) {
         messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
       }
     } catch (e) {}
@@ -1089,7 +1096,31 @@ const FloatingChatIcon = ({
             currentUserAvatar={user?.avatar}
             onDeleteMessage={handleDeleteMessage}
             formatMessageTime={formatMessageTime}
+            onJumpVisibilityChange={setShowJumpToLatest}
           />
+
+          {showJumpToLatest && (
+            <button
+              type="button"
+              className="floating-chat-panel__jump-to-latest"
+              onClick={() => {
+                const container = messagesContainerRef.current;
+                if (container) {
+                  container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+                }
+                if (messagesEndRef.current) {
+                  messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+                }
+                setShowJumpToLatest(false);
+              }}
+              aria-label="Cuộn tới tin nhắn mới nhất"
+              title="Tới tin nhắn mới nhất"
+            >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M12 5v12M7 12l5 5 5-5" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+            </button>
+          )}
 
           {draftPreview && (
             <div className="floating-chat-panel__draft-preview">
