@@ -1,5 +1,7 @@
 import React from "react";
 
+// Cột trái hiển thị danh sách phòng chat, avatar, preview và badge chưa đọc.
+
 // Danh sách phòng chat ở cột trái (avatar, tên, preview, badge unread)
 const RoomList = ({
   rooms,

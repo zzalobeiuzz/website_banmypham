@@ -6,6 +6,8 @@ const {
 } = require("./chat.service");
 const { getLinkPreview } = require("./linkPreview.service");
 
+// Controller của chat: nhận các request HTTP liên quan đến chat (lấy phòng, tin nhắn, đánh dấu đã xem, preview link)
+
 async function getMySupportRoom(req, res) {
 	try {
 		const data = await getSupportRoomForUser({ user: req.user });

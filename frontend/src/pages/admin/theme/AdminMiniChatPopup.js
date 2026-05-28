@@ -7,6 +7,8 @@ import FloatingChatMessages from "../../user/component/floatingChatIcon/Floating
 import FloatingChatComposer from "../../user/component/floatingChatIcon/FloatingChatComposer";
 import "./AdminMiniChatPopup.scss";
 
+// Popup chat mini của admin: tái dùng UI chat nổi nhưng thêm logic ghim, thu nhỏ và xem lại room.
+
 const resolveChatUserId = (value) => String(value || "").trim().toLowerCase();
 
 const resolveRoomTitle = (room) => {
@@ -51,19 +53,39 @@ const formatMessageTime = (value) => {
 };
 
 const mergeUniqueMessages = (nextMessages) => {
-  const seen = new Set();
-
-  return nextMessages.filter((message) => {
+  // Deduplicate by message id and sort by createdAt ascending (oldest first)
+  const map = new Map();
+  for (const message of Array.isArray(nextMessages) ? nextMessages : []) {
     const key = String(message?.id || "");
-    if (!key || seen.has(key)) return false;
-    seen.add(key);
-    return true;
+    if (!key) continue;
+    const existing = map.get(key);
+    if (!existing) {
+      map.set(key, message);
+      continue;
+    }
+
+    // prefer the message with the newer timestamp when duplicate ids appear
+    try {
+      const existingTime = existing?.createdAt ? new Date(existing.createdAt).getTime() : 0;
+      const incomingTime = message?.createdAt ? new Date(message.createdAt).getTime() : 0;
+      if (incomingTime >= existingTime) map.set(key, message);
+    } catch (e) {
+      // fallback: keep existing
+    }
+  }
+
+  const out = Array.from(map.values()).sort((a, b) => {
+    const ta = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const tb = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return ta - tb;
   });
+
+  return out;
 };
 
 
 
-const AdminMiniChatPopup = ({ room, onClose = () => {}, offsetIndex = 0 }) => {
+const AdminMiniChatPopup = ({ room, onClose = () => {}, onActivate = () => {}, onMinimize = () => {}, offsetIndex = 0 }) => {
   const [messages, setMessages] = useState([]);
   const [draftMessage, setDraftMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -78,6 +100,7 @@ const AdminMiniChatPopup = ({ room, onClose = () => {}, offsetIndex = 0 }) => {
   const messagesContainerRef = useRef(null);
   const messageEndRef = useRef(null);
   const topSentinelRef = useRef(null);
+  const pendingScrollToLatestRef = useRef(false);
   const minimizeTimerRef = useRef(null);
   const expandTimerRef = useRef(null);
 
@@ -157,8 +180,25 @@ const AdminMiniChatPopup = ({ room, onClose = () => {}, offsetIndex = 0 }) => {
     if (!roomId) return;
 
     const cachedRoom = ChatCache.getRoomCache(roomId);
-    if (cachedRoom?.messages) {
-      syncMessages(cachedRoom.messages, false);
+    const shouldBypassCache = Boolean(room?.__forceReload);
+    if (cachedRoom?.messages && !shouldBypassCache) {
+      // If we have a seeded latest message, merge it so popup shows newest message
+      if (room?.__latestMessage) {
+        try {
+          const seeded = normalizeMessage(room.__latestMessage);
+          const seededWithRole = { ...seeded, role: seeded.isAdminSender ? "user" : "agent" };
+          const merged = mergeUniqueMessages([...(Array.isArray(cachedRoom.messages) ? cachedRoom.messages : []), seededWithRole]);
+          syncMessages(merged, false);
+          pendingScrollToLatestRef.current = true;
+        } catch (e) {
+          syncMessages(cachedRoom.messages, false);
+        }
+      } else {
+        syncMessages(cachedRoom.messages, false);
+        // Khi dùng cache (mở popup từ cache), ép scroll xuống tin mới nhất
+        try { pendingScrollToLatestRef.current = true; } catch (e) {}
+      }
+
       setLoading(false);
       setStatus("");
       return;
@@ -168,9 +208,9 @@ const AdminMiniChatPopup = ({ room, onClose = () => {}, offsetIndex = 0 }) => {
     setStatus("Đang tải tin nhắn...");
 
     const socket = window.__adminSocket__ || null;
-    const requestFromApi = async () => {
+    const requestFromApi = async (limit = 100) => {
       const token = localStorage.getItem("accessToken") || "";
-      const response = await fetch(`${API_BASE}/api/chat/rooms/${roomId}/messages`, {
+      const response = await fetch(`${API_BASE}/api/chat/rooms/${roomId}/messages?limit=${limit}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -183,14 +223,32 @@ const AdminMiniChatPopup = ({ room, onClose = () => {}, offsetIndex = 0 }) => {
     };
 
     try {
+      const fetchLimit = shouldBypassCache ? 1000 : 100;
       if (socket && socket.connected) {
-        socket.emit("chat:join", { roomId }, async (ack) => {
+        socket.emit("chat:join", { roomId, limit: fetchLimit }, async (ack) => {
           try {
             if (ack?.success && Array.isArray(ack?.messages)) {
               syncMessages(ack.messages, true);
+              // merge seeded latest message after join if provided
+              if (room?.__latestMessage) {
+                try {
+                  const nm = normalizeMessage(room.__latestMessage);
+                  const withRole = { ...nm, role: nm.isAdminSender ? "user" : "agent" };
+                  setMessages((prev) => mergeUniqueMessages([...(Array.isArray(prev) ? prev : []), withRole]));
+                  pendingScrollToLatestRef.current = true;
+                } catch (e) {}
+              }
             } else {
-              const fallbackMessages = await requestFromApi();
+              const fallbackMessages = await requestFromApi(fetchLimit);
               syncMessages(fallbackMessages, true);
+              if (room?.__latestMessage) {
+                try {
+                  const nm = normalizeMessage(room.__latestMessage);
+                  const withRole = { ...nm, role: nm.isAdminSender ? "user" : "agent" };
+                  setMessages((prev) => mergeUniqueMessages([...(Array.isArray(prev) ? prev : []), withRole]));
+                  pendingScrollToLatestRef.current = true;
+                } catch (e) {}
+              }
             }
 
             setStatus("");
@@ -209,7 +267,7 @@ const AdminMiniChatPopup = ({ room, onClose = () => {}, offsetIndex = 0 }) => {
         return;
       }
 
-      const fallbackMessages = await requestFromApi();
+      const fallbackMessages = await requestFromApi(shouldBypassCache ? 1000 : 100);
       syncMessages(fallbackMessages, true);
       setStatus("");
       try {
@@ -221,8 +279,9 @@ const AdminMiniChatPopup = ({ room, onClose = () => {}, offsetIndex = 0 }) => {
       setStatus(error?.message || "Không thể tải tin nhắn.");
     } finally {
       setLoading(false);
+      if (shouldBypassCache) pendingScrollToLatestRef.current = true;
     }
-  }, [roomId, syncMessages]);
+  }, [roomId, syncMessages, normalizeMessage, room?.__forceReload, room?.__latestMessage]);
 
   useEffect(() => {
     loadMessages();
@@ -232,6 +291,19 @@ const AdminMiniChatPopup = ({ room, onClose = () => {}, offsetIndex = 0 }) => {
     setIsAnimatingCollapse(false);
     setIsAnimatingExpand(false);
   }, [loadMessages]);
+
+  // If this popup was auto-opened with a latest message and we have no messages yet,
+  // seed the UI immediately so user sees the newest text before full load completes.
+  useEffect(() => {
+    try {
+      if (Array.isArray(messages) && messages.length === 0 && room?.__latestMessage) {
+        const nm = normalizeMessage(room.__latestMessage);
+        const withRole = { ...nm, role: nm.isAdminSender ? "user" : "agent" };
+        setMessages([withRole]);
+        pendingScrollToLatestRef.current = true;
+      }
+    } catch (e) {}
+  }, [room?.__latestMessage, messages, normalizeMessage]);
 
   useEffect(() => {
     return () => {
@@ -250,16 +322,31 @@ const AdminMiniChatPopup = ({ room, onClose = () => {}, offsetIndex = 0 }) => {
 
       const nm = normalizeMessage(payload);
       const withRole = { ...nm, role: nm.isAdminSender ? "user" : "agent" };
-      setMessages((prev) => mergeUniqueMessages([...prev, withRole]));
+      setMessages((prev) => {
+        const merged = mergeUniqueMessages([...(Array.isArray(prev) ? prev : []), withRole]);
+        // play sound for incoming messages if this popup allows sound and message is from user
+        try {
+          if (!nm.isAdminSender && !soundMuted && !window.__disableAdminSounds__ && typeof window.__adminPlaySound__ === 'function') {
+            window.__adminPlaySound__();
+          }
+        } catch (e) {}
+        return merged;
+      });
     };
 
     socket.on("chat:message", handleChatMessage);
     return () => socket.off("chat:message", handleChatMessage);
-  }, [roomId, currentUserId, normalizeMessage]);
+  }, [roomId, currentUserId, normalizeMessage, soundMuted]);
 
   useEffect(() => {
     const container = messagesContainerRef.current;
+    const shouldForce = pendingScrollToLatestRef.current;
     const nearBottom = container ? container.scrollHeight - container.scrollTop - container.clientHeight <= 120 : true;
+    if (shouldForce && container) {
+      try { container.scrollTop = container.scrollHeight; } catch (e) {}
+      pendingScrollToLatestRef.current = false;
+      return;
+    }
     if (nearBottom && container) {
       container.scrollTop = container.scrollHeight;
     }
@@ -433,6 +520,34 @@ const AdminMiniChatPopup = ({ room, onClose = () => {}, offsetIndex = 0 }) => {
     } catch (e) {}
   }, [isMinimized, offsetIndex, roomId, roomTitle]);
 
+  // Sync internal minimized state with room prop (header may change __isMinimized)
+  useEffect(() => {
+    try {
+      const propMin = Boolean(room?.__isMinimized);
+      if (propMin && !isMinimized) {
+        // immediately reflect minimized state
+        if (minimizeTimerRef.current) clearTimeout(minimizeTimerRef.current);
+        setIsAnimatingCollapse(false);
+        setIsAnimatingExpand(false);
+        setIsMinimized(true);
+      } else if (!propMin && isMinimized) {
+        if (expandTimerRef.current) clearTimeout(expandTimerRef.current);
+        setIsAnimatingCollapse(false);
+        setIsAnimatingExpand(false);
+        setIsMinimized(false);
+      }
+    } catch (e) {}
+  }, [room?.__isMinimized, isMinimized]);
+
+  // Khi popup được phục hồi từ thu nhỏ, đảm bảo cuộn tới tin mới nhất
+  useEffect(() => {
+    try {
+      if (!isMinimized) {
+        pendingScrollToLatestRef.current = true;
+      }
+    } catch (e) {}
+  }, [isMinimized]);
+
   if (!room) return null;
 
   // compute position for either expanded panels (horizontal) or minimized avatars (vertical)
@@ -441,6 +556,11 @@ const AdminMiniChatPopup = ({ room, onClose = () => {}, offsetIndex = 0 }) => {
   const handleMinimize = () => {
     if (isMinimized || isAnimatingCollapse) return;
     if (minimizeTimerRef.current) clearTimeout(minimizeTimerRef.current);
+    // notify parent immediately so header can reindex rooms into avatar stack
+    try {
+      onMinimize(room);
+    } catch (e) {}
+
     setIsAnimatingCollapse(true);
     minimizeTimerRef.current = setTimeout(() => {
       setIsMinimized(true);
@@ -448,9 +568,14 @@ const AdminMiniChatPopup = ({ room, onClose = () => {}, offsetIndex = 0 }) => {
     }, 180);
   };
 
+  
+
   const handleRestore = () => {
     if (!isMinimized || isAnimatingExpand) return;
     if (expandTimerRef.current) clearTimeout(expandTimerRef.current);
+    try {
+      onActivate(room);
+    } catch (e) {}
     setIsMinimized(false);
     setIsAnimatingExpand(true);
     expandTimerRef.current = setTimeout(() => {

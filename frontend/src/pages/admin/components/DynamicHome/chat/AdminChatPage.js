@@ -7,6 +7,8 @@ import ConversationPanel from "./components/ConversationPanel";
 import ChatCache from "./cache";
 import "./admin-chat.scss";
 
+// Trang chat quản trị: quản lý danh sách phòng, nội dung hội thoại và tương tác realtime.
+
 const SOCKET_URL = String(process.env.REACT_APP_SOCKET_URL || API_BASE || window.location.origin).replace(/\/$/, "");
 
 // Chuẩn hóa ID user để so sánh sender nhất quán
@@ -125,6 +127,8 @@ const AdminChatPage = () => {
   const adminSettingsRef = useRef(null);
 
   const initAdminAudio = useCallback(() => {
+    // skip admin audio entirely when admin sounds are disabled
+    if (window.__disableAdminSounds__) return;
     if (adminAudioRef.current) return;
     try {
       const src = (API_BASE || "").replace(/\/$/, "") + '/uploads/assets/sounds/notification.mp3';
@@ -134,7 +138,15 @@ const AdminChatPage = () => {
     } catch (e) {}
   }, [adminSoundMuted]);
 
-  const tryPlayAdminNotification = useCallback(() => {
+  const tryPlayAdminNotification = useCallback((payload) => {
+    try {
+      if (typeof window.__adminPlaySound__ === "function") {
+        window.__adminPlaySound__(payload);
+        return;
+      }
+    } catch (e) {}
+
+    if (window.__disableAdminSounds__) return;
     if (adminSoundMuted) return;
     if (!adminAudioRef.current) {
       initAdminAudio();
@@ -150,30 +162,10 @@ const AdminChatPage = () => {
   // Init audio right away so admins can receive sounds without opening any room.
   useEffect(() => {
     try {
-      initAdminAudio();
-      const a = adminAudioRef.current;
-      if (a && !adminSoundMuted) {
-        a.muted = true;
-        a.play()
-          .then(() => {
-            try { a.pause(); } catch (e) {}
-            a.muted = adminSoundMuted;
-          })
-          .catch(() => {
-            try { a.muted = adminSoundMuted; } catch (e) {}
-          });
-      }
-    } catch (e) {}
-  }, [initAdminAudio, adminSoundMuted]);
-
-  // Warm up audio on first user interaction so browsers allow future play()
-  useEffect(() => {
-    const warm = () => {
-      try {
+      if (!window.__disableAdminSounds__) {
         initAdminAudio();
         const a = adminAudioRef.current;
-        if (a) {
-          // Play muted briefly to satisfy autoplay policies
+        if (a && !adminSoundMuted) {
           a.muted = true;
           a.play()
             .then(() => {
@@ -183,6 +175,30 @@ const AdminChatPage = () => {
             .catch(() => {
               try { a.muted = adminSoundMuted; } catch (e) {}
             });
+        }
+      }
+    } catch (e) {}
+  }, [initAdminAudio, adminSoundMuted]);
+
+  // Warm up audio on first user interaction so browsers allow future play()
+  useEffect(() => {
+    const warm = () => {
+      try {
+        if (!window.__disableAdminSounds__) {
+          initAdminAudio();
+          const a = adminAudioRef.current;
+          if (a) {
+            // Play muted briefly to satisfy autoplay policies
+            a.muted = true;
+            a.play()
+              .then(() => {
+                try { a.pause(); } catch (e) {}
+                a.muted = adminSoundMuted;
+              })
+              .catch(() => {
+                try { a.muted = adminSoundMuted; } catch (e) {}
+              });
+          }
         }
       } catch (e) {}
 
@@ -477,13 +493,7 @@ const AdminChatPage = () => {
           return;
         }
 
-        // Play notification for incoming customer messages when not focused on that room or tab
-        try {
-          const isSelected = roomId === Number(selectedRoomIdRef.current || 0);
-          if (!isSelected || document.visibilityState !== 'visible') {
-            tryPlayAdminNotification();
-          }
-        } catch (e) {}
+        // Keep sound handling on the global admin-notify path to avoid duplicate playback.
 
         // Do not re-fetch full room list here; update local state only to avoid UI reset
       };
@@ -492,48 +502,49 @@ const AdminChatPage = () => {
       const handleAdminNotify = (payload) => {
         const roomId = Number(payload?.RoomID || payload?.room?.RoomID || 0);
         const senderRole = Number(payload?.senderRole || payload?.SenderRole || 0);
+        const openPopupCount = Number(window.__adminMiniChatOpenCount || 0);
+        const isSelectedRoom = roomId === Number(selectedRoomIdRef.current || 0);
+
+        if (isSelectedRoom && openPopupCount < 3) {
+          return;
+        }
 
         if (!roomId || senderRole === 1) return;
 
         mergeRoomFromMessage(roomId, payload, roomId === Number(selectedRoomIdRef.current || 0));
 
-        // Increase unread count when the room is not currently selected
-        if (roomId !== Number(selectedRoomIdRef.current || 0)) {
-          // Dedupe by message id so duplicate notifications do not increment multiple times
-          const msgKey = String(payload?.MessageID || payload?.id || payload?.MessageGUID || `${roomId}_${payload?.CreatedAt || payload?.createdAt || Date.now()}`);
-          try {
-            const map = recentNotifyIdsRef.current;
-            let set = map.get(roomId);
-            if (!set) {
-              set = new Set();
-              map.set(roomId, set);
-            }
-            if (set.has(msgKey)) return;
-            set.add(msgKey);
-            // auto-expire the id after 30s
-            setTimeout(() => {
-              try {
-                set.delete(msgKey);
-                if (set.size === 0) map.delete(roomId);
-              } catch (e) {}
-            }, 30000);
-          } catch (e) {}
-
-          // New notification should remove any client-cleared override for that room
-          try { clearedRoomsRef.current.delete(roomId); } catch (e) {}
-          setUnreadCounts((prev) => {
-            const key = String(roomId || "0");
-            const prevCount = Number(prev[key] || 0);
-            return { ...prev, [key]: prevCount + 1 };
-          });
-        }
-
-        // Play sound whenever the admin is not actively viewing that room
+        // Increase unread count even when the room is open so the badge is visible for testing
+        // and the notification button can be verified.
+        const msgKey = String(payload?.MessageID || payload?.id || payload?.MessageGUID || `${roomId}_${payload?.CreatedAt || payload?.createdAt || Date.now()}`);
         try {
-          const isSelected = roomId === Number(selectedRoomIdRef.current || 0);
-          if (!isSelected || document.visibilityState !== 'visible') {
-            tryPlayAdminNotification();
+          const map = recentNotifyIdsRef.current;
+          let set = map.get(roomId);
+          if (!set) {
+            set = new Set();
+            map.set(roomId, set);
           }
+          if (set.has(msgKey)) return;
+          set.add(msgKey);
+          // auto-expire the id after 30s
+          setTimeout(() => {
+            try {
+              set.delete(msgKey);
+              if (set.size === 0) map.delete(roomId);
+            } catch (e) {}
+          }, 30000);
+        } catch (e) {}
+
+        // New notification should remove any client-cleared override for that room
+        try { clearedRoomsRef.current.delete(roomId); } catch (e) {}
+        setUnreadCounts((prev) => {
+          const key = String(roomId || "0");
+          const prevCount = Number(prev[key] || 0);
+          return { ...prev, [key]: prevCount + 1 };
+        });
+
+        // Play sound for every incoming customer message
+        try {
+          tryPlayAdminNotification(payload);
         } catch (e) {}
 
         // Do not re-fetch full room list here; update local state only to avoid UI reset
@@ -630,13 +641,20 @@ const AdminChatPage = () => {
   useEffect(() => {
     if (skipAutoScrollRef.current) return;
     const container = messagesContainerRef.current;
+    if (!container) return;
+
+    if (showScrollToBottom) {
+      container.scrollTop = container.scrollHeight;
+      return;
+    }
+
     const nearBottom = container
       ? container.scrollHeight - container.scrollTop - container.clientHeight <= 120
       : true;
     if (nearBottom && container) {
       container.scrollTop = container.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, showScrollToBottom]);
 
   // Chọn phòng chat: reset unread cục bộ và join room qua socket
   const selectRoom = async (room) => {
@@ -665,6 +683,9 @@ const AdminChatPage = () => {
     setDraftMessage("");
     setShowScrollToBottom(false);
     setLoadingOlder(false);
+
+    // Force the viewport to the latest message when switching/opening a room
+    setShowScrollToBottom(true);
 
     // Keep track that client cleared this room's unread state
     try { clearedRoomsRef.current.add(nextRoomId); } catch (e) {}
@@ -701,6 +722,7 @@ const AdminChatPage = () => {
             try {
               if (messagesContainerRef.current) messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
             } catch (e) {}
+            try { setShowScrollToBottom(false); } catch (e) {}
           });
         }
 

@@ -1,6 +1,8 @@
 import React from "react";
 import MessageList from "./MessageList";
 
+// Khung hội thoại bên phải: header phòng, danh sách tin nhắn, nút cuộn và ô soạn tin.
+
 //Component chính vùng hội thoại bên phải, chứa header phòng chat, list message, nút scroll và composer nhập tin nhắn
 // Panel hội thoại bên phải: header phòng, list message, nút scroll, composer
 const ConversationPanel = ({

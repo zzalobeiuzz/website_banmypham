@@ -2,6 +2,8 @@
 import React, { useEffect, useState } from "react";
 import { API_BASE } from "../../../../../../constants";
 
+// Danh sách tin nhắn của phòng chat đang được chọn.
+
 const extractFirstUrl = (value) => {
   const text = String(value || "");
   const match = text.match(/https?:\/\/[^\s<>"]+/i);

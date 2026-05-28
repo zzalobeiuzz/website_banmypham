@@ -9,6 +9,9 @@ import FloatingChatComposer from "./FloatingChatComposer";
 import "./floatingChatIcon.scss";
 
 
+// Khung chat nổi của người dùng: mở phòng, tải tin nhắn, gửi tin và tự cuộn về tin mới nhất.
+
+
 //  ======================== SOCKET URL =================================   
 const SOCKET_URL = String(
    API_BASE || window.location.origin,
@@ -77,6 +80,7 @@ const FloatingChatIcon = ({
   const [messages, setMessages] = useState([]);
   const messagesContainerRef = useRef(null);
   const skipAutoScrollRef = useRef(false);
+  const pendingScrollToLatestRef = useRef(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [hasMoreOlder, setHasMoreOlder] = useState(true);
   const topSentinelRef = useRef(null);
@@ -101,11 +105,19 @@ const FloatingChatIcon = ({
   const initNotificationAudio = useCallback(() => {
     if (audioRef.current) return;
     try {
-      const src = (API_BASE || "").replace(/\/$/, "") + '/uploads/assets/sounds/notification.mp3';
-      audioRef.current = new Audio(src);
+      const base = (UPLOAD_BASE || "").replace(/\/$/, "");
+      audioRef.current = new Audio(`${base}/sounds/notification.mp3`);
       audioRef.current.preload = 'auto';
-      // keep muted until user explicitly enables sound
-      audioRef.current.muted = soundMuted;
+      // try to prime playback by playing muted then pausing
+      try {
+        audioRef.current.muted = true;
+        const p = audioRef.current.play();
+        if (p && typeof p.then === 'function') {
+          p.then(() => { try { audioRef.current.pause(); audioRef.current.currentTime = 0; audioRef.current.muted = soundMuted; } catch (e) {} }).catch(() => { try { audioRef.current.muted = soundMuted; } catch (e) {} });
+        } else {
+          try { audioRef.current.pause(); audioRef.current.currentTime = 0; audioRef.current.muted = soundMuted; } catch (e) { audioRef.current.muted = soundMuted; }
+        }
+      } catch (e) { try { audioRef.current.muted = soundMuted; } catch (e) {} }
     } catch (e) {
       // ignore
     }
@@ -113,13 +125,40 @@ const FloatingChatIcon = ({
 
   const tryPlayNotification = useCallback(() => {
     if (soundMuted) return;
+    if (!audioRef.current) initNotificationAudio();
     const a = audioRef.current;
     if (!a) return;
     try {
-      a.currentTime = 0;
-      a.play().catch(() => {});
+      console.debug('[floatingChat] trying play', a.src);
+      // ensure latest file fetched
+      try { a.src = (UPLOAD_BASE || "").replace(/\/$/, "") + '/sounds/notification.mp3?_=' + Date.now(); } catch (e) {}
+      try { a.muted = false; a.currentTime = 0; } catch (e) {}
+      const p = a.play();
+      if (p && typeof p.catch === 'function') {
+        p.catch(() => {
+          // oscillator fallback
+          try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+            const ctx = new AudioCtx();
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = 'sine'; o.frequency.value = 880; g.gain.value = 0.04;
+            o.connect(g); g.connect(ctx.destination); o.start();
+            setTimeout(() => { try { o.stop(); o.disconnect(); g.disconnect(); } catch (e) {} }, 180);
+          } catch (e) {}
+        });
+      }
     } catch (e) {}
-  }, [soundMuted]);
+  }, [initNotificationAudio, soundMuted]);
+
+  useEffect(() => {
+    return () => {
+      try {
+        if (audioRef.current && audioRef.current._resumeHandler) window.removeEventListener('click', audioRef.current._resumeHandler);
+      } catch (e) {}
+    };
+  }, []);
 
   /**
    * =========================================================
@@ -456,6 +495,8 @@ const FloatingChatIcon = ({
           setMessages(resolvedMessages);
           setHasMoreOlder(resolvedMessages.length >= limit);
         }
+        // if panel is open, ensure we scroll to latest after loading messages
+        if (isOpen) pendingScrollToLatestRef.current = true;
       } else {
         // seed a friendly message when there's no history
         setMessages([
@@ -728,6 +769,28 @@ const FloatingChatIcon = ({
     }
   }, [isOpen]);
 
+  // Whenever the room panel opens, force the view to the latest message after render.
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    pendingScrollToLatestRef.current = true;
+
+    const rafId = requestAnimationFrame(() => {
+      try {
+        const container = messagesContainerRef.current;
+        if (container) {
+          container.scrollTop = container.scrollHeight;
+        }
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({ behavior: "auto", block: "end" });
+        }
+      } catch (e) {}
+      pendingScrollToLatestRef.current = false;
+    });
+
+    return () => cancelAnimationFrame(rafId);
+  }, [isOpen, room?.RoomID]);
+
   useEffect(() => {
     if (!isOpen || !room?.RoomID || !socketRef.current) return;
 
@@ -759,8 +822,16 @@ const FloatingChatIcon = ({
         return;
       }
 
-      // Only auto-scroll when user is already at (or near) the bottom.
       const container = messagesContainerRef.current;
+
+      // If we explicitly requested a scroll-to-latest (e.g., when opening), do it regardless
+      if (pendingScrollToLatestRef.current && container && isOpen) {
+        try { container.scrollTop = container.scrollHeight; } catch (e) {}
+        pendingScrollToLatestRef.current = false;
+        return;
+      }
+
+      // Only auto-scroll when user is already at (or near) the bottom.
       const nearBottom = container
         ? container.scrollHeight - container.scrollTop - container.clientHeight <= 120
         : true;
@@ -837,6 +908,8 @@ const FloatingChatIcon = ({
                     setMessages(normalized);
                     setHasMoreOlder(normalized.length >= limit);
                   }
+                  // ensure we scroll to latest when opening
+                  pendingScrollToLatestRef.current = true;
                 }
               } catch (e) {}
             });

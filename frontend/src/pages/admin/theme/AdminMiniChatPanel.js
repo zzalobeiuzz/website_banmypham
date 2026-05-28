@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import "./theme.scss";
 import { UPLOAD_BASE } from "../../../constants";
 
+// Thanh menu chat của admin ở header: chọn phòng, mở popup và hiển thị badge chưa đọc.
+
 const navItems = [
   { icon: "icons8-menu-50.png", label: "Tất cả", className: "mega_menu" },
   { icon: "icons8-chat.gif", label: "Tin nhắn", className: "chat" },

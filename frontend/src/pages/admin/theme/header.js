@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import "./theme.scss";
 import { UPLOAD_BASE } from "../../../constants";
@@ -93,6 +93,55 @@ const Header = ({ chatBadgeCount = 0, chatRooms = [], onOpenMiniChatRoom }) => {
     });
   }, [chatQuery, chatTab, sortedRooms]);
 
+  const popupMiniChatRooms = useMemo(
+    () => miniChatRooms.filter((room) => !room?.__isMinimized),
+    [miniChatRooms],
+  );
+
+  const avatarMiniChatRooms = useMemo(
+    () => miniChatRooms.filter((room) => Boolean(room?.__isMinimized)),
+    [miniChatRooms],
+  );
+
+  useEffect(() => {
+    try {
+      window.__adminMiniChatOpenCount = popupMiniChatRooms.length;
+    } catch (e) {}
+
+    return () => {
+      try {
+        if (window.__adminMiniChatOpenCount === popupMiniChatRooms.length) {
+          delete window.__adminMiniChatOpenCount;
+        }
+      } catch (e) {}
+    };
+  }, [popupMiniChatRooms.length]);
+
+  const insertRoomIntoOpenStack = useCallback((prevRooms, room) => {
+    const nextRooms = prevRooms.filter((item) => String(item?.RoomID) !== String(room.RoomID));
+    const firstMinimizedIndex = nextRooms.findIndex((item) => Boolean(item?.__isMinimized));
+    const insertIndex = firstMinimizedIndex === -1 ? nextRooms.length : firstMinimizedIndex;
+
+    nextRooms.splice(insertIndex, 0, {
+      ...room,
+      __isMinimized: false,
+    });
+
+    return nextRooms.length > 3 ? nextRooms.slice(nextRooms.length - 3) : nextRooms;
+  }, []);
+
+  const moveRoomToMinimizedStack = useCallback((prevRooms, roomId) => {
+    const target = prevRooms.find((room) => String(room?.RoomID) === String(roomId));
+    if (!target) return prevRooms;
+
+    const nextRooms = prevRooms.filter((room) => String(room?.RoomID) !== String(roomId));
+    nextRooms.push({
+      ...target,
+      __isMinimized: true,
+    });
+    return nextRooms;
+  }, []);
+
   useEffect(() => {
     const handleClickOutside = () => setOpenMenu("");
     window.addEventListener("click", handleClickOutside);
@@ -100,7 +149,7 @@ const Header = ({ chatBadgeCount = 0, chatRooms = [], onOpenMiniChatRoom }) => {
     return () => window.removeEventListener("click", handleClickOutside);
   }, []);
 
-  const openMiniChatRoom = (room) => {
+  const openMiniChatRoom = useCallback((room) => {
     if (!room?.RoomID) return;
 
     setOpenMenu("");
@@ -111,15 +160,61 @@ const Header = ({ chatBadgeCount = 0, chatRooms = [], onOpenMiniChatRoom }) => {
     }
 
     setMiniChatRooms((prev) => {
-      // bring existing room to front if already open
-      const exists = prev.find((r) => String(r?.RoomID) === String(room.RoomID));
-      let next = prev.filter((r) => String(r?.RoomID) !== String(room.RoomID));
-      next.unshift(room);
-      // limit to 3
-      if (next.length > 3) next = next.slice(0, 3);
-      return next;
+      return insertRoomIntoOpenStack(prev, room);
     });
-  };
+  }, [isAdminChatPage, insertRoomIntoOpenStack]);
+
+  const bringMiniChatRoomToFront = useCallback((roomId) => {
+    setMiniChatRooms((prev) => {
+      const target = prev.find((room) => String(room?.RoomID) === String(roomId));
+      if (!target) return prev;
+
+      const nextRooms = prev.filter((room) => String(room?.RoomID) !== String(roomId));
+      const firstMinimizedIndex = nextRooms.findIndex((room) => Boolean(room?.__isMinimized));
+      const insertIndex = firstMinimizedIndex === -1 ? nextRooms.length : firstMinimizedIndex;
+
+      nextRooms.splice(insertIndex, 0, {
+        ...target,
+        __isMinimized: false,
+      });
+
+      return nextRooms;
+    });
+  }, []);
+
+  const sendMiniChatRoomToBack = useCallback((roomId) => {
+    setMiniChatRooms((prev) => {
+      return moveRoomToMinimizedStack(prev, roomId);
+    });
+  }, [moveRoomToMinimizedStack]);
+
+  useEffect(() => {
+    const handleAutoOpenRoom = (event) => {
+      const room = event?.detail;
+      try { console.debug('[Header] admin-auto-open-room received', room); } catch (e) {}
+      if (!room?.RoomID) return;
+
+      setOpenMenu("");
+      setMiniChatRooms((prev) => {
+        const cleaned = prev.filter((r) => String(r?.RoomID) !== String(room.RoomID));
+        const firstMinimizedIndex = cleaned.findIndex((r) => Boolean(r?.__isMinimized));
+        const insertIndex = firstMinimizedIndex === -1 ? cleaned.length : firstMinimizedIndex;
+
+        cleaned.splice(insertIndex, 0, {
+          ...room,
+          // auto-open should prefer fresh messages to avoid stale cached view
+          __forceReload: true,
+          __latestMessage: room?.__latestMessage || room?.__latestMessage,
+          __isMinimized: false,
+        });
+
+        return cleaned.length > 3 ? cleaned.slice(cleaned.length - 3) : cleaned;
+      });
+    };
+
+    window.addEventListener("admin-auto-open-room", handleAutoOpenRoom);
+    return () => window.removeEventListener("admin-auto-open-room", handleAutoOpenRoom);
+  }, []);
 
   const closeMiniChatRoom = (roomId) => {
     setMiniChatRooms((prev) => prev.filter((r) => String(r?.RoomID) !== String(roomId)));
@@ -194,7 +289,12 @@ const Header = ({ chatBadgeCount = 0, chatRooms = [], onOpenMiniChatRoom }) => {
                           }
                         }}
                       >
-                        <img src={`${UPLOAD_BASE}/icons/${icon}`} alt={label} loading="lazy" />
+                        <span className="chat-nav-group__icon">
+                          <img src={`${UPLOAD_BASE}/icons/${icon}`} alt={label} loading="lazy" />
+                          {Number(chatBadgeCount || 0) > 0 && (
+                            <span className="nav-badge nav-badge--chat">{chatBadgeCount > 99 ? "99+" : chatBadgeCount}</span>
+                          )}
+                        </span>
                         <span className="chat-nav-group__label">{label}</span>
                         <img
                           src={`${UPLOAD_BASE}/icons/icons-arrow-down.png`}
@@ -206,9 +306,6 @@ const Header = ({ chatBadgeCount = 0, chatRooms = [], onOpenMiniChatRoom }) => {
                             setOpenMenu((prev) => (prev === "chat" ? "" : "chat"));
                           }}
                         />
-                        {Number(chatBadgeCount || 0) > 0 && (
-                          <span className="nav-badge">{chatBadgeCount > 99 ? "99+" : chatBadgeCount}</span>
-                        )}
                       </div>
 
                       {openMenu === "chat" && (
@@ -310,9 +407,6 @@ const Header = ({ chatBadgeCount = 0, chatRooms = [], onOpenMiniChatRoom }) => {
                     }}
                   >
                     <img                       src={`${UPLOAD_BASE}/icons/${icon}`}                       alt={label}                       loading="lazy"                     />
-                                        {className === "notification" && Number(chatBadgeCount || 0) > 0 && (
-                      <span className="nav-badge nav-badge--notification">{chatBadgeCount > 99 ? "99+" : chatBadgeCount}</span>
-                    )}
                     {label}
                     <img                       src={`${UPLOAD_BASE}/icons/icons-arrow-down.png`}                       alt="arrow"                       className="arrow-down"                       loading="lazy"                     />
                   </button>
@@ -362,12 +456,25 @@ const Header = ({ chatBadgeCount = 0, chatRooms = [], onOpenMiniChatRoom }) => {
           <span className="name_admin">{user?.name || "Admin"}</span>
         </div>
 
-        {miniChatRooms.map((r, idx) => (
+        {popupMiniChatRooms.map((r, idx) => (
           <AdminMiniChatPopup
             key={r.RoomID}
             room={r}
             offsetIndex={idx}
             onClose={() => closeMiniChatRoom(r.RoomID)}
+            onActivate={() => bringMiniChatRoomToFront(r.RoomID)}
+            onMinimize={() => sendMiniChatRoomToBack(r.RoomID)}
+          />
+        ))}
+
+        {avatarMiniChatRooms.map((r, idx) => (
+          <AdminMiniChatPopup
+            key={r.RoomID}
+            room={r}
+            offsetIndex={idx}
+            onClose={() => closeMiniChatRoom(r.RoomID)}
+            onActivate={() => bringMiniChatRoomToFront(r.RoomID)}
+            onMinimize={() => sendMiniChatRoomToBack(r.RoomID)}
           />
         ))}
       </div>

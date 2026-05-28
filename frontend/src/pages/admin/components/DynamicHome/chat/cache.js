@@ -1,5 +1,4 @@
-// Bộ nhớ tạm (RAM) cho admin chat: lưu messages theo RoomID
-// Mục tiêu là quay lại room cũ thì hiện dữ liệu ngay, không phải tải lại từ đầu.
+// Bộ nhớ tạm trong RAM cho admin chat: lưu message theo RoomID để mở lại là có dữ liệu ngay.
 const cache = new Map();
 
 export const getRoomCache = (roomId) => {

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import FloatingChatMessageItem from './FloatingChatMessageItem';
 
 // Danh sách tin nhắn của chat nổi.
@@ -47,17 +47,6 @@ export default function FloatingChatMessages(props) {
   const handleScroll = (event) => {
     handleMessagesScroll?.(event);
     syncJumpButtonState();
-  };
-
-  const scrollToLatest = () => {
-    const container = messagesContainerRef?.current;
-    if (container) {
-      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
-    }
-    if (messagesEndRef?.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-    onJumpVisibilityChange?.(false);
   };
 
   return (

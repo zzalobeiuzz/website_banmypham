@@ -1,5 +1,4 @@
-// Bộ nhớ tạm (RAM) cho chat floating: lưu messages theo roomId
-// Dùng cơ chế đơn giản: Map<roomId, { messages: [], hasMoreOlder: boolean }>
+// Bộ nhớ tạm trong RAM cho chat nổi của người dùng: lưu message theo roomId.
 const cache = new Map();
 
 exports.getRoomCache = (roomId) => {
