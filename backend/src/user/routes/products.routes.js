@@ -7,6 +7,7 @@ const {
 	getFeaturedBrandsHandler,
 	getCategoryHandler,
 	getProductsHandler,
+	getAllBrandsHandler,
 	getBrandDetailPageHandler,
 	getProductDetailHandler,
 	getCartProductsHandler,
@@ -16,6 +17,7 @@ const {
 router.get("/sale", getSaleProductsHandler);
 router.get("/hot", getHotProductsHandler);
 router.get("/featured-brands", getFeaturedBrandsHandler);
+router.get("/brands", getAllBrandsHandler);
 router.get("/loadCategory", getCategoryHandler);
 router.get("/loadAllProducts", getProductsHandler);
 router.get("/brand/:idBrand", getBrandDetailPageHandler);

@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import lottie from "lottie-web";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { API_BASE, UPLOAD_BASE } from "../../../constants";
 import useHttp from "../../../hooks/useHttp";
 import "./AllProductsPage.scss";
 import BrandProductFilter from "../homePage/components/ProductFilter";
 import TitleBanner from "../homePage/components/TitleBanner";
 import ProductCard from "../homePage/components/ProductCard";
+import { ROUTERS } from "../../../utils/router";
 import noProductAnimation from "../../../animation/no_product.json";
 
 const NoProductLottie = () => {
@@ -75,12 +76,17 @@ const TITLE_MAP = {
   },
   "featured-brands": {
     title: "Thương hiệu nổi bật",
-    api: `${API_BASE}/api/user/products/featured-brands`,
+    api: `${API_BASE}/api/user/products/brands`,
+  },
+  all: {
+    title: "Tất cả sản phẩm",
+    api: `${API_BASE}/api/user/products/loadAllProducts`,
   },
 };
 
 export default function AllProductsPage() {
   const { type } = useParams();
+  const [searchParams] = useSearchParams();
   const { request } = useHttp();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -90,6 +96,7 @@ export default function AllProductsPage() {
   const [sortBy, setSortBy] = useState("default");
   const [searchText, setSearchText] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedSubCategory, setSelectedSubCategory] = useState("all");
   const [selectedPriceRange, setSelectedPriceRange] = useState([0, 10000000]);
   const [saleOnly, setSaleOnly] = useState(false);
   // Đóng/mở panel bộ lọc
@@ -105,6 +112,41 @@ export default function AllProductsPage() {
     return Array.from(cats);
   }, [products]);
 
+  // type có thể là key cứng (flash-sale/hot-products/...) hoặc tên category động từ header.
+  const decodedType = decodeURIComponent(String(type || "")).trim();
+  const isMappedType = Boolean(TITLE_MAP[type]);
+  const isCategoryType = Boolean(decodedType) && !isMappedType;
+
+  // Đồng bộ category/subCategory từ query string hoặc từ :type khi mở từ menu danh mục ở header.
+  useEffect(() => {
+    // Đồng bộ trạng thái filter từ query string: category, subCategory và searchText.
+    // Khi header submit tìm kiếm sẽ set `searchText` trong URL, page này sẽ đọc
+    // `searchText` và lọc danh sách sản phẩm phía client theo từ khóa đó.
+    const queryCategory = String(searchParams.get("category") || "").trim();
+    const querySubCategory = String(searchParams.get("subCategory") || "").trim();
+    const querySearchText = String(searchParams.get("searchText") || "").trim();
+    const typeCategory = isCategoryType ? decodedType : "";
+    const initialCategory = queryCategory || typeCategory;
+
+    if (!initialCategory) {
+      setSelectedCategory("all");
+    } else {
+      const matchedCategory = categories.find(
+        (item) => String(item || "").toLowerCase() === initialCategory.toLowerCase(),
+      );
+      setSelectedCategory(matchedCategory || initialCategory);
+    }
+
+    if (!querySubCategory) {
+      setSelectedSubCategory("all");
+    } else {
+      setSelectedSubCategory(querySubCategory);
+    }
+
+    // Đồng bộ từ khóa tìm kiếm (nếu có) vào state `searchText` để bộ lọc hoạt động.
+    setSearchText(querySearchText);
+  }, [searchParams, categories, decodedType, isCategoryType]);
+
   const PRICE_MIN_LIMIT = 0;
   const PRICE_MAX_LIMIT = 10000000;
   const PRICE_STEP = 100000;
@@ -113,7 +155,71 @@ export default function AllProductsPage() {
       ? (v / 1000000).toFixed(1) + "tr"
       : v.toLocaleString("vi-VN") + "đ";
 
-  const config = TITLE_MAP[type] || TITLE_MAP["flash-sale"];
+  // URL cho cấp category: breadcrumb sẽ quay về trang danh mục cha.
+  const buildCategoryPageUrl = (categoryName) => {
+    const normalizedCategory = String(categoryName || "").trim();
+    if (!normalizedCategory || normalizedCategory === "all") return "/";
+    return `/${"all-products"}/${encodeURIComponent(normalizedCategory)}`;
+  };
+
+  // URL cho cấp subcategory: giữ cả category + subCategory để trang lọc đúng 2 tầng.
+  const buildSubCategoryPageUrl = (categoryName, subCategoryName) => {
+    const normalizedCategory = String(categoryName || "").trim();
+    const normalizedSubCategory = String(subCategoryName || "").trim();
+    if (!normalizedCategory || normalizedCategory === "all") return "/";
+
+    const basePath = `/${"all-products"}/${encodeURIComponent(normalizedCategory)}`;
+    if (!normalizedSubCategory || normalizedSubCategory === "all") return basePath;
+
+    return `${basePath}?category=${encodeURIComponent(normalizedCategory)}&subCategory=${encodeURIComponent(normalizedSubCategory)}`;
+  };
+
+  // Nếu là category động: dùng API loadAllProducts rồi filter phía client theo selectedCategory.
+  const config =
+    TITLE_MAP[type] ||
+    (isCategoryType
+      ? {
+          title: decodedType,
+          api: `${API_BASE}/api/user/products/loadAllProducts`,
+        }
+      : TITLE_MAP["flash-sale"]);
+
+  const bannerBreadcrumbItems = React.useMemo(() => {
+    const items = [{ title: "Trang chủ", url: "/" }];
+    const categoryTitle = String(selectedCategory || "").trim();
+    const subCategoryTitle = String(selectedSubCategory || "").trim();
+    // Nếu có từ khóa tìm kiếm (searchText) thì ưu tiên hiển thị breadcrumb của tìm kiếm
+    const rawPageTitle = String(config?.title || "").trim();
+    const pageTitle = searchText ? `Tìm kiếm: ${searchText}` : rawPageTitle;
+    const shouldUseCategoryPathBreadcrumb = isCategoryType || categoryTitle !== "all" || subCategoryTitle !== "all";
+
+    // Với route động theo category/subcategory thì chỉ giữ chuỗi: Trang chủ > Category > Subcategory.
+    // Nếu có từ khóa tìm kiếm -> hiển thị Trang chủ > Tìm kiếm: <từ khóa> và dừng.
+    if (searchText) {
+      items.push({ title: pageTitle, url: null });
+      return items;
+    }
+
+    if (pageTitle && !shouldUseCategoryPathBreadcrumb) {
+      items.push({ title: pageTitle, url: null });
+    }
+
+    if (categoryTitle && categoryTitle !== "all") {
+      items.push({
+        title: categoryTitle,
+        url: buildCategoryPageUrl(categoryTitle),
+      });
+    }
+
+    if (subCategoryTitle && subCategoryTitle !== "all") {
+      items.push({
+        title: subCategoryTitle,
+        url: buildSubCategoryPageUrl(categoryTitle, subCategoryTitle),
+      });
+    }
+
+    return items;
+  }, [config?.title, selectedCategory, selectedSubCategory, isCategoryType, searchText]);
 
   useEffect(() => {
     let mounted = true;
@@ -123,7 +229,13 @@ export default function AllProductsPage() {
     request("GET", config.api)
       .then((data) => {
         if (!mounted) return;
-        setProducts(data);
+        // Chuẩn hóa response: backend có thể trả trực tiếp [] hoặc { success, data: [] }.
+        const nextProducts = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.data)
+            ? data.data
+            : [];
+        setProducts(nextProducts);
       })
       .catch((err) => {
         if (!mounted) return;
@@ -151,6 +263,12 @@ export default function AllProductsPage() {
       // Lọc theo category
       if (selectedCategory !== "all" && item.CategoryName !== selectedCategory)
         return false;
+      // Lọc theo subcategory
+      if (
+        selectedSubCategory !== "all" &&
+        String(item.SubCategoryName || "") !== String(selectedSubCategory)
+      )
+        return false;
       // Lọc theo khoảng giá
       const price = item.sale_price || item.Price || 0;
       if (price < selectedPriceRange[0] || price > selectedPriceRange[1])
@@ -159,7 +277,7 @@ export default function AllProductsPage() {
       if (saleOnly && !item.sale_price) return false;
       return true;
     });
-  }, [products, searchText, selectedCategory, selectedPriceRange, saleOnly]);
+  }, [products, searchText, selectedCategory, selectedSubCategory, selectedPriceRange, saleOnly]);
   
   //Xử lý đường dẫn ảnh trước khi đưa vào <img>
   const resolveProductImage = (img) => {
@@ -183,9 +301,21 @@ export default function AllProductsPage() {
     return arr;
   }, [filteredProducts, sortBy]);
 
+  const isBrandListing = String(type || "") === "featured-brands";
+
+  const resolveBrandLogo = (value) => {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    if (/^https?:\/\//i.test(raw) || raw.startsWith("data:")) return raw;
+    if (raw.startsWith("/uploads/")) return `${API_BASE}${raw}`;
+    if (raw.startsWith("uploads/")) return `${API_BASE}/${raw}`;
+    if (raw.startsWith("icons/")) return `${UPLOAD_BASE}/${raw}`;
+    return `${UPLOAD_BASE}/${raw.replace(/^\/+/, "")}`;
+  };
+
   return (
     <section className="all-products-page-2col container">
-      <TitleBanner option={config.title} />
+      <TitleBanner option={config.title} breadcrumbItems={bannerBreadcrumbItems} />
       <div className="all-products-layout">
         <BrandProductFilter
           sortBy={sortBy}
@@ -222,19 +352,31 @@ export default function AllProductsPage() {
                   <NoProductLottie />
                 </div>
               ) : (
-                sortedProducts.map((item, index) => (
-                  <ProductCard
-                    key={item.ProductID || item.idBrand}
-                    item={item}
-                    cardIndex={index}
-                    detailUrl={`/product/${item.ProductID}`} // 👈 sửa theo route của bạn
-                    resolveProductImage={resolveProductImage}
-                    onAddToCart={(e, item) => {
-                      console.log("Add to cart:", item);
-                      // 👉 sau này gắn redux / context / api
-                    }}
-                  />
-                ))
+                isBrandListing ? (
+                  // Render brands grid
+                  (sortedProducts || []).map((brand, index) => (
+                    <div className="all-product-card" key={brand.idBrand || index}>
+                      <a href={`/${ROUTERS.USER.BRAND_DETAIL.replace(":idBrand", String(brand.idBrand || "")).replace(/^\/+/, "")}`} className="brand-link" style={{ textDecoration: 'none' }}>
+                        <img className="all-product-img" src={resolveBrandLogo(brand.logoUrl || brand.logo_url || brand.previewImage)} alt={brand.brandName || brand.Brand} />
+                        <div className="all-product-name">{brand.brandName || brand.Brand}</div>
+                      </a>
+                    </div>
+                  ))
+                ) : (
+                  sortedProducts.map((item, index) => (
+                    <ProductCard
+                      key={item.ProductID || item.idBrand}
+                      item={item}
+                      cardIndex={index}
+                      detailUrl={`/product/${item.ProductID}`} // 👈 sửa theo route của bạn
+                      resolveProductImage={resolveProductImage}
+                      onAddToCart={(e, item) => {
+                        console.log("Add to cart:", item);
+                        // 👉 sau này gắn redux / context / api
+                      }}
+                    />
+                  ))
+                )
               )}
             </div>
           )}

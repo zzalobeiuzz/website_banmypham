@@ -1,8 +1,15 @@
+/*
+  Header quản trị
+  - Quản lý thanh header trên trang admin, bao gồm menu chat, thông báo và avatar admin.
+  - Chịu trách nhiệm mở/thu nhỏ/đóng các popup chat mini (`AdminMiniChatPopup`).
+  - Duy trì trạng thái `miniChatRooms` chứa stack các popup và avatar thu nhỏ.
+  - Bảo đảm tối đa 3 popup hiển thị cùng lúc (cắt mảng trước khi lưu vào state).
+*/
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import "./theme.scss";
 import { UPLOAD_BASE } from "../../../constants";
-import AdminMiniChatPopup from "./AdminMiniChatPopup";
+import AdminMiniChatPopup from "../components/DynamicHome/chat/components/AdminMiniChatPopup";
 
 const navItems = [
   { icon: "icons8-menu-50.png", label: "Tất cả", className: "mega_menu" },
@@ -122,6 +129,7 @@ const Header = ({ chatBadgeCount = 0, chatRooms = [], onOpenMiniChatRoom }) => {
     const firstMinimizedIndex = nextRooms.findIndex((item) => Boolean(item?.__isMinimized));
     const insertIndex = firstMinimizedIndex === -1 ? nextRooms.length : firstMinimizedIndex;
 
+    // Thêm phòng vào vị trí trước các avatar đã thu nhỏ (nếu có), giữ thứ tự vừa mở
     nextRooms.splice(insertIndex, 0, {
       ...room,
       __isMinimized: false,
@@ -134,6 +142,7 @@ const Header = ({ chatBadgeCount = 0, chatRooms = [], onOpenMiniChatRoom }) => {
     const target = prevRooms.find((room) => String(room?.RoomID) === String(roomId));
     if (!target) return prevRooms;
 
+    // Đưa phòng vào cuối mảng và đánh dấu là đã thu nhỏ
     const nextRooms = prevRooms.filter((room) => String(room?.RoomID) !== String(roomId));
     nextRooms.push({
       ...target,
@@ -194,12 +203,14 @@ const Header = ({ chatBadgeCount = 0, chatRooms = [], onOpenMiniChatRoom }) => {
       try { console.debug('[Header] admin-auto-open-room received', room); } catch (e) {}
       if (!room?.RoomID) return;
 
+      // Đóng menu chat dropdown khi có auto-open từ socket
       setOpenMenu("");
       setMiniChatRooms((prev) => {
         const cleaned = prev.filter((r) => String(r?.RoomID) !== String(room.RoomID));
         const firstMinimizedIndex = cleaned.findIndex((r) => Boolean(r?.__isMinimized));
         const insertIndex = firstMinimizedIndex === -1 ? cleaned.length : firstMinimizedIndex;
 
+        // Chèn phòng auto-open vào stack (ưu tiên reload để lấy tin mới nhất)
         cleaned.splice(insertIndex, 0, {
           ...room,
           // auto-open should prefer fresh messages to avoid stale cached view

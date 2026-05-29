@@ -5,7 +5,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import React, { memo, useEffect, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import LoginPopup from "../../../../components/login/LoginPopup";
 import { API_BASE, UPLOAD_BASE } from "../../../../constants";
 import useHttp from "../../../../hooks/useHttp";
@@ -18,7 +18,14 @@ const Header = () => {
   const { user, logout, login } = useAuth(); // 👈 thêm login
   const [isFixed, setIsFixed] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  // Dropdown state cho phần chọn category nhỏ trên ô tìm kiếm
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  // Từ khóa người dùng đang gõ trong ô tìm kiếm (chỉ dùng để gợi ý và submit)
+  const [searchKeyword, setSearchKeyword] = useState("");
+  // Category tạm thời để lọc gợi ý trong header (không ảnh hưởng submit tìm kiếm chính)
+  const [selectedSearchCategory, setSelectedSearchCategory] = useState("all");
+  const [searchProducts, setSearchProducts] = useState([]);
+  const [searchFocused, setSearchFocused] = useState(false);
 
   const { cartCount } = useCart();
 
@@ -31,6 +38,7 @@ const Header = () => {
   const tickingRef = useRef(false);
 
   const location = useLocation();
+  const navigate = useNavigate();
   const { request } = useHttp();
 
   const isProfilePage = location.pathname === `/${ROUTERS.USER.PROFILE}`;
@@ -62,6 +70,31 @@ const Header = () => {
       }
     };
     fetchCategories();
+  }, [request]);
+
+  // Tải danh sách sản phẩm để phục vụ gợi ý (suggestions) khi người dùng gõ
+  // Lưu ý: đây là fetch nhẹ dùng cho gợi ý, không thay thế API phân trang chính.
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await request(
+          "GET",
+          `${API_BASE}/api/user/products/loadAllProducts`,
+        );
+
+        const nextProducts = Array.isArray(res)
+          ? res
+          : Array.isArray(res?.data)
+            ? res.data
+            : [];
+
+        setSearchProducts(nextProducts);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    fetchProducts();
   }, [request]);
 
   // ================= USER + SCROLL =================
@@ -110,6 +143,103 @@ const Header = () => {
     setCategoryMenuOpen(false);
     setActiveCategoryId(null);
   };
+
+  // Tạo đường dẫn danh mục động: /all-products/:type với :type là tên category đã encode.
+  const buildCategoryProductsPath = (categoryName) => {
+    const normalizedCategory = String(categoryName || "").trim();
+    if (!normalizedCategory) {
+      return `/${ROUTERS.USER.ALL_PRODUCTS.replace(":type", "all")}`;
+    }
+    return `/${ROUTERS.USER.ALL_PRODUCTS.replace(":type", encodeURIComponent(normalizedCategory))}`;
+  };
+
+  // Điều hướng sang trang sản phẩm theo danh mục và đóng menu để UX mượt hơn.
+  const navigateToCategoryProducts = (categoryName) => {
+    const normalizedCategory = String(categoryName || "").trim();
+    if (!normalizedCategory) return;
+
+    const allProductsPath = buildCategoryProductsPath(normalizedCategory);
+
+    setCategoryMenuOpen(false);
+    setIsFixedMenuOpen(false);
+    setActiveCategoryId(null);
+    navigate(allProductsPath);
+  };
+
+  // Điều hướng sang trang sản phẩm theo cả category + subcategory.
+  const navigateToSubCategoryProducts = (categoryName, subCategoryName) => {
+    const normalizedCategory = String(categoryName || "").trim();
+    const normalizedSubCategory = String(subCategoryName || "").trim();
+    if (!normalizedCategory || !normalizedSubCategory) return;
+
+    const basePath = buildCategoryProductsPath(normalizedCategory);
+    const query = new URLSearchParams({
+      category: normalizedCategory,
+      subCategory: normalizedSubCategory,
+    }).toString();
+
+    setCategoryMenuOpen(false);
+    setIsFixedMenuOpen(false);
+    setActiveCategoryId(null);
+    navigate(`${basePath}?${query}`);
+  };
+
+  // Khi submit tìm kiếm: luôn chuyển tới trang `all-products` kèm query `searchText`.
+  // (Không gắn cứng category đã chọn trên nút dropdown vào luồng tìm chính.)
+  const submitSearch = (e) => {
+    e.preventDefault();
+
+    const keyword = String(searchKeyword || "").trim();
+    const targetPath = `/${ROUTERS.USER.ALL_PRODUCTS.replace(":type", "all")}`;
+
+    const query = new URLSearchParams();
+    if (keyword) {
+      query.set("searchText", keyword);
+    }
+
+    // Đóng dropdown/gợi ý và chuyển trang
+    setDropdownOpen(false);
+    setSearchFocused(false);
+    navigate(query.toString() ? `${targetPath}?${query.toString()}` : targetPath);
+  };
+
+  const getSelectedSearchCategoryLabel = () => {
+    if (selectedSearchCategory === "all") return "Tất cả";
+
+    const matchedCategory = categories.find(
+      (category) => category.CategoryName === selectedSearchCategory,
+    );
+
+    return matchedCategory?.CategoryName || selectedSearchCategory;
+  };
+
+  const getResolvedProductImage = (image) => {
+    const value = String(image || "").trim();
+    if (!value) return "";
+    if (/^https?:\/\//i.test(value) || value.startsWith("data:")) return value;
+    return `${UPLOAD_BASE}/pictures/${value.replace(/^\/+/, "")}`;
+  };
+
+  // Tạo danh sách gợi ý (max 6) căn cứ vào từ khóa và category đã chọn trên nút
+  const visibleSearchProducts = React.useMemo(() => {
+    const keyword = String(searchKeyword || "").trim().toLowerCase();
+    if (!keyword) return [];
+
+    const selectedCategory = String(selectedSearchCategory || "all").trim();
+    return searchProducts
+      .filter((item) => {
+        const productName = String(item?.ProductName || "").toLowerCase();
+        const categoryName = String(item?.CategoryName || "").trim();
+        const matchedKeyword = productName.includes(keyword);
+        const matchedCategory =
+          selectedCategory === "all" || categoryName === selectedCategory;
+
+        return matchedKeyword && matchedCategory;
+      })
+      .slice(0, 6);
+  }, [searchKeyword, searchProducts, selectedSearchCategory]);
+
+  const shouldShowSearchSuggestions = searchFocused && visibleSearchProducts.length > 0;
   // Mở Popup Login
   useEffect(() => {
     const openLogin = () => setShowLogin(true);
@@ -176,7 +306,15 @@ const Header = () => {
                         }
                         onMouseLeave={() => setActiveCategoryId(null)}
                       >
-                        <a href="/" className="category-name">
+                        <a
+                          href={buildCategoryProductsPath(category.CategoryName)}
+                          className="category-name"
+                          onClick={(e) => {
+                            // Dùng SPA navigation thay vì tải lại trang.
+                            e.preventDefault();
+                            navigateToCategoryProducts(category.CategoryName);
+                          }}
+                        >
                           {category.CategoryName}
                           <FontAwesomeIcon
                             icon={faAngleRight}
@@ -188,18 +326,24 @@ const Header = () => {
                             <div
                               className={`menu-content ${activeCategoryId === category.CategoryID ? "active" : ""}`}
                             >
-                              <div className="menu-group-top">
-                                <a href="/">Nổi bật</a>
-                                <a href="/">Bán chạy</a>
-                                <a href="/">Hàng mới</a>
-                              </div>
                               <div className="menu-group-bottom">
                                 {category.SubCategories.map((sub) => (
                                   <div
                                     className="menu-col-item"
                                     key={sub.SubCategoryID}
                                   >
-                                    <a href="/" className="item-parent">
+                                    <a
+                                      href={`${buildCategoryProductsPath(category.CategoryName)}?category=${encodeURIComponent(String(category.CategoryName || "").trim())}&subCategory=${encodeURIComponent(String(sub.SubCategoryName || "").trim())}`}
+                                      className="item-parent"
+                                      onClick={(e) => {
+                                        // Subcategory đi vào trang riêng và lọc theo cả category + subcategory.
+                                        e.preventDefault();
+                                        navigateToSubCategoryProducts(
+                                          category.CategoryName,
+                                          sub.SubCategoryName,
+                                        );
+                                      }}
+                                    >
                                       {sub.SubCategoryName}
                                     </a>
                                   </div>
@@ -218,6 +362,7 @@ const Header = () => {
                   className="search"
                   tabIndex={0}
                   onBlur={() => setDropdownOpen(false)}
+                  onSubmit={submitSearch}
                 >
                   <button
                     type="button"
@@ -225,20 +370,24 @@ const Header = () => {
                     aria-expanded={dropdownOpen}
                     onClick={toggleDropdown}
                   >
-                    Tất cả
+                    {getSelectedSearchCategoryLabel()}
                   </button>
 
                   {dropdownOpen && (
                     <ul className="dropdown-menu show">
-                      {["Action", "Another action", "Something else here"].map(
-                        (text, i) => (
+                      {["all", ...categories.map((category) => category.CategoryName)].map(
+                        (categoryName, i) => (
                           <li key={i}>
                             <a
                               className="dropdown-item"
                               href="/"
-                              onClick={(e) => e.preventDefault()}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setSelectedSearchCategory(categoryName || "all");
+                                setDropdownOpen(false);
+                              }}
                             >
-                              {text}
+                              {categoryName === "all" ? "Tất cả" : categoryName}
                             </a>
                           </li>
                         ),
@@ -249,6 +398,17 @@ const Header = () => {
                   <input
                     className="input-search"
                     placeholder="Tìm kiếm sản phẩm bạn mong muốn...."
+                    value={searchKeyword}
+                    onFocus={() => setSearchFocused(true)}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        setSearchFocused(false);
+                      }, 120);
+                    }}
+                    onChange={(e) => {
+                      setSearchKeyword(e.target.value);
+                      setSearchFocused(true);
+                    }}
                   />
                   <button className="btn search-icon" type="submit">
                     <img
@@ -256,6 +416,47 @@ const Header = () => {
                       alt="icon-search"
                     />
                   </button>
+
+                  {shouldShowSearchSuggestions && (
+                    <div className="search-suggestions">
+                      <div className="search-suggestions__head">Sản phẩm gợi ý</div>
+                      <ul className="search-suggestions__list">
+                        {visibleSearchProducts.map((product) => (
+                          <li key={product.ProductID}>
+                            <a
+                              href={`/product/${product.ProductID}`}
+                              className="search-suggestions__item"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setSearchFocused(false);
+                                setDropdownOpen(false);
+                                navigate(`/product/${product.ProductID}`);
+                              }}
+                            >
+                              <span className="search-suggestions__thumb">
+                                {getResolvedProductImage(product.Image) ? (
+                                  <img
+                                    src={getResolvedProductImage(product.Image)}
+                                    alt={product.ProductName || "product"}
+                                  />
+                                ) : (
+                                  <span className="search-suggestions__thumb-placeholder" />
+                                )}
+                              </span>
+                              <span className="search-suggestions__meta">
+                                <span className="search-suggestions__name">
+                                  {product.ProductName}
+                                </span>
+                                <span className="search-suggestions__price">
+                                  {(Number(product.sale_price || product.Price || 0)).toLocaleString("vi-VN")}đ
+                                </span>
+                              </span>
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </form>
 
                 <Link
@@ -342,7 +543,15 @@ const Header = () => {
                     }
                     onMouseLeave={() => setActiveCategoryId(null)}
                   >
-                    <a href="/" className="category-name">
+                    <a
+                      href={buildCategoryProductsPath(category.CategoryName)}
+                      className="category-name"
+                      onClick={(e) => {
+                        // Dùng SPA navigation thay vì tải lại trang.
+                        e.preventDefault();
+                        navigateToCategoryProducts(category.CategoryName);
+                      }}
+                    >
                       {category.CategoryName}
                       <FontAwesomeIcon
                         icon={faAngleRight}
@@ -354,18 +563,24 @@ const Header = () => {
                         <div
                           className={`menu-content ${activeCategoryId === category.CategoryID ? "active" : ""}`}
                         >
-                          <div className="menu-group-top">
-                            <a href="/">Nổi bật</a>
-                            <a href="/">Bán chạy</a>
-                            <a href="/">Hàng mới</a>
-                          </div>
                           <div className="menu-group-bottom">
                             {category.SubCategories.map((sub) => (
                               <div
                                 className="menu-col-item"
                                 key={sub.SubCategoryID}
                               >
-                                <a href="/" className="item-parent">
+                                <a
+                                  href={`${buildCategoryProductsPath(category.CategoryName)}?category=${encodeURIComponent(String(category.CategoryName || "").trim())}&subCategory=${encodeURIComponent(String(sub.SubCategoryName || "").trim())}`}
+                                  className="item-parent"
+                                  onClick={(e) => {
+                                    // Subcategory đi vào trang riêng và lọc theo cả category + subcategory.
+                                    e.preventDefault();
+                                    navigateToSubCategoryProducts(
+                                      category.CategoryName,
+                                      sub.SubCategoryName,
+                                    );
+                                  }}
+                                >
                                   {sub.SubCategoryName}
                                 </a>
                               </div>

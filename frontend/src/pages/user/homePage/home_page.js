@@ -1,6 +1,6 @@
 // src/pages/HomePage.js
 import React, { memo } from 'react';
-import { Banner, FlashSale, HotProduct, TopBrand, Voucher } from '../homePage/components';
+import { Banner, FlashSale, HotProduct, TopBrand, Voucher, AllProductsSection } from '../homePage/components';
 
 
 const HomePage = () => {
@@ -11,6 +11,7 @@ const HomePage = () => {
       <FlashSale /> {/* FlashSale tự gọi API và hiển thị dữ liệu */}
       <HotProduct/>
       <TopBrand/>
+      <AllProductsSection />
     </div>
   );
 };

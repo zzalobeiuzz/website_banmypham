@@ -8,6 +8,7 @@ const {
   getProductDetailById,
   getBrandDetailPage,
 } = require("../services/product.service");
+const adminBrandModel = require("../../admin/brand/brand.model");
 
 //============================ Gửi danh sách sản phẩm khuyến mãi=============================
 exports.getSaleProductsHandler = async (req, res) => {
@@ -184,5 +185,17 @@ exports.getCartProductsHandler = async (req, res) => {
       success: false,
       message: "Lỗi server khi lấy sản phẩm giỏ hàng.",
     });
+  }
+};
+
+//============================= Gửi danh sách toàn bộ thương hiệu (public) =============================
+exports.getAllBrandsHandler = async (req, res) => {
+  try {
+    const brands = await adminBrandModel.getAllBrands();
+    res.status(200).json(brands);
+    console.log("Lấy thành công danh sách tất cả thương hiệu (public)");
+  } catch (err) {
+    console.error("❌ Lỗi khi lấy toàn bộ thương hiệu:", err.message);
+    res.status(500).json({ message: "Lỗi server khi lấy danh sách thương hiệu." });
   }
 };

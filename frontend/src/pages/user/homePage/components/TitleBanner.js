@@ -15,11 +15,34 @@ const USER_BREADCRUMBS = [
    { title: "Giỏ hàng", url: "/cart-detail" },
 ];
 
-export default function TitleBanner({ option, bannerUrl, bannerAlt }) {
+export default function TitleBanner({ option, bannerUrl, bannerAlt, breadcrumbItems }) {
   const breadcrumb = USER_BREADCRUMBS.find((b) => b.title === option);
-  return (
-    <div className="title-banner-wrapper">
-      <div className="title-banner-breadcrumb">
+
+  const renderBreadcrumbItems = () => {
+    // Nếu có breadcrumbItems tùy biến thì render theo chuỗi động do page truyền xuống.
+    if (Array.isArray(breadcrumbItems) && breadcrumbItems.length > 0) {
+      return breadcrumbItems.map((item, index) => {
+        const key = `${item?.title || item?.url || "crumb"}-${index}`;
+
+        return (
+          <React.Fragment key={key}>
+            {index > 0 && <span className="breadcrumb-sep">&gt;</span>}
+            {item?.url ? (
+              <Link to={item.url} className={index === 0 ? "breadcrumb-home" : "breadcrumb-option"}>
+                {item.title}
+              </Link>
+            ) : (
+              <span className={index === 0 ? "breadcrumb-home" : "breadcrumb-option"}>
+                {item?.title}
+              </span>
+            )}
+          </React.Fragment>
+        );
+      });
+    }
+
+    return (
+      <>
         <Link to="/" className="breadcrumb-home">
           Trang chủ
         </Link>
@@ -31,6 +54,14 @@ export default function TitleBanner({ option, bannerUrl, bannerAlt }) {
         ) : (
           <span className="breadcrumb-option">{option}</span>
         )}
+      </>
+    );
+  };
+
+  return (
+    <div className="title-banner-wrapper">
+      <div className="title-banner-breadcrumb">
+        {renderBreadcrumbItems()}
       </div>
       <div className="title-banner-center">
         {bannerUrl && (
