@@ -101,6 +101,46 @@ const ensureCustomerProfileForPaidOrder = async (transaction, orderRow) => {
   return true;
 };
 
+const recordVoucherClaimForPaidOrder = async (
+  transaction,
+  orderRow,
+  orderId,
+  note = "",
+) => {
+  const voucherCode = String(orderRow?.Voucher || "").trim();
+  const normalizedOrderId = String(orderId || orderRow?.OrderID || "").trim();
+  if (!voucherCode || !normalizedOrderId) return false;
+
+  const userId = String(orderRow?.UserID || "").trim() || null;
+
+  const existsRes = await transaction
+    .request()
+    .input("orderId", sql.NVarChar(128), normalizedOrderId)
+    .query(`
+      SELECT TOP 1 ClaimID
+      FROM VOUCHER_CLAIMS
+      WHERE CAST(OrderID AS NVARCHAR(128)) = @orderId
+    `);
+
+  if (existsRes.recordset?.length > 0) {
+    return false;
+  }
+
+  await transaction
+    .request()
+    .input("voucherCode", sql.NVarChar(128), voucherCode)
+    .input("userId", sql.NVarChar(256), userId)
+    .input("orderId", sql.NVarChar(128), normalizedOrderId)
+    .input("claimAt", sql.Date, new Date())
+    .input("note", sql.NVarChar(500), note || null)
+    .query(`
+      INSERT INTO VOUCHER_CLAIMS (VoucherCode, UserID, OrderID, ClaimAt, Note)
+      VALUES (@voucherCode, @userId, @orderId, @claimAt, @note)
+    `);
+
+  return true;
+};
+
 /**-------------------------------------------------
  🧹 Xóa các đơn hàng có trạng thái "Chờ thanh toán" 
  mà quá 10p chưa chuyển trạng thái "Đã thanh toán"
@@ -480,11 +520,18 @@ exports.insertBillAndDetails = async (orderData) => {
       try {
         const orderRowForEnsure = {
           UserID: userId,
+          Voucher: voucher,
           CustomerName: shippingInfo.name || "",
           CustomerPhone: shippingInfo.phone || "",
           CustomerAddress: shippingInfo.address || "",
         };
         await ensureCustomerProfileForPaidOrder(transaction, orderRowForEnsure);
+        await recordVoucherClaimForPaidOrder(
+          transaction,
+          { ...orderRowForEnsure, OrderID: newOrderId },
+          newOrderId,
+          `Thanh toán thành công (${paymentMethod})`,
+        );
       } catch (ensureErr) {
         console.warn("Không tạo được hồ sơ khách hàng tự động:", ensureErr.message);
       }
@@ -683,7 +730,7 @@ exports.updateBillStatus = async (orderId, newStatus) => {
 
       // 1. Lấy trạng thái đơn hàng hiện tại
       .input("orderId", sql.NVarChar(100), orderId).query(`
-        SELECT TOP 1 OrderID, Status, UserID, CustomerName, CustomerPhone, CustomerAddress
+        SELECT TOP 1 OrderID, Status, UserID, Voucher, CustomerName, CustomerPhone, CustomerAddress
         FROM ORDERS WITH (UPDLOCK, ROWLOCK)
         WHERE CAST(OrderID AS NVARCHAR(100)) = @orderId
       `);
@@ -720,6 +767,7 @@ exports.updateBillStatus = async (orderId, newStatus) => {
     // Đồng thời thêm hồ sơ khách hàng nếu chưa có
     if (isPaidStatus(currentStatus) && isPaidStatus(newStatus)) {
       customerProfileCreated = await ensureCustomerProfileForPaidOrder(transaction, currentOrder);
+      await recordVoucherClaimForPaidOrder(transaction, currentOrder, orderId, "Đơn hàng đã ở trạng thái thanh toán thành công");
       await transaction.commit();
       return {
         success: true,
@@ -815,6 +863,7 @@ exports.updateBillStatus = async (orderId, newStatus) => {
 
     if (isPaidStatus(newStatus)) {
       customerProfileCreated = await ensureCustomerProfileForPaidOrder(transaction, currentOrder);
+      await recordVoucherClaimForPaidOrder(transaction, currentOrder, orderId, `Thanh toán thành công (${newStatus})`);
     }
 
     await transaction.commit();

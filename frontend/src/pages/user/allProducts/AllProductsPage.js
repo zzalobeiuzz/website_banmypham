@@ -303,14 +303,10 @@ export default function AllProductsPage() {
 
   const isBrandListing = String(type || "") === "featured-brands";
 
+  // Sử lý ảnh trước khi đưa vào <img> của brand
   const resolveBrandLogo = (value) => {
-    const raw = String(value || "").trim();
-    if (!raw) return "";
-    if (/^https?:\/\//i.test(raw) || raw.startsWith("data:")) return raw;
-    if (raw.startsWith("/uploads/")) return `${API_BASE}${raw}`;
-    if (raw.startsWith("uploads/")) return `${API_BASE}/${raw}`;
-    if (raw.startsWith("icons/")) return `${UPLOAD_BASE}/${raw}`;
-    return `${UPLOAD_BASE}/${raw.replace(/^\/+/, "")}`;
+    if (!value) return "";
+    return `${UPLOAD_BASE}/pictures/Brands/${value}`;
   };
 
   return (

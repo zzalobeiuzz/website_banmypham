@@ -8,6 +8,7 @@ const BrandRouter = require("./brand/brand.routes");
 const BatchRouter = require("./batch/batch.routes");
 const CustomerRouter = require("./customer/customer.routes");
 const OrderRouter = require("./order/order.routes");
+const VoucherRouter = require("./voucher/voucher.routes");
 
 // Route gốc /api/admin: kiểm tra phiên admin + refresh token
 router.use("", AdminRouter);
@@ -23,4 +24,6 @@ router.use("/batches", BatchRouter);
 router.use("/customers", CustomerRouter);
 // /api/admin/orders: quản lý đơn hàng từ BILL/BILL_DETAIL
 router.use("/orders", OrderRouter);
+// /api/admin/voucher: quản lý voucher / khuyến mại
+router.use("/voucher", VoucherRouter);
 module.exports = router;

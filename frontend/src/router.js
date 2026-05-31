@@ -12,7 +12,6 @@ import AllProductsPage from "./pages/user/allProducts/AllProductsPage.js";
 import MasterLayout from "./pages/user/theme/masterLayout/masterLayout.js";
 import CartDetail from "./pages/user/CartPage/CartDetail.js"
 import PaymentCallback from "./pages/user/component/checkout/PaymentCallback.js";
-import OrdersPage from "./pages/user/orders/OrdersPage.js";
 
 // ========== 🛠️ ADMIN IMPORTS ==========
 import AddProduct from "./pages/admin/components/DynamicHome/product/AddProduct.js";
@@ -31,6 +30,7 @@ import CustomerPage from "./pages/admin/components/DynamicHome/customer/Customer
 import BrandPage from "./pages/admin/components/DynamicHome/brand/BrandPage.js";
 import BrandProductsPage from "./pages/admin/components/DynamicHome/brand/BrandProductsPage.js";
 import AccountPage from "./pages/admin/components/DynamicHome/account/AccountPage.js";
+import VoucherPage from "./pages/admin/components/DynamicHome/voucher/VoucherPage.js";
 import AdminChatPage from "./pages/admin/components/DynamicHome/chat/AdminChatPage.js";
 
 import { ROUTERS } from "./utils/router";
@@ -44,7 +44,6 @@ const userRoutes = [
   { path: ROUTERS.USER.ALL_PRODUCTS, element: <AllProductsPage />, showHeaderFooter: true },
   { path: ROUTERS.USER.SIGNUP, element: <SignUp />, showHeaderFooter: false },
   { path: ROUTERS.USER.CARTDETAIL, element: <CartDetail />, showHeaderFooter: true },
-  { path: ROUTERS.USER.ORDERS, element: <OrdersPage />, showHeaderFooter: true },
   { path: "payment/success", element: <PaymentCallback />, showHeaderFooter: false },
   { path: "payment/error", element: <PaymentCallback />, showHeaderFooter: false },
   { path: "payment/cancel", element: <PaymentCallback />, showHeaderFooter: false },
@@ -105,6 +104,12 @@ const adminRoutes = [
     path: ROUTERS.ADMIN.CUSTOMER.INDEX || "customer", // 👥 Khách hàng
     children: [
       { index: true, element: <CustomerPage /> }, // 🏠 Trang danh sách khách hàng (/admin/customer)
+    ],
+  },
+  {
+    path: ROUTERS.ADMIN.VOUCHER.INDEX || "voucher", // 🎟 Voucher
+    children: [
+      { index: true, element: <VoucherPage /> }, // 🏠 Trang danh sách voucher (/admin/voucher)
     ],
   },
   {

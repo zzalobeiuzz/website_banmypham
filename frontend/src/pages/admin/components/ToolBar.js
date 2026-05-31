@@ -20,26 +20,30 @@ const ToolBar = ({ onSearchChange, title }) => {
   };
 
   return (
-    <div className="d-flex justify-content-end align-items-center tool-bar-style">
-      <div className="btn-group" role="group">
-        <h2 className="title">{title}</h2> {/* Sử dụng biến title */}
+    <div className="tool-bar-style">
+      <div className="tool-left" />
+
+      <div className="tool-center">
+        <h2 className="title">{title}</h2>
       </div>
 
-      <form
-        className="d-flex"
-        role="search"
-        onSubmit={handleSubmit}
-        style={{ maxWidth: "300px" }}
-      >
-        <input
-          className="form-control me-2"
-          type="search"
-          placeholder="Tìm kiếm..."
-          value={searchKeyword}
-          onChange={handleChange}
-        />
-        <button className="btn btn-outline-success" type="submit">Tìm</button>
-      </form>
+      <div className="tool-right">
+        <form
+          className="d-flex"
+          role="search"
+          onSubmit={handleSubmit}
+          style={{ maxWidth: "300px" }}
+        >
+          <input
+            className="form-control me-2"
+            type="search"
+            placeholder="Tìm kiếm..."
+            value={searchKeyword}
+            onChange={handleChange}
+          />
+          <button className="btn btn-outline-success" type="submit">Tìm</button>
+        </form>
+      </div>
     </div>
   );
 };

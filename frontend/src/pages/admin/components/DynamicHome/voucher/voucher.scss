@@ -1,0 +1,407 @@
+.voucher-admin-header {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 1rem 0;
+  min-height: 72px;
+  box-sizing: border-box;
+  flex-wrap: wrap;
+}
+
+/* Make header full-bleed beyond the page padding used in the page wrapper */
+/* removed .full-bleed helper per request — header uses 100% width of container */
+.voucher-stats {
+  display: flex;
+  gap: 16px;
+  align-items: stretch;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.voucher-stat {
+  flex: 1;
+  min-width: 180px;
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow:
+    0 4px 12px rgba(15, 23, 42, 0.05),
+    0 1px 3px rgba(15, 23, 42, 0.08);
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+  color: #0f172a;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  }
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow:
+      0 12px 24px rgba(15, 23, 42, 0.08),
+      0 4px 8px rgba(15, 23, 42, 0.06);
+  }
+
+  .small {
+    color: #64748b !important;
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+
+  .h5 {
+    margin: 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #0f172a;
+  }
+}
+
+.voucher-stat:nth-child(1) {
+  background: linear-gradient(180deg, #eff6ff 0%, #ffffff 78%);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.voucher-stat:nth-child(1)::before {
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+}
+
+.voucher-stat:nth-child(2) {
+  background: linear-gradient(180deg, #ecfdf5 0%, #ffffff 78%);
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.voucher-stat:nth-child(2)::before {
+  background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.voucher-stat:nth-child(3) {
+  background: linear-gradient(180deg, #fffbeb 0%, #ffffff 78%);
+  border-color: rgba(245, 158, 11, 0.22);
+}
+
+.voucher-stat:nth-child(3)::before {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.voucher-stats-actions {
+  display: flex;
+  align-items: center;
+}
+
+.voucher-add-btn {
+  width: 64px;
+  height: 64px;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0d6efd, #4f8cff);
+  color: #fff;
+  font-size: 1.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(13, 110, 253, 0.25);
+  transition: all 0.25s ease;
+
+  &:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 12px 24px rgba(13, 110, 253, 0.35);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  i {
+    font-size: 2rem;
+    line-height: 1;
+  }
+}
+
+@media (max-width: 992px) {
+  .voucher-stat {
+    min-width: calc(50% - 8px);
+  }
+}
+
+@media (max-width: 576px) {
+  .voucher-stat,
+  .voucher-stats-actions {
+    width: 100%;
+    min-width: 100%;
+  }
+
+  .voucher-stats-actions .btn {
+    width: 100%;
+    min-height: 54px;
+  }
+}
+.voucher-stat .h5 {
+  color: #1f2937;
+}
+.voucher-card-preview {
+  border: 1px dashed rgba(0, 0, 0, 0.06);
+  padding: 12px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #ffffff, #fbfdff);
+}
+.voucher-table .badge-voucher {
+  background: linear-gradient(90deg, #ff7a7a, #ff4d4d);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+.badge-voucher {
+  display: inline-block;
+  min-width: 84px;
+  max-width: 140px;
+  padding: 6px 10px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.badge-voucher-sm {
+  min-width: 64px;
+  padding: 4px 8px;
+  font-size: 0.9rem;
+}
+.voucher-modal-preview {
+  min-width: 200px;
+}
+
+/* Voucher create modal styling */
+.voucher-create-modal {
+  backdrop-filter: blur(6px);
+
+  &__dialog {
+    margin-top: 4.5rem;
+  }
+
+  &__content {
+    border: none;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  }
+
+  &__header {
+    padding: 1.15rem 1.4rem;
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 52%, #2563eb 100%);
+    color: #fff;
+    border-bottom: 0;
+
+    .btn-close {
+      filter: brightness(0) invert(1);
+      opacity: 0.9;
+    }
+  }
+
+  &__eyebrow {
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    opacity: 0.8;
+    margin-bottom: 2px;
+  }
+
+  &__header .modal-title {
+    font-weight: 800;
+    letter-spacing: 0.2px;
+  }
+
+  &__body {
+    padding: 1.25rem 1.4rem 1.15rem;
+
+    .form-label {
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 0.35rem;
+    }
+
+    .form-control,
+    textarea,
+    input[type="date"],
+    input[type="number"] {
+      border-radius: 14px;
+      border-color: #dbe3ef;
+      box-shadow: none;
+      background: #fff;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+
+      &:focus {
+        border-color: #60a5fa;
+        box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.16);
+      }
+    }
+  }
+
+  &__preview-card {
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 20px;
+    background:
+      radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 36%),
+      linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+    color: #fff;
+    min-height: 260px;
+    padding: 18px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  &__preview-label {
+    color: rgba(255, 255, 255, 0.72) !important;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+  }
+
+  &__preview-title {
+    color: #fff;
+    font-weight: 800;
+    margin-top: 0.5rem !important;
+  }
+
+  &__preview-code {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #c7d2fe;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 999px;
+    padding: 0.45rem 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  &__preview-discount {
+    font-size: 1.6rem;
+    color: #f8fafc;
+  }
+
+  &__preview-quota {
+    margin-top: 0.45rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #bfdbfe;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 999px;
+    padding: 0.35rem 0.7rem;
+  }
+
+  &__preview-detail {
+    color: rgba(226, 232, 240, 0.82) !important;
+    line-height: 1.5;
+  }
+
+  &__footer {
+    border-top: 1px solid rgba(148, 163, 184, 0.18);
+    padding: 0.95rem 1.4rem 1.15rem;
+    background: #f8fafc;
+  }
+
+  &__cancel {
+    border-radius: 12px;
+    min-width: 104px;
+  }
+
+  &__submit {
+    border-radius: 12px;
+    min-width: 140px;
+    background: linear-gradient(135deg, #2563eb, #4f46e5);
+    border: none;
+    box-shadow: 0 12px 28px rgba(37, 99, 235, 0.24);
+
+    &:hover,
+    &:focus {
+      background: linear-gradient(135deg, #1d4ed8, #4338ca);
+    }
+  }
+}
+.voucher-stats-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.voucher-stats-actions .btn {
+  padding: 8px 12px;
+}
+.voucher-stats-actions .btn-primary {
+  box-shadow: 0 6px 18px rgba(99, 102, 241, 0.18);
+}
+
+/* Add-voucher button custom styling */
+.btn-add-voucher {
+  min-width: 56px;
+  height: 44px;
+  padding: 6px 12px;
+  font-size: 1.25rem; /* larger plus */
+  font-weight: 800; /* bolder */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(34, 197, 94, 0.18);
+}
+
+/* Slightly bigger on hover */
+.btn-add-voucher:hover {
+  transform: translateY(-1px) scale(1.03);
+}
+
+/* Column widths */
+.col-code {
+  width: 10%;
+}
+.col-detail {
+  width: 34%;
+}
+.col-discount {
+  width: 12%;
+  font-size: 0.875rem;
+}
+.col-minorder {
+  width: 12%;
+}
+.col-progress {
+  width: 12%;
+}
+.col-status {
+  width: 10%;
+}
+.col-date {
+  width: 10%;
+}
+.col-actions {
+  width: 6%;
+}
+
+/* Toolbar helper: when combined with Bootstrap utilities
+   `d-flex justify-content-end align-items-center tool-bar-style`
+   this ensures the toolbar spans the full container width */
+.tool-bar-style {
+  width: 100%;
+  display: flex; /* keep in case Bootstrap utilities are removed */
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  box-sizing: border-box;
+}
+

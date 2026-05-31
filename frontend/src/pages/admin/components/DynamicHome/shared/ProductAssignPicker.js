@@ -1,12 +1,6 @@
+// ======== COMPONENT DROPDOWN DANH SÁCH SẢN PHẨM ĐỂ ===============
+//            THÊM VÀO LÔ HÀNG HOẶC THƯƠNG HIỆU 
 import React from "react";
-
-// Component dùng chung để hiển thị danh sách sản phẩm và cho phép chọn sản phẩm
-// trong nhiều ngữ cảnh (thương hiệu, lô hàng...). Khác biệt giữa các ngữ cảnh
-// được truyền qua props như tiêu đề cột context, kiểu chọn, hàm resolve ảnh.
-// Gợi ý ngữ cảnh:
-// - Thương hiệu: thường multiple + contextHeader "Thương hiệu hiện tại".
-// - Lô hàng: thường single + contextHeader "Thuộc lô hàng".
-// Component cha quyết định toàn bộ hành vi qua props.
 const ProductAssignPicker = ({
   // Danh sách sản phẩm đầu vào.
   products,

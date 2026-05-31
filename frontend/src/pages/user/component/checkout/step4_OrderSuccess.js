@@ -115,7 +115,10 @@ const OrderSuccess = ({ orderInfo, setStep, isExpanded, onToggleExpand }) => {
     (sum, item) => sum + item.salePrice * item.quantity,
     0,
   );
-  const discountAmount = Math.max(originalTotal - saleTotal, 0);
+  const voucherDiscount = Number(orderInfo?.discount || 0) || 0;
+  const productDiscount = Math.max(originalTotal - saleTotal, 0);
+  const totalDiscount = productDiscount + voucherDiscount;
+  const finalTotal = Math.max(originalTotal - totalDiscount, 0);
 
   const statusText =
     paymentStatus === "success"
@@ -153,7 +156,7 @@ const OrderSuccess = ({ orderInfo, setStep, isExpanded, onToggleExpand }) => {
       )}
 
       <p className="order-total">
-        <b>Tổng tiền:</b> {formatCurrency(orderInfo?.total)}đ
+        <b>Tổng tiền:</b> {formatCurrency(orderInfo?.total || finalTotal)}đ
       </p>
 
       <div className="order-shipping-info">
@@ -186,10 +189,10 @@ const OrderSuccess = ({ orderInfo, setStep, isExpanded, onToggleExpand }) => {
                 Tổng tiền: <strong>{formatCurrency(originalTotal)}đ</strong>
               </span>
               <span className="summary-item-inline">
-                Giảm giá: <strong>{formatCurrency(discountAmount)}đ</strong>
+                Giảm giá: <strong>{formatCurrency(totalDiscount)}đ</strong>
               </span>
               <span className="summary-item-inline summary-item-total">
-                Thành tiền: <strong>{formatCurrency(saleTotal)}đ</strong>
+                Thành tiền: <strong>{formatCurrency(orderInfo?.total || finalTotal)}đ</strong>
               </span>
             </div>
           </div>

@@ -3,7 +3,6 @@ export const ROUTERS = {
     USER: {
       HOME: "",                      // Trang chủ user: /
       PROFILE: "profile",            // Trang profile: /profile
-      ORDERS: "orders",              // Trang danh sách đơn hàng của user: /orders
       PRODUCT_DETAIL: "product/:id", // Chi tiết sản phẩm: /product/123
       BRAND_DETAIL: "brand/:idBrand", // Chi tiết thương hiệu: /brand/BR001
       SIGNUP: "signup",              // Trang đăng ký: /signup
@@ -50,6 +49,11 @@ export const ROUTERS = {
       CUSTOMER: {
         INDEX: "customer",                    // Danh sách khách hàng: /admin/customer
         DETAIL: "customer/:customerId",       // Chi tiết khách hàng: /admin/customer/email@domain.com
+      },
+
+      // Nhóm đường dẫn voucher (Voucher)
+      VOUCHER: {
+        INDEX: "voucher",                    // Danh sách voucher: /admin/voucher
       },
 
       ACCOUNT: {

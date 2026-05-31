@@ -799,18 +799,40 @@ const Cart = () => {
   // =========================
   // 🎟 VOUCHER
   // =========================
-  const applyVoucher = () => {
-    if (order.voucher === "SALE50") {
-      setOrder((prev) => ({
-        ...prev,
-        discount: 50000,
-      }));
-    } else {
+  const applyVoucher = async () => {
+    const voucherCode = String(order.voucher || "").trim();
+
+    if (!voucherCode) {
       setOrder((prev) => ({
         ...prev,
         discount: 0,
       }));
-      alert("Voucher không hợp lệ");
+      alert("Vui lòng nhập mã giảm giá.");
+      return;
+    }
+
+    try {
+      const res = await request(
+        "GET",
+        `${API_BASE}/api/user/vouchers/validate?code=${encodeURIComponent(voucherCode)}&subtotal=${encodeURIComponent(order.subtotal || 0)}`,
+      );
+
+      const voucherData = res?.data || res;
+      const discountAmount = Number(voucherData?.discountAmount || 0) || 0;
+
+      setOrder((prev) => ({
+        ...prev,
+        voucher: String(voucherData?.code || voucherCode).toUpperCase(),
+        discount: discountAmount,
+      }));
+
+      alert(`Áp dụng mã giảm giá thành công. Giảm ${discountAmount.toLocaleString("vi-VN")}đ.`);
+    } catch (error) {
+      setOrder((prev) => ({
+        ...prev,
+        discount: 0,
+      }));
+      alert(error?.message || "Voucher không hợp lệ");
     }
   };
 

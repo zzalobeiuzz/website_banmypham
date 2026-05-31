@@ -1,16 +1,16 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { API_BASE, UPLOAD_BASE } from "../../../constants";
 import useHttp from "../../../hooks/useHttp";
 import { useAuth } from "../context/AuthContext";
 import { ROUTERS } from "../../../utils/router";
+import OrdersSection from "../orders/OrdersSection.js";
 import "./profile_page.scss";
 
 const getInitials = (fullName = "") => {
   const parts = String(fullName).trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "U";
   if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
-
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 };
 
@@ -19,23 +19,8 @@ const resolveAvatarSrc = (avatar) => {
   if (!value) return "";
   if (/^https?:\/\//i.test(value) || value.startsWith("data:")) return value;
 
-  const normalized = value
-    .replace(/^\/+/, "")
-    .replace(/^uploads\/?assets\/?/i, "");
+  const normalized = value.replace(/^\/+/, "").replace(/^uploads\/?assets\/?/i, "");
   return `${UPLOAD_BASE}/${normalized}`;
-};
-
-const resolveProductImageSrc = (image) => {
-  const value = String(image || "").trim();
-  if (!value) return "";
-  if (/^https?:\/\//i.test(value) || value.startsWith("data:")) return value;
-
-  const normalized = value
-    .replace(/^\/+/, "")
-    .replace(/^uploads\/?assets\/?pictures\/?/i, "")
-    .replace(/^pictures\/?/i, "");
-
-  return `${UPLOAD_BASE}/pictures/${normalized}`;
 };
 
 const isErrorText = (message = "") => {
@@ -63,10 +48,7 @@ const PROFILE_FALLBACK_TEXT = "Chưa cập nhật";
 const normalizeDisplayValue = (value) => {
   const raw = String(value || "").trim();
   if (!raw) return PROFILE_FALLBACK_TEXT;
-
-  // Handle common mojibake text coming from legacy data/source.
   if (/chưa\s*c\?p\s*nh\?t/i.test(raw)) return PROFILE_FALLBACK_TEXT;
-
   return raw;
 };
 
@@ -92,23 +74,20 @@ const ProfilePage = () => {
   const [showErrorPopup, setShowErrorPopup] = useState(false);
   const [errorPopupMessage, setErrorPopupMessage] = useState("");
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("info"); // "info" or "orders"
-  const [orders, setOrders] = useState([]);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [orderDetailLoading, setOrderDetailLoading] = useState(false);
-  const [ordersLoading, setOrdersLoading] = useState(false);
-  const [ordersError, setOrdersError] = useState("");
-  const [orderSearchKeyword, setOrderSearchKeyword] = useState("");
-  const [amountSortOrder, setAmountSortOrder] = useState("asc");
-  const [dateSortOrder, setDateSortOrder] = useState("newest");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [activeTab, setActiveTab] = useState("info");
+
   const phoneEditableRef = useRef(null);
   const addressEditableRef = useRef(null);
   const didFetchProfileRef = useRef(false);
-  const didFetchOrdersRef = useRef(false);
+
   const navigate = useNavigate();
   const { user, logout, updateUser } = useAuth();
   const { request, loading } = useHttp();
+
+  const displayName = user?.profileName || user?.name || "Người dùng";
+  const displayEmail = normalizeDisplayValue(user?.email);
+  const displayPhone = normalizeDisplayValue(user?.phoneNumber || user?.phone);
+  const displayAddress = normalizeDisplayValue(user?.address);
 
   const showErrorMessage = (setter, message) => {
     const text = String(message || "Có lỗi xảy ra.");
@@ -138,10 +117,8 @@ const ProfilePage = () => {
     setEditPhoneValue(basePhone);
     setEditAddressValue(baseAddress);
 
-    if (phoneEditableRef.current)
-      phoneEditableRef.current.textContent = basePhone;
-    if (addressEditableRef.current)
-      addressEditableRef.current.textContent = baseAddress;
+    if (phoneEditableRef.current) phoneEditableRef.current.textContent = basePhone;
+    if (addressEditableRef.current) addressEditableRef.current.textContent = baseAddress;
   };
 
   const closeErrorPopup = () => {
@@ -187,14 +164,13 @@ const ProfilePage = () => {
     setEditNameValue(normalizedUser.profileName || "Người dùng");
     setEditPhoneValue(normalizedUser.phoneNumber || "");
     setEditAddressValue(normalizedUser.address || "");
-    if (phoneEditableRef.current)
-      phoneEditableRef.current.textContent = normalizeDisplayValue(
-        normalizedUser.phoneNumber,
-      );
-    if (addressEditableRef.current)
-      addressEditableRef.current.textContent = normalizeDisplayValue(
-        normalizedUser.address,
-      );
+
+    if (phoneEditableRef.current) {
+      phoneEditableRef.current.textContent = normalizeDisplayValue(normalizedUser.phoneNumber);
+    }
+    if (addressEditableRef.current) {
+      addressEditableRef.current.textContent = normalizeDisplayValue(normalizedUser.address);
+    }
 
     const fetchLatestProfile = async () => {
       if (didFetchProfileRef.current) {
@@ -208,14 +184,9 @@ const ProfilePage = () => {
       if (!token) return;
 
       try {
-        const response = await request(
-          "GET",
-          `${API_BASE}/api/user/auth/profile`,
-          null,
-          {
-            Authorization: `Bearer ${token}`,
-          },
-        );
+        const response = await request("GET", `${API_BASE}/api/user/auth/profile`, null, {
+          Authorization: `Bearer ${token}`,
+        });
 
         if (response?.success && response?.data) {
           const updatedUser = {
@@ -233,17 +204,15 @@ const ProfilePage = () => {
           setEditNameValue(updatedUser.profileName || "Người dùng");
           setEditPhoneValue(updatedUser.phoneNumber || "");
           setEditAddressValue(updatedUser.address || "");
-          if (phoneEditableRef.current)
-            phoneEditableRef.current.textContent = normalizeDisplayValue(
-              updatedUser.phoneNumber,
-            );
-          if (addressEditableRef.current)
-            addressEditableRef.current.textContent = normalizeDisplayValue(
-              updatedUser.address,
-            );
+          if (phoneEditableRef.current) {
+            phoneEditableRef.current.textContent = normalizeDisplayValue(updatedUser.phoneNumber);
+          }
+          if (addressEditableRef.current) {
+            addressEditableRef.current.textContent = normalizeDisplayValue(updatedUser.address);
+          }
         }
-      } catch (error) {
-        // Bỏ qua lỗi fetch profile để không chặn màn hình
+      } catch {
+        // ignore profile fetch errors
       }
     };
 
@@ -259,174 +228,17 @@ const ProfilePage = () => {
   }, [request, updateUser, user]);
 
   useEffect(() => {
-    if (isEditingFields) {
-      placeCaretAtEnd(phoneEditableRef.current);
-    }
+    if (isEditingFields) placeCaretAtEnd(phoneEditableRef.current);
   }, [isEditingFields]);
 
-  // Use effect để tự động tải đơn hàng khi chuyển sang tab "orders"
   useEffect(() => {
-    if (activeTab === "orders" && !didFetchOrdersRef.current && user?.id) {
-      const fetchOrders = async () => {
-        setOrdersLoading(true);
-        setOrdersError("");
-
-        const token = localStorage.getItem("accessToken");
-
-        if (!token) {
-          setOrdersError("Vui lòng đăng nhập để xem đơn hàng.");
-          setOrdersLoading(false);
-          return;
-        }
-        try {
-          const res = await request(
-            "GET",
-            `${API_BASE}/api/user/orders`,
-            null,
-            {
-              Authorization: `Bearer ${token}`,
-            },
-          );
-          console.log("Danh sách đơn hàng:", res);
-          if (res?.success) {
-            setOrders(res.orders || res.data || []);
-            didFetchOrdersRef.current = true;
-          } else {
-            setOrdersError(res?.message || "Không thể tải đơn hàng.");
-          }
-        } catch (err) {
-          setOrdersError(err?.message || "Lỗi khi tải đơn hàng.");
-        } finally {
-          setOrdersLoading(false);
-        }
-      };
-      fetchOrders();
-    }
-  }, [activeTab, user?.id, request]);
-
-  useEffect(() => {
-    const messages = [
-      avatarMessage,
-      nameMessage,
-      fieldMessage,
-      passwordMessage,
-    ].filter(Boolean);
+    const messages = [avatarMessage, nameMessage, fieldMessage, passwordMessage].filter(Boolean);
     const latestError = messages.find((message) => isErrorText(message));
-
     if (latestError && latestError !== errorPopupMessage) {
       setErrorPopupMessage(latestError);
       setShowErrorPopup(true);
     }
-  }, [
-    avatarMessage,
-    nameMessage,
-    fieldMessage,
-    passwordMessage,
-    errorPopupMessage,
-  ]);
-
-  // -------------------- HÀM ĐỊNH DẠNG PHƯƠNG THỨC THANH TOÁN --------------------
-  const formatPaymentMethod = (method) => {
-    const value = String(method || "")
-      .trim()
-      .toUpperCase();
-
-    switch (value) {
-      case "COD":
-        return "Thanh toán khi nhận hàng";
-
-      case "MOMO":
-        return "Thanh toán ví MoMo";
-
-      case "TRANSFER":
-        return "Chuyển khoản ngân hàng";
-
-      default:
-        return method || "-";
-    }
-  };
-
-  // Hàm mở chi tiết đơn hàng
-  const openOrderDetail = async (orderId) => {
-    const token = localStorage.getItem("accessToken");
-    if (!token) return;
-    try {
-      setOrderDetailLoading(true);
-      setSelectedOrder(null);
-      const res = await request(
-        "GET",
-        `${API_BASE}/api/user/orders/detail/${encodeURIComponent(orderId)}`,
-        null,
-        {
-          Authorization: `Bearer ${token}`,
-        },
-      );
-      console.log("Chi tiết đơn hàng:", res);
-      if (res?.success) setSelectedOrder(res.order || null);
-    } catch (err) {
-      setOrdersError(err?.message || "Không thể tải chi tiết đơn hàng.");
-    } finally {
-      setOrderDetailLoading(false);
-    }
-  };
-
-  const displayName = user?.profileName || user?.name || "Người dùng";
-  const displayEmail = normalizeDisplayValue(user?.email);
-  const displayPhone = normalizeDisplayValue(user?.phoneNumber || user?.phone);
-  const displayAddress = normalizeDisplayValue(user?.address);
-
-  const statusOptions = useMemo(() => {
-    const uniqueStatuses = new Set(
-      (Array.isArray(orders) ? orders : [])
-        .map((order) => String(order?.status || "").trim())
-        .filter(Boolean),
-    );
-    return ["all", ...Array.from(uniqueStatuses)];
-  }, [orders]);
-
-  const visibleOrders = useMemo(() => {
-    const keyword = String(orderSearchKeyword || "")
-      .trim()
-      .toLowerCase();
-    const selectedStatus = String(statusFilter || "all").trim();
-
-    let next = Array.isArray(orders) ? [...orders] : [];
-
-    if (selectedStatus !== "all") {
-      next = next.filter(
-        (order) => String(order?.status || "").trim() === selectedStatus,
-      );
-    }
-
-    if (keyword) {
-      next = next.filter((order) =>
-        String(order?.id || "")
-          .toLowerCase()
-          .includes(keyword),
-      );
-    }
-
-    next.sort((a, b) => {
-      const totalA = Number(a?.total) || 0;
-      const totalB = Number(b?.total) || 0;
-      const timeA = new Date(a?.createdAt || 0).getTime() || 0;
-      const timeB = new Date(b?.createdAt || 0).getTime() || 0;
-
-      const amountCompare =
-        amountSortOrder === "asc" ? totalA - totalB : totalB - totalA;
-      if (amountCompare !== 0) return amountCompare;
-
-      return dateSortOrder === "newest" ? timeB - timeA : timeA - timeB;
-    });
-
-    return next;
-  }, [
-    orders,
-    orderSearchKeyword,
-    amountSortOrder,
-    dateSortOrder,
-    statusFilter,
-  ]);
+  }, [avatarMessage, nameMessage, fieldMessage, passwordMessage, errorPopupMessage]);
 
   const refreshAccessToken = async () => {
     const refreshToken = localStorage.getItem("refreshToken");
@@ -434,13 +246,9 @@ const ProfilePage = () => {
       throw new Error("Phiên đăng nhập đã hết hạn.");
     }
 
-    const refreshRes = await request(
-      "POST",
-      `${API_BASE}/api/admin/refresh-token`,
-      {
-        refreshToken,
-      },
-    );
+    const refreshRes = await request("POST", `${API_BASE}/api/admin/refresh-token`, {
+      refreshToken,
+    });
 
     if (!refreshRes?.accessToken) {
       throw new Error("Không thể làm mới access token.");
@@ -462,69 +270,40 @@ const ProfilePage = () => {
     }
 
     setAvatarMessage("");
-    try {
+
+    const submitRequest = async (accessToken) => {
       const formData = new FormData();
       formData.append("avatar", file);
 
-      const response = await request(
-        "PUT",
-        `${API_BASE}/api/user/auth/avatar`,
-        formData,
-        {
-          Authorization: `Bearer ${token}`,
-        },
-      );
+      return request("PUT", `${API_BASE}/api/user/auth/avatar`, formData, {
+        Authorization: `Bearer ${accessToken}`,
+      });
+    };
+
+    try {
+      let response;
+      try {
+        response = await submitRequest(token);
+      } catch (error) {
+        if (error?.status !== 401) throw error;
+        const newAccessToken = await refreshAccessToken();
+        response = await submitRequest(newAccessToken);
+      }
 
       if (response?.avatar) {
         updateLocalUserAvatar(response.avatar);
-        showSuccessMessage(
+        showSuccessMessage(setAvatarMessage, "Cập nhật ảnh đại diện thành công.");
+      } else {
+        showErrorMessage(
           setAvatarMessage,
-          "Cập nhật ảnh đại diện thành công.",
+          response?.message || "Cập nhật ảnh đại diện thất bại.",
         );
       }
     } catch (error) {
-      const isAuthError = error?.status === 401;
-      if (!isAuthError) {
-        showErrorMessage(
-          setAvatarMessage,
-          error?.message || "Cập nhật ảnh đại diện thất bại.",
-        );
-        return;
-      }
-
-      try {
-        const newAccessToken = await refreshAccessToken();
-        const retryFormData = new FormData();
-        retryFormData.append("avatar", file);
-
-        const retryRes = await request(
-          "PUT",
-          `${API_BASE}/api/user/auth/avatar`,
-          retryFormData,
-          {
-            Authorization: `Bearer ${newAccessToken}`,
-          },
-        );
-
-        if (retryRes?.avatar) {
-          updateLocalUserAvatar(retryRes.avatar);
-          showSuccessMessage(
-            setAvatarMessage,
-            "Cập nhật ảnh đại diện thành công.",
-          );
-          return;
-        }
-
-        showErrorMessage(
-          setAvatarMessage,
-          "Không nhận được dữ liệu ảnh đại diện mới.",
-        );
-      } catch (refreshError) {
-        showErrorMessage(
-          setAvatarMessage,
-          "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.",
-        );
-      }
+      showErrorMessage(
+        setAvatarMessage,
+        error?.message || "Cập nhật ảnh đại diện thất bại.",
+      );
     }
   };
 
@@ -537,10 +316,7 @@ const ProfilePage = () => {
     }
 
     if (newPassword.length < 6) {
-      showErrorMessage(
-        setPasswordMessage,
-        "Mật khẩu mới phải có ít nhất 6 ký tự.",
-      );
+      showErrorMessage(setPasswordMessage, "Mật khẩu mới phải có ít nhất 6 ký tự.");
       return;
     }
 
@@ -560,14 +336,13 @@ const ProfilePage = () => {
 
     setPasswordMessage("");
 
-    const submitRequest = async (authToken) => {
-      return request(
+    const submitRequest = async (authToken) =>
+      request(
         "PUT",
         `${API_BASE}/api/user/auth/change-password`,
         { currentPassword, newPassword },
         { Authorization: `Bearer ${authToken}` },
       );
-    };
 
     try {
       const response = await submitRequest(token);
@@ -579,11 +354,14 @@ const ProfilePage = () => {
         setShowCurrentPassword(false);
         setShowNewPassword(false);
         setShowConfirmPassword(false);
-        setShowChangePassword(false); // ✅ thêm dòng này
+        setShowChangePassword(false);
         return;
       }
 
-      setPasswordMessage(response?.message || "Đổi mật khẩu thất bại.");
+      showErrorMessage(
+        setPasswordMessage,
+        response?.message || "Đổi mật khẩu thất bại.",
+      );
     } catch (error) {
       if (error?.status !== 401) {
         showErrorMessage(
@@ -605,9 +383,7 @@ const ProfilePage = () => {
           setShowCurrentPassword(false);
           setShowNewPassword(false);
           setShowConfirmPassword(false);
-          setTimeout(() => {
-            setShowChangePassword(false);
-          }, 800);
+          setShowChangePassword(false);
           return;
         }
 
@@ -618,7 +394,7 @@ const ProfilePage = () => {
       } catch (refreshError) {
         showErrorMessage(
           setPasswordMessage,
-          "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.",
+          refreshError?.message || "Đổi mật khẩu thất bại.",
         );
       }
     }
@@ -628,14 +404,10 @@ const ProfilePage = () => {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*";
-
     input.onchange = () => {
       const file = input.files?.[0];
-      if (file) {
-        uploadAvatar({ file });
-      }
+      if (file) uploadAvatar({ file });
     };
-
     input.click();
   };
 
@@ -649,7 +421,7 @@ const ProfilePage = () => {
   const handleUpdateName = async (e) => {
     e.preventDefault();
     if (!editNameValue.trim()) {
-      showErrorMessage(setNameMessage, "Tên không được trống.");
+      showErrorMessage(setNameMessage, "Tên không được để trống.");
       return;
     }
 
@@ -662,14 +434,13 @@ const ProfilePage = () => {
     try {
       setNameMessage("");
 
-      const submitRequest = async (accessToken) => {
-        return await request(
+      const submitRequest = async (accessToken) =>
+        request(
           "PUT",
           `${API_BASE}/api/user/auth/update-profile`,
           { name: editNameValue.trim() },
           { Authorization: `Bearer ${accessToken}` },
         );
-      };
 
       const response = await submitRequest(token);
       if (response?.success) {
@@ -715,7 +486,7 @@ const ProfilePage = () => {
       } catch (refreshError) {
         showErrorMessage(
           setNameMessage,
-          "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.",
+          refreshError?.message || "Cập nhật tên thất bại.",
         );
       }
     }
@@ -746,14 +517,13 @@ const ProfilePage = () => {
         address: nextAddress,
       };
 
-      const submitRequest = async (accessToken) => {
-        return await request(
+      const submitRequest = async (accessToken) =>
+        request(
           "PUT",
           `${API_BASE}/api/user/auth/update-profile`,
           payload,
           { Authorization: `Bearer ${accessToken}` },
         );
-      };
 
       let response;
       try {
@@ -799,11 +569,7 @@ const ProfilePage = () => {
   if (isInitialLoading) {
     return (
       <section className="profile-page">
-        <div
-          className="profile-card profile-loading-card"
-          aria-busy="true"
-          aria-live="polite"
-        >
+        <div className="profile-card profile-loading-card" aria-busy="true" aria-live="polite">
           <div className="profile-loading-header" />
           <div className="profile-loading-body">
             <div className="profile-loading-left">
@@ -817,9 +583,7 @@ const ProfilePage = () => {
             </div>
           </div>
           <div className="profile-loading-spinner" />
-          <p className="profile-loading-text">
-            Đang tải thông tin tài khoản...
-          </p>
+          <p className="profile-loading-text">Đang tải thông tin tài khoản...</p>
         </div>
       </section>
     );
@@ -828,7 +592,6 @@ const ProfilePage = () => {
   return (
     <section className="profile-page">
       <div className="profile-card">
-        {/* Tab buttons - at the top */}
         <div className="profile-tabs">
           <button
             type="button"
@@ -846,11 +609,8 @@ const ProfilePage = () => {
           </button>
         </div>
 
-        {/* Dynamic title based on active tab */}
         <div className="profile-page-title">
-          <h1>
-            {activeTab === "info" ? "Thông tin cá nhân" : "Đơn hàng của tôi"}
-          </h1>
+          <h1>{activeTab === "info" ? "Thông tin cá nhân" : "Đơn hàng của tôi"}</h1>
         </div>
 
         {activeTab === "info" && (
@@ -864,15 +624,9 @@ const ProfilePage = () => {
                 disabled={loading}
               >
                 {user?.avatar ? (
-                  <img
-                    src={resolveAvatarSrc(user.avatar)}
-                    alt="avatar"
-                    className="profile-avatar-image"
-                  />
+                  <img src={resolveAvatarSrc(user.avatar)} alt="avatar" className="profile-avatar-image" />
                 ) : (
-                  <div className="profile-avatar">
-                    {getInitials(displayName)}
-                  </div>
+                  <div className="profile-avatar">{getInitials(displayName)}</div>
                 )}
               </button>
 
@@ -902,11 +656,7 @@ const ProfilePage = () => {
                       autoFocus
                     />
                     <div className="name-edit-buttons">
-                      <button
-                        type="submit"
-                        className="btn-save"
-                        disabled={loading}
-                      >
+                      <button type="submit" className="btn-save" disabled={loading}>
                         Lưu
                       </button>
                       <button
@@ -924,9 +674,7 @@ const ProfilePage = () => {
                   </form>
                 )}
                 {nameMessage && (
-                  <div
-                    className={`name-message ${isErrorText(nameMessage) ? "message-error" : "message-success"}`}
-                  >
+                  <div className={`name-message ${isErrorText(nameMessage) ? "message-error" : "message-success"}`}>
                     {nameMessage}
                   </div>
                 )}
@@ -935,9 +683,7 @@ const ProfilePage = () => {
 
             <div className="profile-right-column">
               {avatarMessage && (
-                <div
-                  className={`avatar-message ${isErrorText(avatarMessage) ? "message-error" : "message-success"}`}
-                >
+                <div className={`avatar-message ${isErrorText(avatarMessage) ? "message-error" : "message-success"}`}>
                   {avatarMessage}
                 </div>
               )}
@@ -946,21 +692,12 @@ const ProfilePage = () => {
                 <>
                   <div className="profile-grid-header">
                     {!isEditingFields ? (
-                      <button
-                        type="button"
-                        className="btn-edit-fields"
-                        onClick={() => setIsEditingFields(true)}
-                      >
+                      <button type="button" className="btn-edit-fields" onClick={() => setIsEditingFields(true)}>
                         Chỉnh sửa
                       </button>
                     ) : (
                       <div className="profile-grid-actions">
-                        <button
-                          type="button"
-                          className="btn-edit-fields save"
-                          onClick={handleSaveProfileFields}
-                          disabled={loading}
-                        >
+                        <button type="button" className="btn-edit-fields save" onClick={handleSaveProfileFields} disabled={loading}>
                           Lưu
                         </button>
                         <button
@@ -981,11 +718,7 @@ const ProfilePage = () => {
                   <div className="profile-grid">
                     <div className="profile-item">
                       <span>Email</span>
-                      <strong
-                        className="editable-strong"
-                        contentEditable={false}
-                        suppressContentEditableWarning
-                      >
+                      <strong className="editable-strong" contentEditable={false} suppressContentEditableWarning>
                         {displayEmail}
                       </strong>
                     </div>
@@ -1020,410 +753,7 @@ const ProfilePage = () => {
           </div>
         )}
 
-        {activeTab === "orders" && (
-          <div className="orders-section">
-            <div className="orders-toolbar">
-              <input
-                type="text"
-                className="orders-search-input"
-                placeholder="Tìm theo mã đơn hàng..."
-                value={orderSearchKeyword}
-                onChange={(e) => setOrderSearchKeyword(e.target.value)}
-              />
-              <div className="orders-filter-group">
-                <label className="orders-filter-label">Số tiền</label>
-                <select
-                  className="orders-filter-select"
-                  value={amountSortOrder}
-                  onChange={(e) => setAmountSortOrder(e.target.value)}
-                >
-                  <option value="asc">Thấp → Cao</option>
-                  <option value="desc">Cao → Thấp</option>
-                </select>
-              </div>
-              <div className="orders-filter-group">
-                <label className="orders-filter-label">Ngày</label>
-                <select
-                  className="orders-filter-select"
-                  value={dateSortOrder}
-                  onChange={(e) => setDateSortOrder(e.target.value)}
-                >
-                  <option value="newest">Mới nhất</option>
-                  <option value="oldest">Cũ nhất</option>
-                </select>
-              </div>
-              <div className="orders-filter-group">
-                <label className="orders-filter-label">Trạng thái</label>
-                <select
-                  className="orders-filter-select"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  {statusOptions.map((status) => (
-                    <option key={status} value={status}>
-                      {status === "all" ? "Tất cả" : status}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {ordersLoading && <p>Đang tải...</p>}
-            {ordersError && <p className="error">{ordersError}</p>}
-            {!ordersLoading && !ordersError && orders.length === 0 && (
-              <p className="no-orders">Bạn chưa có đơn hàng nào.</p>
-            )}
-            {!ordersLoading &&
-              !ordersError &&
-              orders.length > 0 &&
-              visibleOrders.length === 0 && (
-                <p className="no-orders">Không tìm thấy đơn hàng phù hợp.</p>
-              )}
-            {!ordersLoading && visibleOrders.length > 0 && (
-              <div className="order-list">
-                <div className="header-row">
-                  <ul className="header-columns">
-                    <li className="column">Mã đơn</li>
-                    <li className="column">Tổng</li>
-                    <li className="column">Trạng thái</li>
-                    <li className="column">Ngày</li>
-                    <li className="column">Hành động</li>
-                  </ul>
-                </div>
-                <div className="orders-body">
-                  {visibleOrders.map((o) => (
-                    <div key={o.id} className="order-row">
-                      <div className="col">{o.id}</div>
-                      <div className="col">
-                        {Number(o.total).toLocaleString()} đ
-                      </div>
-                      <div className="col">{o.status}</div>
-                      <div className="col">
-                        {new Date(o.createdAt).toLocaleString()}
-                      </div>
-                      <div className="col">
-                        <button
-                          type="button"
-                          onClick={() => openOrderDetail(o.id)}
-                        >
-                          Xem chi tiết
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {(orderDetailLoading || selectedOrder) && (
-              <div
-                className="order-detail-popup"
-                onClick={() => {
-                  setSelectedOrder(null);
-                  setOrderDetailLoading(false);
-                }}
-              >
-                <div
-                  className="popup-body"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {orderDetailLoading && <p>Đang tải chi tiết đơn hàng...</p>}
-
-                  {!orderDetailLoading && selectedOrder && (
-                    <>
-                      {/* ================= HEADER ================= */}
-                      <div className="popup-top">
-                        <h3>Chi tiết đơn hàng</h3>
-
-                        <button
-                          type="button"
-                          className="popup-close"
-                          onClick={() => {
-                            setSelectedOrder(null);
-                            setOrderDetailLoading(false);
-                          }}
-                        >
-                          Đóng
-                        </button>
-                      </div>
-
-                      {/* ================= THÔNG TIN ĐƠN ================= */}
-                      <div className="order-header-grid">
-                        {/* ================= THÔNG TIN ĐẶT HÀNG ================= */}
-                        <div className="order-card">
-                          <h4>Thông tin đặt hàng</h4>
-
-                          <div className="order-card-grid">
-                            <div className="order-card-item">
-                              <span className="label">Mã đơn</span>
-
-                              <span className="value">#{selectedOrder.id}</span>
-                            </div>
-
-                            <div className="order-card-item">
-                              <span className="label">Ngày đặt</span>
-
-                              <span className="value">
-                                {selectedOrder.createdAt
-                                  ? new Date(
-                                      selectedOrder.createdAt,
-                                    ).toLocaleDateString("vi-VN")
-                                  : "-"}
-                              </span>
-                            </div>
-
-                            <div className="order-card-item">
-                              <span className="label">Thời gian</span>
-
-                              <span className="value">
-                                {selectedOrder.createdAt
-                                  ? new Date(
-                                      selectedOrder.createdAt,
-                                    ).toLocaleTimeString("vi-VN", {
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })
-                                  : "-"}
-                              </span>
-                            </div>
-
-                            <div className="order-card-item">
-                              <span className="label">Người nhận</span>
-
-                              <span className="value">
-                                {selectedOrder.shippingInfo?.name ||
-                                  "Người nhận"}
-                              </span>
-                            </div>
-
-                            <div className="order-card-item">
-                              <span className="label">Số điện thoại</span>
-
-                              <span className="value">
-                                {selectedOrder.shippingInfo?.phone || "-"}
-                              </span>
-                            </div>
-
-                            <div className="order-card-item ">
-                              <span className="label">Địa chỉ</span>
-
-                              <span className="value">
-                                {selectedOrder.shippingInfo?.address || "-"}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* ================= TỔNG QUAN ĐƠN HÀNG ================= */}
-                        <div className="order-card">
-                          <h4>Tổng quan đơn hàng</h4>
-
-                          <div className="order-card-flex">
-                            <div className="order-card-item">
-                              <span className="label">Trạng thái</span>
-
-                              <span className="value status">
-                                {selectedOrder.status}
-                              </span>
-                            </div>
-
-                            <div className="order-card-item">
-                              <span className="label">Thanh toán</span>
-
-                              <span className="value">
-                                {formatPaymentMethod(
-                                  selectedOrder.paymentMethod ||
-                                    selectedOrder.PaymentMethod,
-                                )}
-                              </span>
-                            </div>
-
-                            <div className="order-card-item">
-                              <span className="label">Voucher</span>
-
-                              <span className="value">
-                                {selectedOrder.voucher ||
-                                  selectedOrder.Voucher ||
-                                  "Không áp dụng"}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* ================= ITEMS ================= */}
-                      <div className="items">
-                        <h4>Sản phẩm</h4>
-
-                        <ul>
-                          {(selectedOrder.items || []).map((it, idx) => {
-                            const imageSrc = resolveProductImageSrc(
-                              it.image || it.Image,
-                            );
-
-                            const productName =
-                              it.productName ||
-                              it.ProductName ||
-                              it.name ||
-                              "Sản phẩm";
-
-                            const productId =
-                              it.productId || it.ProductID || "-";
-
-                            const quantity = it.quantity || it.Quantity || 0;
-
-                            const originalPrice = Number(
-                              it.originalPrice ||
-                                it.OriginalPrice ||
-                                it.price ||
-                                0,
-                            );
-
-                            const salePrice = Number(
-                              it.salePrice || it.SalePrice || 0,
-                            );
-
-                            const lineTotal = Number(
-                              it.lineTotal ||
-                                it.LineTotal ||
-                                (salePrice || originalPrice) * quantity ||
-                                0,
-                            );
-
-                            return (
-                              <li
-                                key={`${productId}-${idx}`}
-                                className="order-item-row"
-                              >
-                                <div className="order-item-main">
-                                  <div className="order-item-image-wrap">
-                                    {imageSrc ? (
-                                      <img
-                                        src={imageSrc}
-                                        alt={productName}
-                                        className="order-item-image"
-                                      />
-                                    ) : (
-                                      <div className="order-item-image-fallback">
-                                        No image
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  <div className="order-item-meta">
-                                    <strong className="order-item-name">
-                                      {productName}
-                                    </strong>
-
-                                    <span className="order-item-id">
-                                      Mã SP: {productId}
-                                    </span>
-
-                                    <span className="order-item-qty">
-                                      Số lượng: {quantity}
-                                    </span>
-
-                                    <div className="order-item-prices">
-                                      {salePrice > 0 ? (
-                                        <>
-                                          <span className="price-sale">
-                                            {salePrice.toLocaleString()} đ
-                                          </span>
-
-                                          <span className="price-original">
-                                            {originalPrice.toLocaleString()} đ
-                                          </span>
-                                        </>
-                                      ) : (
-                                        <span className="price-normal">
-                                          {originalPrice.toLocaleString()} đ
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <span className="order-item-total">
-                                  {lineTotal.toLocaleString()} đ
-                                </span>
-                              </li>
-                            );
-                          })}
-                        </ul>
-
-                        {/* ================= SUMMARY ================= */}
-                        <div className="order-summary-footer">
-                          {/* Tổng số lượng */}
-                          <div className="summary-line">
-                            <span>Tổng số lượng</span>
-
-                            <strong>
-                              {(selectedOrder.items || []).reduce(
-                                (sum, item) =>
-                                  sum +
-                                  Number(item.quantity || item.Quantity || 0),
-                                0,
-                              )}{" "}
-                              sản phẩm
-                            </strong>
-                          </div>
-
-                          {/* Tổng giảm giá từ giá gốc - giá sale */}
-                          <div className="summary-line">
-                            <span>Giảm giá</span>
-
-                            <strong className="discount">
-                              -
-                              {(selectedOrder.items || [])
-                                .reduce((sum, item) => {
-                                  const quantity = Number(
-                                    item.quantity || item.Quantity || 0,
-                                  );
-
-                                  const originalPrice = Number(
-                                    item.originalPrice ||
-                                      item.OriginalPrice ||
-                                      item.price ||
-                                      0,
-                                  );
-
-                                  const salePrice = Number(
-                                    item.salePrice ||
-                                      item.SalePrice ||
-                                      originalPrice,
-                                  );
-
-                                  const discountPerItem = Math.max(
-                                    originalPrice - salePrice,
-                                    0,
-                                  );
-
-                                  return sum + discountPerItem * quantity;
-                                }, 0)
-                                .toLocaleString()}{" "}
-                              đ
-                            </strong>
-                          </div>
-
-                          {/* Tổng tiền */}
-                          <div className="summary-line total">
-                            <span>Tổng tiền</span>
-
-                            <strong>
-                              {Number(
-                                selectedOrder.total || selectedOrder.Total || 0,
-                              ).toLocaleString()}{" "}
-                              đ
-                            </strong>
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        {activeTab === "orders" && <OrdersSection />}
 
         {user ? (
           <>
@@ -1438,20 +768,13 @@ const ProfilePage = () => {
               >
                 {showChangePassword ? "Ẩn đổi mật khẩu" : "Đổi mật khẩu"}
               </button>
-              <button
-                type="button"
-                className="btn-danger"
-                onClick={handleLogout}
-              >
+              <button type="button" className="btn-danger" onClick={handleLogout}>
                 Đăng xuất
               </button>
             </div>
 
             {showChangePassword && (
-              <form
-                className="change-password-box"
-                onSubmit={handleChangePassword}
-              >
+              <form className="change-password-box" onSubmit={handleChangePassword}>
                 <h3>Đổi mật khẩu</h3>
 
                 <div className="change-password-field">
@@ -1512,38 +835,29 @@ const ProfilePage = () => {
                 </div>
 
                 {passwordMessage && (
-                  <div
-                    className={`password-message ${isErrorText(passwordMessage) ? "message-error" : "message-success"}`}
-                  >
+                  <div className={`password-message ${isErrorText(passwordMessage) ? "message-error" : "message-success"}`}>
                     {passwordMessage}
                   </div>
                 )}
 
-                <button
-                  type="submit"
-                  className="change-password-btn"
-                  disabled={loading}
-                >
-                  Đổi mật khẩu
-                </button>
+                <div className="change-password-actions">
+                  <button type="submit" className="btn-save" disabled={loading}>
+                    Cập nhật
+                  </button>
+                  <button type="button" className="btn-cancel" onClick={() => setShowChangePassword(false)}>
+                    Hủy
+                  </button>
+                </div>
               </form>
             )}
           </>
-        ) : (
-          <div className="profile-empty">
-            <p>Bạn chưa đăng nhập. Hãy đăng nhập để xem thông tin tài khoản.</p>
-            <Link to={`/${ROUTERS.USER.HOME}`} state={{ showLogin: true }}>
-              Đăng nhập ngay
-            </Link>
-          </div>
-        )}
+        ) : null}
       </div>
 
       {showSuccessPopup && (
         <div className="profile-popup-overlay" onClick={closeSuccessPopup}>
-          <div className="profile-popup" onClick={(e) => e.stopPropagation()}>
-            <h3>Thành công</h3>
-            <p>{successPopupMessage || "Thao tác thành công."}</p>
+          <div className="profile-popup success" onClick={(e) => e.stopPropagation()}>
+            <p>{successPopupMessage}</p>
             <button type="button" onClick={closeSuccessPopup}>
               Đóng
             </button>
@@ -1553,12 +867,8 @@ const ProfilePage = () => {
 
       {showErrorPopup && (
         <div className="profile-popup-overlay" onClick={closeErrorPopup}>
-          <div
-            className="profile-popup error"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3>Có lỗi xảy ra</h3>
-            <p>{errorPopupMessage || "Có lỗi xảy ra."}</p>
+          <div className="profile-popup error" onClick={(e) => e.stopPropagation()}>
+            <p>{errorPopupMessage}</p>
             <button type="button" onClick={closeErrorPopup}>
               Đóng
             </button>
@@ -1569,4 +879,4 @@ const ProfilePage = () => {
   );
 };
 
-export default memo(ProfilePage);
+export default ProfilePage;

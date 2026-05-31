@@ -304,9 +304,6 @@ const AdminMasterLayout = () => {
 };
 
 export default AdminMasterLayout;
-
-
-// import React, { useEffect } from "react";
 // import Header from "./header";
 
 // const AdminMasterLayout = ({ children }) => {

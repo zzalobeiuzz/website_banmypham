@@ -87,11 +87,16 @@
               bottom: 20px;
               right: -8px;
               width: 1px;
-              background: linear-gradient(to bottom, transparent, rgba(0,0,0,0.06), transparent);
+              background: linear-gradient(
+                to bottom,
+                transparent,
+                rgba(0, 0, 0, 0.06),
+                transparent
+              );
               pointer-events: none;
             }
 
-              .product-template {
+            .product-template {
               padding: 8px 10px;
               border: 0;
               display: flex;
@@ -194,6 +199,7 @@
                 z-index: 3;
                 overflow: hidden;
                 text-overflow: ellipsis;
+
                 white-space: nowrap;
               }
 
@@ -253,7 +259,7 @@
             .product-meta {
               margin-bottom: 3px;
             }
-            
+
             .product-title {
               font-weight: 700;
               font-size: 14px;
@@ -358,6 +364,265 @@
   }
 }
 
+/* ===================== CHI TIÊT VOUCHER ===================== */
+.modal-voucher,
+.modal#info-coupon-detail,
+.modal[voucher-detail] {
+  z-index: 1080;
+
+  /* full-page muted backdrop when modal is shown */
+  &.fade.show {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1080;
+  }
+
+  &.fade.show::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(2px);
+    z-index: 1060;
+  }
+
+  .modal-dialog {
+    max-width: 580px;
+    margin: 1.6rem auto;
+    position: relative;
+    z-index: 1085; /* above the backdrop pseudo */
+
+    .modal-content {
+      position: relative;
+      border-radius: 16px;
+      background: linear-gradient(180deg, #ffffff 0%, #fffdfc 100%);
+      box-shadow: 0 30px 80px rgba(12, 12, 14, 0.22);
+      border: 0;
+      overflow: hidden;
+
+      .modal-header {
+        padding: 18px 20px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(4px);
+        border-bottom: 1px solid rgba(17, 17, 17, 0.04);
+
+        .modal-title-block {
+          display: flex;
+          gap: 14px;
+          align-items: center;
+          width: 100%;
+        }
+        .modal-title-label {
+          font-size: 12px;
+          font-weight: 800;
+          color: #fff;
+          background: linear-gradient(180deg, #ff7a7a, #c73030);
+          padding: 8px 12px;
+          border-radius: 999px;
+          text-transform: uppercase;
+        }
+        .modal-title-input {
+          flex: 1;
+          padding: 12px 14px;
+          border-radius: 12px;
+          background: #fff;
+          border: 1px solid rgba(17, 17, 17, 0.04);
+          font-weight: 700;
+        }
+        .btn-close {
+          width: 40px;
+          height: 40px;
+          border-radius: 10px;
+          background: #fff;
+          box-shadow: 0 6px 18px rgba(12, 12, 14, 0.06);
+        }
+      }
+
+      .modal-body {
+        padding: 20px;
+        color: #404040;
+
+        .d-grid > div {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 12px 14px;
+          border-radius: 10px;
+          background: #fff;
+          border: 1px solid rgba(17, 17, 17, 0.04);
+          box-shadow: 0 8px 20px rgba(12, 12, 14, 0.04);
+        }
+
+        .d-grid > div strong {
+          font-weight: 700;
+          color: #2b2b2b;
+        }
+        .d-grid > div .value {
+          display: inline-block;
+          padding: 6px 10px;
+          border-radius: 8px;
+          background: linear-gradient(180deg, #fafafa, #f3f3f4);
+          border: 1px solid rgba(17, 17, 17, 0.03);
+          color: #111;
+          font-weight: 700;
+          min-width: 80px;
+          text-align: right;
+        }
+
+        .voucher-detail-progress {
+          padding: 14px;
+          border-radius: 14px;
+          background: linear-gradient(180deg, #fafafa, #f5f7fa);
+          border: 1px solid rgba(0, 0, 0, 0.06);
+
+          strong {
+            font-size: 14px;
+            font-weight: 700;
+            color: #374151;
+          }
+
+          .voucher-progress-wrapper {
+            position: relative;
+            width: 100%;
+            height: 26px !important;
+            overflow: hidden;
+            border-radius: 999px;
+            background: #e5e7eb;
+            box-shadow:
+              inset 0 2px 4px rgba(0, 0, 0, 0.08),
+              0 2px 8px rgba(0, 0, 0, 0.04);
+
+            /* limit visual length and center the progress bar in the modal */
+            max-width: 360px;
+            margin: 0 auto;
+
+            .progress {
+              width: 100%;
+              height: 100%;
+              background: transparent;
+              overflow: hidden;
+              border-radius: inherit;
+            }
+
+            .progress-bar {
+              padding: 0; /* ensure inner .progress width aligns exactly */
+              border-radius: inherit;
+              transition: width 0.6s ease;
+
+              /* single red fill color */
+              background: #c73030 !important;
+              box-shadow: inset 0 -3px 8px rgba(0, 0, 0, 0.06);
+            }
+
+            /* center the percent text inside the wrapper */
+            .voucher-progress-text {
+              position: absolute;
+              inset: 0;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              pointer-events: none;
+              z-index: 2;
+
+              small {
+                font-size: 12px;
+                font-weight: 800;
+                color: #fff;
+                padding: 0 6px;
+                background: transparent;
+                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+              }
+            }
+          }
+
+          .voucher-progress-text {
+            z-index: 2;
+
+            small {
+              font-size: 12px;
+              font-weight: 800;
+              color: #fff;
+              text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+              letter-spacing: 0.3px;
+            }
+          }
+
+          .voucher-progress-text.small--light small {
+            color: #111827;
+            text-shadow: none;
+          }
+
+          /* voucher-progress-info removed — details now shown inside the bar */
+        }
+      }
+
+      .modal-footer {
+        padding: 14px 20px 20px;
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+    }
+  }
+
+  @media (max-width: 520px) {
+    .modal-dialog {
+      margin: 1rem;
+    }
+
+    .voucher-progress-wrapper {
+      height: 22px;
+      max-width: calc(100% - 48px);
+      margin: 0 auto;
+    }
+  }
+}
+
+.voucher-copy-toast {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2000;
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.94);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.22);
+  animation: copyToastIn 180ms ease-out;
+  max-width: min(92vw, 520px);
+  text-align: center;
+  pointer-events: none;
+}
+
+@media (max-width: 520px) {
+  .voucher-copy-toast {
+    top: 12px;
+    width: calc(100vw - 24px);
+    font-size: 12px;
+  }
+}
+
+@keyframes copyToastIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 // Override for the All Products section: remove lateral margin
 .section-flash-mobile.all-products-section {
   .slide-main {
@@ -380,6 +645,7 @@
 
       .owl-stage {
         /* allow JS to control transform for animation */
+        will-change: transform;
       }
     }
   }
@@ -513,6 +779,7 @@
 
 //===========================================Voucher==================================
 .list-coupon {
+  position: relative;
   margin-bottom: 30px;
 
   h2 {
@@ -522,34 +789,84 @@
     line-height: 20px;
     margin-bottom: 20px;
   }
+  .voucher-nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 3;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    line-height: 1;
+    opacity: 0.95;
 
+    &.voucher-nav-btn-left {
+      top: 83px;
+      left: -24px;
+      transform: none;
+    }
+
+    &.voucher-nav-btn-right {
+      top: 83px;
+      right: -24px;
+      transform: none;
+    }
+  }
   .slide-main-coupon {
-    overflow: hidden;
+    overflow: visible;
+
+    .voucher-carousel-wrap {
+      position: relative;
+      overflow: visible;
+    }
 
     .slide-template-slide-coupon {
       display: flex;
-      overflow: hidden;
+      overflow: visible;
       width: 100%;
       -webkit-tap-highlight-color: transparent;
       position: relative;
       z-index: 1;
 
+      /* Allow horizontal scrolling on the outer container. */
+      /* Previously `overflow: hidden` prevented JS-driven scrollTo from working. */
       .owl-stage-outer {
         position: relative;
-        overflow: hidden;
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
         transform: translate3d(0, 0, 0);
+        scrollbar-width: none;
+        -ms-overflow-style: none;
 
+        &::-webkit-scrollbar {
+          display: none;
+        }
+
+        /* Let the stage size itself to contain all items (don't fix width to 4 items). */
         .owl-stage {
-          transition: all 0.25s ease;
-          width: 1320px;
+          display: flex;
           position: relative;
           touch-action: manipulation;
+          transition: all 0.25s ease;
+          width: auto;
+          gap: 0;
+          flex-wrap: nowrap;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
         }
 
         .owl-item {
           position: relative;
           min-height: 1px;
           width: 330px;
+          flex: 0 0 330px;
           touch-action: pan-y;
           -webkit-user-select: none;
           user-select: none;
