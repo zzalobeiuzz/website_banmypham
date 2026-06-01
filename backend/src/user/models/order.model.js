@@ -242,6 +242,31 @@ exports.generateOrderId = async (maxAttempts = 5) => {
 };
 
 /**-------------------------------------------------
+ 🧾 Kiểm tra người dùng đã dùng voucher chưa
+  - Nếu bảng VOUCHER_CLAIMS có bản ghi với (VoucherCode, UserID) => đã dùng
+  - Trả về true/false
+--------------------------------------------------*/
+exports.hasUserUsedVoucher = async (userId, voucherCode) => {
+  if (!userId || !voucherCode) return false;
+
+  const pool = await connectDB();
+  const normalizedCode = String(voucherCode || "").trim();
+  const normalizedUser = String(userId || "").trim();
+
+  const res = await pool.request()
+    .input("voucherCode", sql.NVarChar(128), normalizedCode)
+    .input("userId", sql.NVarChar(256), normalizedUser)
+    .query(`
+      SELECT TOP 1 1 AS Found
+      FROM VOUCHER_CLAIMS WITH (NOLOCK)
+      WHERE CAST(VoucherCode AS NVARCHAR(128)) = @voucherCode
+        AND CAST(UserID AS NVARCHAR(256)) = @userId
+    `);
+
+  return Array.isArray(res.recordset) && res.recordset.length > 0;
+};
+
+/**-------------------------------------------------
  📦 TRỪ KHO HÀNG TỪ BATCH_DETAIL KHI TẠO ĐƠN HÀNG
  💡 Ưu tiên: isActive=1, rồi hạn sử dụng gần nhất (sắp hết hạn)
 --------------------------------------------------*/

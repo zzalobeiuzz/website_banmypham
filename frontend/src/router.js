@@ -32,6 +32,7 @@ import BrandProductsPage from "./pages/admin/components/DynamicHome/brand/BrandP
 import AccountPage from "./pages/admin/components/DynamicHome/account/AccountPage.js";
 import VoucherPage from "./pages/admin/components/DynamicHome/voucher/VoucherPage.js";
 import AdminChatPage from "./pages/admin/components/DynamicHome/chat/AdminChatPage.js";
+import DiscountEventsPage from "./pages/admin/components/DynamicHome/event/DiscountEventsPage.js";
 
 import { ROUTERS } from "./utils/router";
 
@@ -110,6 +111,12 @@ const adminRoutes = [
     path: ROUTERS.ADMIN.VOUCHER.INDEX || "voucher", // 🎟 Voucher
     children: [
       { index: true, element: <VoucherPage /> }, // 🏠 Trang danh sách voucher (/admin/voucher)
+    ],
+  },
+  {
+    path: "event",
+    children: [
+      { path: "discount", element: <DiscountEventsPage /> },
     ],
   },
   {

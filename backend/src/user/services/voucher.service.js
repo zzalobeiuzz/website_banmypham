@@ -46,7 +46,9 @@ exports.getPublicVouchers = async () => {
     }));
 };
 
-exports.validateVoucherCode = async (code, subtotal = 0) => {
+const orderModel = require("../models/order.model");
+
+exports.validateVoucherCode = async (code, subtotal = 0, userId = null) => {
   const normalizedCode = normalizeCode(code);
   if (!normalizedCode) {
     return {
@@ -85,6 +87,22 @@ exports.validateVoucherCode = async (code, subtotal = 0) => {
 
   const discountAmount = Math.max(0, Number(matchedVoucher.discountAmount || 0) || 0);
   const appliedDiscount = Math.min(discountAmount, orderSubtotal);
+
+  // Nếu client truyền userId (đã xác thực), kiểm tra xem user này đã dùng mã chưa
+  try {
+    if (userId) {
+      const alreadyUsed = await orderModel.hasUserUsedVoucher(userId, matchedVoucher.code);
+      if (alreadyUsed) {
+        return {
+          success: false,
+          message: "Bạn đã sử dụng mã giảm giá này rồi.",
+        };
+      }
+    }
+  } catch (err) {
+    // Nếu kiểm tra lỗi, không block flow — chỉ log để khỏi làm hỏng trải nghiệm cùng lúc
+    console.error("Lỗi khi kiểm tra voucher đã dùng:", err?.message || err);
+  }
 
   return {
     success: true,
