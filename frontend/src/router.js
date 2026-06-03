@@ -33,9 +33,10 @@ import AccountPage from "./pages/admin/components/DynamicHome/account/AccountPag
 import VoucherPage from "./pages/admin/components/DynamicHome/voucher/VoucherPage.js";
 import AdminChatPage from "./pages/admin/components/DynamicHome/chat/AdminChatPage.js";
 import DiscountEventsPage from "./pages/admin/components/DynamicHome/event/DiscountEventsPage.js";
+import StatisticsPage from "./pages/admin/components/DynamicHome/stats/StatisticsPage.js";
+import AdminOverviewPage from "./pages/admin/components/DynamicHome/overview/AdminOverviewPage.js";
 
 import { ROUTERS } from "./utils/router";
-
 // ========== 👤 USER ROUTES ==========
 const userRoutes = [
   { path: ROUTERS.USER.HOME, element: <HomePage />, showHeaderFooter: true },
@@ -55,6 +56,7 @@ const adminRoutes = [
   {
     path: ROUTERS.ADMIN.PRODUCT.INDEX || "product", // 📦 Sản phẩm
     children: [
+      { index: true, element: <ProductOverview /> },
       {
         path: ROUTERS.ADMIN.PRODUCT.ADD.replace("product/", ""), // ➕ Thêm sản phẩm (/admin/product/add)
         element: <AddProduct />,
@@ -120,6 +122,12 @@ const adminRoutes = [
     ],
   },
   {
+    path: "stats",
+    children: [
+      { index: true, element: <StatisticsPage /> },
+    ],
+  },
+  {
     path: ROUTERS.ADMIN.ACCOUNT.INDEX || "account", // 👤 Tài khoản
     children: [
       { index: true, element: <AccountPage /> },
@@ -160,8 +168,8 @@ const RouterCustom = () => (
     >
       {/* 🏠 Layout AdminHomepage bao ngoài (chứa sidebar, header, ...) */}
       <Route element={<AdminHomepage />}>
-        {/* 🏠 Khi vào /admin → mặc định hiển thị ProductOverview */}
-        <Route index element={<ProductOverview />} />
+        {/* 🏠 Khi vào /admin → mặc định hiển thị tổng quan */}
+        <Route index element={<AdminOverviewPage />} />
 
         {/* 📦 Các route con admin (sản phẩm, đơn hàng, ...) */}
         {adminRoutes.map((route, idx) => (

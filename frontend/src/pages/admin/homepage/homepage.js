@@ -58,7 +58,7 @@ const Homepage = () => {
   const [notify, setNotify] = useState({ open: false, status: "info", message: "" });
 
   const managementItems = [
-    { icon: "icons-product-management.png", label: "Sản phẩm", path: `/${ROUTERS.ADMIN.HOME}` },
+    { icon: "icons-product-management.png", label: "Sản phẩm", path: `/${ROUTERS.ADMIN.HOME}/${ROUTERS.ADMIN.PRODUCT.INDEX}` },
     { icon: "icons-order.png", label: "Đơn hàng", path: `/${ROUTERS.ADMIN.HOME}/${ROUTERS.ADMIN.ORDER.INDEX}` },
     { icon: "icons-product-category.png", label: "Danh mục", path: `/${ROUTERS.ADMIN.HOME}/${ROUTERS.ADMIN.CATEGORY.INDEX}` },
     { icon: "icons8-brand.png", label: "Thương hiệu", path: `/${ROUTERS.ADMIN.HOME}/${ROUTERS.ADMIN.BRAND.INDEX}` },
@@ -75,8 +75,8 @@ const Homepage = () => {
   ];
 
   const revenueItems = [
-    { icon: "icons-analytics.png", label: "Tổng quan", path: "/admin/overview" },
-    { icon: "icons-revenue.png", label: "Doanh thu", path: "/admin/revenue" },
+    { icon: "icons-analytics.png", label: "Tổng quan", path: "/admin" },
+    { icon: "icons-revenue.png", label: "Doanh thu", path: "/admin/stats" },
     { icon: "icons-conversion-rate.png", label: "Tỷ lệ chuyển đổi", path: "/admin/conversion" },
   ];
 

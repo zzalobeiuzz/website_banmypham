@@ -67,7 +67,7 @@ const getAllOrdersFromBill = async () => {
     FROM ${ORDERS_TABLE} O
 
     -- Sắp xếp đơn mới nhất lên đầu
-    ORDER BY TRY_CAST(O.[CreatedAt] AS DATETIME) DESC, O.[OrderID] DESC
+    ORDER BY TRY_CAST(O.[CreatedAt] AS DATETIME) DESC, CAST(O.[OrderID] AS NVARCHAR(100)) DESC
   `;
 
   /**
@@ -83,6 +83,17 @@ const getAllOrdersFromBill = async () => {
 
       -- Tên sản phẩm
       CAST(COALESCE(P.[ProductName], N'Sản phẩm') AS NVARCHAR(255)) AS ProductName,
+
+      -- Mã sản phẩm
+      CAST(COALESCE(D.[ProductID], '') AS NVARCHAR(100)) AS ProductID,
+
+      -- Ảnh sản phẩm
+      CAST(P.[Image] AS NVARCHAR(500)) AS ProductImage,
+
+      -- Danh mục sản phẩm
+      CAST(COALESCE(P.[CategoryID], '') AS NVARCHAR(100)) AS CategoryID,
+
+      CAST(COALESCE(C.[CategoryName], N'Khác') AS NVARCHAR(255)) AS CategoryName,
 
       -- Số lượng
       TRY_CAST(D.[Quantity] AS INT) AS Quantity,
@@ -101,6 +112,10 @@ const getAllOrdersFromBill = async () => {
     LEFT JOIN PRODUCT P
       ON CAST(P.[ProductID] AS NVARCHAR(100))
       = CAST(D.[ProductID] AS NVARCHAR(100))
+
+    LEFT JOIN CATEGORY C
+      ON CAST(C.[CategoryID] AS NVARCHAR(100))
+      = CAST(P.[CategoryID] AS NVARCHAR(100))
   `;
 
   /**
