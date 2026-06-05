@@ -222,6 +222,30 @@
 
 .notification__success-box--popup {
   min-height: 220px;
+  position: relative;
+}
+
+.notification__dismiss-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #dc2626;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: #dc2626;
+    color: #fff;
+  }
 }
 
 .notification__badge {

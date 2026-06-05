@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
 import useHttp from "../../../../../hooks/useHttp";
 import { API_BASE, UPLOAD_BASE } from "../../../../../constants";
 import ToolBar from "../../ToolBar";
@@ -20,6 +21,9 @@ const TXT = {
 
 const CustomerPage = () => {
   const { request } = useHttp();
+  const { customerId: routeCustomerIdParam } = useParams();
+  const [searchParams] = useSearchParams();
+  const routeCustomerId = routeCustomerIdParam || searchParams.get("customerId");
 
   const [customers, setCustomers] = useState([]);
   const [searchKeyword, setSearchKeyword] = useState("");
@@ -294,7 +298,7 @@ const fetchCustomers = async () => {
       try {
         res = await request(
           "GET",
-          `${API_BASE}/api/admin/customers/${customerId}`,
+          `${API_BASE}/api/admin/customers/${encodeURIComponent(customerId)}`,
           null,
           getAuthHeaders(token),
         );
@@ -303,7 +307,7 @@ const fetchCustomers = async () => {
         token = await refreshAccessToken();
         res = await request(
           "GET",
-          `${API_BASE}/api/admin/customers/${customerId}`,
+          `${API_BASE}/api/admin/customers/${encodeURIComponent(customerId)}`,
           null,
           getAuthHeaders(token),
         );
@@ -366,6 +370,13 @@ const fetchCustomers = async () => {
       fetchCustomers();
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    useEffect(() => {
+      if (routeCustomerId) {
+        fetchCustomerDetail(routeCustomerId);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [routeCustomerId]);
 
   const handleApplyAvatarEdit = (dataUrl) => {
     handleChangeCreateCustomerForm("avatarUrl", dataUrl);

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ResponsiveContainer,
   PieChart,
@@ -11,6 +11,7 @@ import {
   YAxis,
   CartesianGrid,
   Line,
+  Customized,
 } from "recharts";
 import useHttp from "../../../../../hooks/useHttp";
 import { API_BASE, UPLOAD_BASE } from "../../../../../constants";
@@ -33,10 +34,10 @@ const chartAnimation = {
 };
 
 const StatisticsPage = () => {
+  // Trạng thái chính của biểu đồ doanh thu: range là cấp đang chọn ở dropdown,
+  // drillLevel là cấp đang xem sau khi người dùng bấm vào cột biểu đồ.
   const [range, setRange] = useState("month");
-  const [data, setData] = useState({ categories: [], monthlyRaw: [], dailyRaw: [], weeklyRaw: [], quarterRaw: [], quarter: [], year: [], line: [], productSalesReport: [] });
-  const [selectedYear, setSelectedYear] = useState(null);
-  const [availableYears, setAvailableYears] = useState([]);
+  const [data, setData] = useState({ categories: [], monthlyRaw: [], dailyRaw: [], quarterRaw: [], quarter: [], year: [], line: [], productSalesReport: [] });
   const [selectedBucket, setSelectedBucket] = useState(null);
   const [defaultCategories, setDefaultCategories] = useState([]);
   const [defaultProductSalesReport, setDefaultProductSalesReport] = useState([]);
@@ -46,68 +47,89 @@ const StatisticsPage = () => {
   const [reportCollapsed, setReportCollapsed] = useState(false);
   const [reportClosing, setReportClosing] = useState(false);
   const [chartMode, setChartMode] = useState("bar");
-  const [timeFilterMode, setTimeFilterMode] = useState("year");
-  const [yearFilterMode, setYearFilterMode] = useState("range");
-  const [yearFrom, setYearFrom] = useState("");
-  const [yearTo, setYearTo] = useState("");
+  const currentYear = String(new Date().getFullYear());
+  const [activeYear, setActiveYear] = useState(currentYear);
+  const [dataYear, setDataYear] = useState(currentYear);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [drillLevel, setDrillLevel] = useState("month");
+  const [selectedMonthDrill, setSelectedMonthDrill] = useState(null);
+  const [selectedDayDrill, setSelectedDayDrill] = useState(null);
+  const [selectedQuarterDrill, setSelectedQuarterDrill] = useState(null);
+  const [selectedYearDrill, setSelectedYearDrill] = useState(null);
   const { request, loading } = useHttp();
+  const hasActiveDateRange = Boolean(dateFrom && dateTo);
 
-  // derive available years from an unfiltered call
+  // Xác định năm cần tải doanh thu. Ưu tiên mốc đang drill để khi chuyển
+  // quý/tháng/ngày sang năm khác thì API luôn lấy đúng dữ liệu của năm đó.
+  const drillYear =
+    (selectedDayDrill?.day || "").slice(0, 4) ||
+    (drillLevel === "day" ? selectedMonthDrill?.year : "") ||
+    selectedQuarterDrill?.year ||
+    selectedMonthDrill?.year ||
+    selectedYearDrill?.year ||
+    "";
+  const statsYear = String(drillYear || dataYear || activeYear);
+
+  // Range gửi lên backend có thể khác dropdown. Ví dụ đang click quý thì
+  // frontend cần dữ liệu tháng trong quý đó, nên gửi range=month.
+  const statsQueryRange = (() => {
+    if (selectedDayDrill) return "day";
+    if (drillLevel === "day" && selectedMonthDrill) return "day";
+    if (selectedQuarterDrill) return "month";
+    if (range === "year" && selectedYearDrill) return "quarter";
+    return range;
+  })();
+  const statsRequestSeq = useRef(0);
+
+  // Đồng bộ năm dữ liệu khi state drill đổi năm, tránh trường hợp UI hiển thị
+  // năm mới nhưng request vẫn dùng năm cũ.
+  useEffect(() => {
+    if (!hasActiveDateRange && drillYear && drillYear !== dataYear) {
+      setDataYear(String(drillYear));
+    }
+  }, [dataYear, drillYear, hasActiveDateRange]);
+
+  useEffect(() => {
+    if (!["month", "day"].includes(drillLevel)) {
+      setDrillLevel("day");
+    }
+  }, [drillLevel]);
+
+  useEffect(() => {
+    if (!["month", "quarter", "year"].includes(range)) {
+      setRange("month");
+      setDrillLevel("month");
+      setSelectedMonthDrill(null);
+      setSelectedDayDrill(null);
+      setSelectedQuarterDrill(null);
+      setSelectedYearDrill(null);
+    }
+  }, [range]);
+
+  // Tải toàn bộ dữ liệu doanh thu cho biểu đồ chính, biểu đồ tròn và bảng chi tiết.
   useEffect(() => {
     let mounted = true;
-    (async () => {
-      try {
-        const res = await request("GET", `${API_BASE}/api/admin/stats`);
-        console.log(res.data)
-        const payload = res.data || res;
-        const yearsFromMonthly = Array.from(new Set((payload.monthlyRevenue || []).map((r) => (r.MonthLabel || "").slice(0, 4)))).filter(Boolean);
-        const yearsFromQuarter = Array.from(new Set((payload.quarterlyRevenue || []).map((q) => String(q.YearLabel)))).filter(Boolean);
-        const yearsFromDaily = Array.from(new Set((payload.dailyRevenue || []).map((d) => (d.DayLabel || "").slice(0, 4)))).filter(Boolean);
-        const yearsFromWeekly = Array.from(new Set((payload.weeklyRevenue || []).map((w) => String(w.YearLabel)))).filter(Boolean);
-        const years = Array.from(new Set([...yearsFromMonthly, ...yearsFromQuarter, ...yearsFromDaily, ...yearsFromWeekly])).filter(Boolean).sort();
-        if (!mounted) return;
-        setAvailableYears(years);
-        if (!selectedYear && years.length) setSelectedYear(years[years.length - 1]);
-        setYearFrom((prev)=>prev || years[Math.max(years.length - 5, 0)] || "");
-        setYearTo((prev)=>prev || years[years.length - 1] || "");
-        const days = (payload.dailyRevenue || []).map((d)=>d.DayLabel).filter(Boolean).sort();
-        setDateFrom((prev)=>prev || days[0] || "");
-        setDateTo((prev)=>prev || days[days.length - 1] || "");
-      } catch (err) {
-        console.error("Failed to load available years:", err?.message || err);
-      }
-    })();
-    return () => { mounted = false; };
-  }, [request, selectedYear]);
-
-  // fetch filtered stats whenever range or selectedYear change
-  useEffect(() => {
-    let mounted = true;
+    const requestId = ++statsRequestSeq.current;
     (async () => {
       try {
         const params = new URLSearchParams();
-        if (range) params.append("range", range);
-        if (timeFilterMode === "dateRange") {
-          if (dateFrom) params.append("fromDate", dateFrom);
-          if (dateTo) params.append("toDate", dateTo);
-        } else if (selectedYear && (range !== "year" || yearFilterMode === "single")) {
-          params.append("year", selectedYear);
+        if (statsQueryRange) params.append("range", statsQueryRange);
+        if (hasActiveDateRange) {
+          params.append("fromDate", dateFrom);
+          params.append("toDate", dateTo);
+        } else {
+          params.append("year", statsYear);
         }
-        if (timeFilterMode !== "dateRange" && range === "year" && yearFilterMode === "range") {
-          if (yearFrom) params.append("fromYear", yearFrom);
-          if (yearTo) params.append("toYear", yearTo);
-        }
+        params.append("_", `${statsYear}-${statsQueryRange}-${requestId}`);
         const url = `${API_BASE}/api/admin/stats` + (params.toString() ? `?${params.toString()}` : "");
+        console.debug("stats request", { url, statsYear, statsQueryRange });
         const res = await request("GET", url);
-        console.log(res.data)
         const payload = res.data || res;
 
+        // Chuẩn hóa dữ liệu doanh thu từ backend về định dạng frontend dùng cho Recharts.
         const quarterRaw = (payload.quarterlyRevenue || []).map((q) => ({ year: String(q.YearLabel), quarter: Number(q.Quarter), revenue: Number(q.Revenue || 0) }));
         const dailyRaw = (payload.dailyRevenue || []).map((d) => ({ dayLabel: d.DayLabel, revenue: Number(d.Revenue || 0) }));
-        const weeklyRaw = (payload.weeklyRevenue || []).map((w) => ({ year: String(w.YearLabel), week: Number(w.WeekOfYear), revenue: Number(w.Revenue || 0) }));
-
         const productSalesReport = (payload.productSalesReport || []).map((row) => ({
           productId: row.ProductID,
           productName: row.ProductName || "Sản phẩm",
@@ -121,15 +143,23 @@ const StatisticsPage = () => {
           categories: (payload.categoryRevenue || []).map((c) => ({ name: c.CategoryName || c.CategoryID, value: Number(c.Revenue || 0) })),
           monthlyRaw: (payload.monthlyRevenue || []).map((m) => ({ monthLabel: m.MonthLabel, revenue: Number(m.Revenue || 0) })),
           dailyRaw,
-          weeklyRaw,
           quarterRaw,
           quarter: [1,2,3,4].map((qnum) => ({ label: `Quý ${qnum}`, revenue: quarterRaw.filter((r)=>r.quarter===qnum).reduce((s,r)=>s+r.revenue,0) })),
           year: (payload.yearlyRevenue || []).map((y) => ({ year: String(y.YearLabel), revenue: Number(y.Revenue || 0) })),
           line: (payload.monthlyRevenue || []).map((m) => ({ monthLabel: m.MonthLabel, revenue: Number(m.Revenue || 0) })),
           productSalesReport,
         };
+        console.debug("stats response", {
+          statsYear,
+          statsQueryRange,
+          monthly: mapped.monthlyRaw.length,
+          daily: mapped.dailyRaw.length,
+          quarterly: mapped.quarterRaw.length,
+          yearly: mapped.year.length,
+        });
 
-        if (!mounted) return;
+        // Bỏ qua response cũ nếu người dùng đổi mốc thời gian liên tục.
+        if (!mounted || requestId !== statsRequestSeq.current) return;
         setDefaultCategories(mapped.categories);
         setDefaultProductSalesReport(productSalesReport);
         setData(mapped);
@@ -137,18 +167,19 @@ const StatisticsPage = () => {
         setHasLoadedStats(true);
       } catch (err) {
         console.error("Failed to load stats:", err?.message || err);
-        if (!mounted) return;
+        if (!mounted || requestId !== statsRequestSeq.current) return;
         setDefaultCategories([]);
         setDefaultProductSalesReport([]);
-        setData({ categories: [], monthlyRaw: [], dailyRaw: [], weeklyRaw: [], quarterRaw: [], quarter: [], year: [], line: [], productSalesReport: [] });
+        setData({ categories: [], monthlyRaw: [], dailyRaw: [], quarterRaw: [], quarter: [], year: [], line: [], productSalesReport: [] });
         setChartVersion((prev)=>prev+1);
         setHasLoadedStats(true);
       }
     })();
     return () => { mounted = false; };
-  }, [range, selectedYear, timeFilterMode, yearFilterMode, yearFrom, yearTo, dateFrom, dateTo, request]);
+  }, [dateFrom, dateTo, hasActiveDateRange, request, statsQueryRange, statsYear]);
 
-  // fetch only category revenue when a chart column is selected
+  // Khi bấm vào một cột doanh thu, chỉ tải lại doanh thu theo danh mục và
+  // chi tiết sản phẩm cho đúng mốc đó; dữ liệu biểu đồ chính vẫn giữ nguyên.
   useEffect(() => {
     let mounted = true;
 
@@ -165,18 +196,17 @@ const StatisticsPage = () => {
       try {
         setCategoryLoading(true);
         const params = new URLSearchParams();
-        if (range) params.append("range", range);
-        if (timeFilterMode === "dateRange") {
-          if (dateFrom) params.append("fromDate", dateFrom);
-          if (dateTo) params.append("toDate", dateTo);
-        } else if (selectedYear && (range !== "year" || yearFilterMode === "single")) {
-          params.append("year", selectedYear);
-        }
-        if (timeFilterMode !== "dateRange" && range === "year" && yearFilterMode === "range") {
-          if (yearFrom) params.append("fromYear", yearFrom);
-          if (yearTo) params.append("toYear", yearTo);
+        if (statsQueryRange) params.append("range", statsQueryRange);
+        if (hasActiveDateRange) {
+          params.append("fromDate", dateFrom);
+          params.append("toDate", dateTo);
+        } else {
+          params.append("year", statsYear);
         }
         params.append("categoryRange", selectedBucket.range);
+
+        // Các tham số categoryYear/categoryMonth/categoryQuarter/categoryDay
+        // quyết định biểu đồ tròn và bảng chi tiết đang lọc theo mốc nào.
         Object.entries(selectedBucket.params || {}).forEach(([key,value]) => {
           if (value !== undefined && value !== null && value !== "") params.append(key, value);
         });
@@ -204,7 +234,7 @@ const StatisticsPage = () => {
     })();
 
     return () => { mounted = false; };
-  }, [defaultCategories, defaultProductSalesReport, hasLoadedStats, range, selectedBucket, selectedYear, timeFilterMode, yearFilterMode, yearFrom, yearTo, dateFrom, dateTo, request]);
+  }, [dateFrom, dateTo, defaultCategories, defaultProductSalesReport, hasActiveDateRange, hasLoadedStats, selectedBucket, request, statsQueryRange, statsYear]);
 
   const donut = (data.categories || []).map((c) => ({ name: c.name, value: Number(c.value || 0), pct: 0 }));
   const total = donut.reduce((s,d)=>s+d.value,0);
@@ -213,27 +243,58 @@ const StatisticsPage = () => {
     .slice()
     .sort((a,b)=>Number(a.year)-Number(b.year)), [data.year]);
   const yearChartData = useMemo(() => {
-    if (timeFilterMode === "dateRange") return sortedYearData;
+    if (hasActiveDateRange) return sortedYearData;
+    return sortedYearData.filter((item)=>String(item.year) === statsYear);
+  }, [hasActiveDateRange, sortedYearData, statsYear]);
+  const parseDayLabel = (value) => {
+    const parts = String(value || "").split("-").map(Number);
+    if (parts.length !== 3 || parts.some((part)=>!Number.isFinite(part))) return null;
+    return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+  };
+  const formatDayValue = (date) => {
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+  const getDaysInMonth = (year, monthNumber) => new Date(Date.UTC(Number(year), Number(monthNumber), 0)).getUTCDate();
 
-    if (yearFilterMode === "single") {
-      const year = selectedYear || yearTo || sortedYearData[sortedYearData.length - 1]?.year;
-      return sortedYearData.filter((item)=>String(item.year) === String(year));
-    }
+  // Chuyển dữ liệu doanh thu ngày thành dạng có thể lọc theo năm/tháng.
+  const drillDayRows = useMemo(() => (data.dailyRaw || [])
+    .map((row)=>{
+      const date = parseDayLabel(row.dayLabel);
+      if (!date) return null;
+      return {
+        ...row,
+        date,
+        year: String(date.getUTCFullYear()),
+        monthNumber: date.getUTCMonth() + 1,
+      };
+    })
+    .filter(Boolean), [data.dailyRaw]);
 
-    const firstYear = sortedYearData[0]?.year;
-    const lastYear = sortedYearData[sortedYearData.length - 1]?.year;
-    const from = Number(yearFrom || firstYear);
-    const to = Number(yearTo || lastYear);
-    const min = Math.min(from, to);
-    const max = Math.max(from, to);
+  // Khi drill từ tháng xuống ngày, luôn dựng đủ số ngày của tháng
+  // 28/29/30/31 ngày; ngày không có đơn vẫn hiện với doanh thu bằng 0.
+  const buildMonthDayRows = (year, monthNumber) => {
+    const revenueByDay = new Map();
+    drillDayRows
+      .filter((row)=>String(row.year) === String(year) && Number(row.monthNumber) === Number(monthNumber))
+      .forEach((row)=>{
+        revenueByDay.set(row.dayLabel, (revenueByDay.get(row.dayLabel) || 0) + Number(row.revenue || 0));
+      });
 
-    return sortedYearData.filter((item)=>{
-      const year = Number(item.year);
-      return year >= min && year <= max;
+    return Array.from({ length: getDaysInMonth(year, monthNumber) }, (_, index)=>{
+      const dayNumber = index + 1;
+      const day = `${year}-${String(monthNumber).padStart(2, "0")}-${String(dayNumber).padStart(2, "0")}`;
+      return {
+        day,
+        label: `${dayNumber}/${Number(monthNumber)}`,
+        revenue: revenueByDay.get(day) || 0,
+      };
     });
-  }, [selectedYear, sortedYearData, timeFilterMode, yearFilterMode, yearFrom, yearTo]);
+  };
   const selectedBucketLabel = selectedBucket?.label || "Tất cả";
-  const chartAnimationKey = `${range}-${selectedYear || "all"}-${timeFilterMode}-${yearFilterMode}-${yearFrom}-${yearTo}-${dateFrom}-${dateTo}-${chartMode}-${chartVersion}`;
+  const chartAnimationKey = `${range}-${drillLevel}-${selectedYearDrill?.year || "all"}-${selectedQuarterDrill?.year || "all"}-${selectedQuarterDrill?.quarter || "all"}-${selectedMonthDrill?.year || "all"}-${selectedMonthDrill?.monthNumber || "all"}-${selectedDayDrill?.day || "all"}-${statsYear}-${dateFrom}-${dateTo}-${chartMode}-${chartVersion}`;
   const reportRows = data.productSalesReport || [];
   const reportTotalQuantity = reportRows.reduce((sum,row)=>sum + Number(row.quantity || 0), 0);
   const reportTotalRevenue = reportRows.reduce((sum,row)=>sum + Number(row.revenue || 0), 0);
@@ -243,71 +304,258 @@ const StatisticsPage = () => {
     const [year, month, day] = parts;
     return `${Number(day)}/${Number(month)}/${year}`;
   };
+  const formatDayMonthLabel = (value) => {
+    const parts = String(value || "").split("-");
+    if (parts.length !== 3) return value || "";
+    const [, month, day] = parts;
+    return `${Number(day)}/${Number(month)}`;
+  };
   const reportRangeLabel = (() => {
     if (selectedBucket) {
       const params = selectedBucket.params || {};
-      if (selectedBucket.range === "day") return `Ngày ${formatDateLabel(params.categoryDay)}`;
-      if (selectedBucket.range === "week") return `Tuần ${params.categoryWeek} / ${params.categoryYear}`;
-      if (selectedBucket.range === "month") return `Tháng ${params.categoryMonth} / ${params.categoryYear}`;
+      if (selectedBucket.range === "day") return `Ngày ${formatDayMonthLabel(params.categoryDay)}`;
+      if (selectedBucket.range === "month") return `Tháng ${params.categoryMonth}`;
       if (selectedBucket.range === "quarter") return `Quý ${params.categoryQuarter} / ${params.categoryYear}`;
       if (selectedBucket.range === "year") return `Năm ${params.categoryYear}`;
       return selectedBucket.label || "Khoảng đã chọn";
     }
 
-    if (timeFilterMode === "dateRange") {
-      return dateFrom && dateTo ? `Từ ${formatDateLabel(dateFrom)} đến ${formatDateLabel(dateTo)}` : "Theo khoảng thời gian";
-    }
-    if (range === "day") return selectedYear ? `Theo ngày trong năm ${selectedYear}` : "Theo ngày";
-    if (range === "week") return selectedYear ? `Theo tuần trong năm ${selectedYear}` : "Theo tuần";
-    if (range === "month") return selectedYear ? `Theo tháng trong năm ${selectedYear}` : "Theo tháng";
-    if (range === "quarter") return selectedYear ? `Theo quý trong năm ${selectedYear}` : "Theo quý";
-    if (yearFilterMode === "single") return selectedYear ? `Năm ${selectedYear}` : "Theo năm";
-    return yearFrom && yearTo ? `Từ năm ${yearFrom} đến ${yearTo}` : "Theo khoảng năm";
+    if (drillLevel === "day" && selectedMonthDrill) return selectedMonthDrill.label || `Tháng ${selectedMonthDrill.monthNumber}`;
+    if (selectedQuarterDrill) return selectedQuarterDrill.label || `Quý ${selectedQuarterDrill.quarter}/${selectedQuarterDrill.year}`;
+    if (range === "year" && selectedYearDrill) return `Các quý trong năm ${selectedYearDrill.year}`;
+    if (hasActiveDateRange) return `Từ ${formatDateLabel(dateFrom)} đến ${formatDateLabel(dateTo)}`;
+    if (range === "day") return `Theo ngày trong năm ${statsYear}`;
+    if (range === "month") return `Theo tháng trong năm ${statsYear}`;
+    if (range === "quarter") return `Theo quý trong năm ${statsYear}`;
+    return `Năm ${statsYear}`;
   })();
+  const resetDrill = () => {
+    setDrillLevel("month");
+    setSelectedMonthDrill(null);
+    setSelectedDayDrill(null);
+    setSelectedQuarterDrill(null);
+    setSelectedYearDrill(null);
+  };
 
   const handleRangeChange = (value) => {
     setRange(value);
     setSelectedBucket(null);
-  };
-
-  const handleYearChange = (value) => {
-    setSelectedYear(value);
-    setSelectedBucket(null);
-  };
-
-  const handleTimeFilterModeChange = (value) => {
-    setTimeFilterMode(value);
-    setSelectedBucket(null);
-  };
-
-  const handleYearFilterModeChange = (value) => {
-    setYearFilterMode(value);
-    setSelectedBucket(null);
-    if (value === "single" && !selectedYear && yearTo) setSelectedYear(yearTo);
-  };
-
-  const handleYearFromChange = (value) => {
-    setYearFrom(value);
-    setSelectedBucket(null);
-  };
-
-  const handleYearToChange = (value) => {
-    setYearTo(value);
-    setSelectedBucket(null);
+    setDataYear(activeYear);
+    resetDrill();
   };
 
   const handleDateFromChange = (value) => {
     setDateFrom(value);
     setSelectedBucket(null);
+    resetDrill();
   };
 
   const handleDateToChange = (value) => {
     setDateTo(value);
     setSelectedBucket(null);
+    resetDrill();
+  };
+
+  const timeStepperLabel = (() => {
+    if (selectedDayDrill) return `Ngày ${formatDateLabel(selectedDayDrill.day)}`;
+    if (drillLevel === "day" && selectedMonthDrill) return `Tháng ${selectedMonthDrill.monthNumber}/${selectedMonthDrill.year}`;
+    if (selectedQuarterDrill) return `Quý ${selectedQuarterDrill.quarter}/${selectedQuarterDrill.year}`;
+    return `Năm ${activeYear}`;
+  })();
+
+  const clearDateRangeForStepper = () => {
+    setDateFrom("");
+    setDateTo("");
+  };
+
+  const handleTimeStep = (delta) => {
+    clearDateRangeForStepper();
+
+    if (selectedDayDrill) {
+      const date = parseDayLabel(selectedDayDrill.day);
+      if (!date) return;
+      date.setUTCDate(date.getUTCDate() + delta);
+      const nextDay = formatDayValue(date);
+      const nextYear = String(date.getUTCFullYear());
+      const nextMonth = date.getUTCMonth() + 1;
+      const nextQuarter = Math.floor((nextMonth - 1) / 3) + 1;
+      setSelectedDayDrill({ day: nextDay, label: formatDayMonthLabel(nextDay) });
+      setSelectedMonthDrill({
+        year: nextYear,
+        monthNumber: nextMonth,
+        label: `Tháng ${nextMonth}`,
+      });
+      setSelectedQuarterDrill({
+        year: nextYear,
+        quarter: nextQuarter,
+        label: `Quý ${nextQuarter}/${nextYear}`,
+      });
+      setSelectedYearDrill({ year: nextYear, label: `Năm ${nextYear}` });
+      setActiveYear(nextYear);
+      setDataYear(nextYear);
+      setSelectedBucket({
+        range: "day",
+        label: formatDayMonthLabel(nextDay),
+        params: { categoryDay: nextDay },
+      });
+      return;
+    }
+
+    if (drillLevel === "day" && selectedMonthDrill) {
+      const date = new Date(Date.UTC(Number(selectedMonthDrill.year), Number(selectedMonthDrill.monthNumber) - 1 + delta, 1));
+      const nextYear = String(date.getUTCFullYear());
+      const nextMonth = date.getUTCMonth() + 1;
+      const nextQuarter = Math.floor((nextMonth - 1) / 3) + 1;
+      setSelectedMonthDrill({
+        year: nextYear,
+        monthNumber: nextMonth,
+        label: `Tháng ${nextMonth}`,
+      });
+      setSelectedQuarterDrill({
+        year: nextYear,
+        quarter: nextQuarter,
+        label: `Quý ${nextQuarter}/${nextYear}`,
+      });
+      setSelectedYearDrill({ year: nextYear, label: `Năm ${nextYear}` });
+      setActiveYear(nextYear);
+      setDataYear(nextYear);
+      setSelectedBucket({
+        range: "month",
+        label: `Tháng ${nextMonth}`,
+        params: {
+          categoryYear: nextYear,
+          categoryMonth: nextMonth,
+        },
+      });
+      return;
+    }
+
+    if (selectedQuarterDrill) {
+      const currentIndex = Number(selectedQuarterDrill.year) * 4 + Number(selectedQuarterDrill.quarter) - 1 + delta;
+      const normalizedQuarterIndex = ((currentIndex % 4) + 4) % 4;
+      const year = String((currentIndex - normalizedQuarterIndex) / 4);
+      const quarter = normalizedQuarterIndex + 1;
+      setDrillLevel("month");
+      setSelectedMonthDrill(null);
+      setSelectedDayDrill(null);
+      setSelectedQuarterDrill({
+        year,
+        quarter,
+        label: `Quý ${quarter}/${year}`,
+      });
+      setSelectedYearDrill({ year, label: `Năm ${year}` });
+      setActiveYear(year);
+      setDataYear(year);
+      setSelectedBucket({
+        range: "quarter",
+        label: `Quý ${quarter}/${year}`,
+        params: {
+          categoryYear: year,
+          categoryQuarter: quarter,
+        },
+      });
+      return;
+    }
+
+    const nextYear = String(Number(activeYear) + delta);
+    setActiveYear(nextYear);
+    setDataYear(nextYear);
+    resetDrill();
+    setSelectedBucket({
+      range: "year",
+      label: `Năm ${nextYear}`,
+      params: { categoryYear: nextYear },
+    });
   };
 
   const handleBarClick = (bucket) => {
+    if (range === "year" && bucket?.range === "year") {
+      const year = String(bucket.params?.categoryYear || "");
+      setSelectedYearDrill({
+        year,
+        label: bucket.label,
+      });
+      if (year) {
+        setActiveYear(year);
+        setDataYear(year);
+      }
+      setSelectedQuarterDrill(null);
+      setSelectedMonthDrill(null);
+      setSelectedDayDrill(null);
+      setDrillLevel("month");
+      setSelectedBucket(bucket);
+      return;
+    }
+
+    if (bucket?.range === "quarter") {
+      const year = String(bucket.params?.categoryYear || "");
+      setSelectedQuarterDrill({
+        year,
+        quarter: Number(bucket.params?.categoryQuarter || 0),
+        label: bucket.label,
+      });
+      if (year) {
+        setActiveYear(year);
+        setDataYear(year);
+      }
+      setSelectedMonthDrill(null);
+      setSelectedDayDrill(null);
+      setDrillLevel("month");
+      setSelectedBucket(bucket);
+      return;
+    }
+
+    if (bucket?.range === "month") {
+      const year = String(bucket.params?.categoryYear || "");
+      setDrillLevel("day");
+      setSelectedMonthDrill({
+        year,
+        monthNumber: Number(bucket.params?.categoryMonth || 0),
+        label: `Tháng ${Number(bucket.params?.categoryMonth || 0)}`,
+      });
+      if (year) {
+        setActiveYear(year);
+        setDataYear(year);
+      }
+      setSelectedDayDrill(null);
+      setSelectedBucket(bucket);
+      return;
+    }
+
+    if (bucket?.range === "day") {
+      const day = String(bucket.params?.categoryDay || "");
+      const year = day.slice(0, 4);
+      if (/^\d{4}$/.test(year)) {
+        setActiveYear(year);
+        setDataYear(year);
+      }
+      setSelectedDayDrill(day ? { day, label: bucket.label || formatDateLabel(day) } : null);
+    }
+
     setSelectedBucket(bucket);
+  };
+
+  const handleDrillBack = () => {
+    setSelectedBucket(null);
+    if (drillLevel === "day") {
+      setDrillLevel("month");
+      setSelectedMonthDrill(null);
+      setSelectedDayDrill(null);
+      return;
+    }
+
+    if (selectedQuarterDrill) {
+      setSelectedMonthDrill(null);
+      setSelectedQuarterDrill(null);
+      return;
+    }
+
+    if (range === "year" && selectedYearDrill) {
+      setSelectedYearDrill(null);
+      return;
+    }
+
+    resetDrill();
   };
 
   const handleCollapseReport = () => {
@@ -324,6 +572,8 @@ const StatisticsPage = () => {
   };
 
   const renderRevenueChart = (rows, xKey, barKey, onClickBar) => {
+    const hasChartData = (rows || []).some((row)=>Number(row?.revenue || 0) > 0);
+    const chartRows = (rows || []).length ? rows : [{ [xKey]: "Không có dữ liệu", revenue: 0 }];
     const renderLineDot = ({ cx, cy, payload }) => {
       if (cx === undefined || cy === undefined || !payload) return null;
 
@@ -344,7 +594,7 @@ const StatisticsPage = () => {
     };
 
     return (
-      <ComposedChart key={`chart-${chartAnimationKey}`} data={rows} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+      <ComposedChart key={`chart-${chartAnimationKey}`} data={chartRows} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey={xKey} />
         <YAxis tickFormatter={(v)=>v/1000+"k"} />
@@ -369,6 +619,23 @@ const StatisticsPage = () => {
             activeDot={renderLineDot}
             isAnimationActive
             animationDuration={650}
+          />
+        )}
+        {!hasChartData && (
+          <Customized
+            component={({ width, height }) => (
+              <text
+                x={Number(width || 0) / 2}
+                y={Number(height || 0) / 2}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fill="#64748b"
+                fontSize={14}
+                fontWeight={700}
+              >
+                Không có dữ liệu
+              </text>
+            )}
           />
         )}
       </ComposedChart>
@@ -402,115 +669,103 @@ const StatisticsPage = () => {
                       Đường
                     </button>
                   </div>
+                  {(selectedMonthDrill || selectedQuarterDrill || (range === "year" && selectedYearDrill)) && (
+                    <div className="stats-drill-actions">
+                      <button type="button" className="btn btn-outline-secondary btn-sm" onClick={handleDrillBack}>
+                        {drillLevel === "day" ? "Quay lại tháng" : selectedQuarterDrill ? "Quay lại quý" : selectedMonthDrill ? "Quay lại tháng" : "Quay lại năm"}
+                      </button>
+                      <span className="small text-muted">
+                        {drillLevel === "day" ? selectedMonthDrill?.label : selectedQuarterDrill?.label || selectedMonthDrill?.label || selectedYearDrill?.label}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="stats-controls">
                 <select className="form-select" value={range} onChange={(e)=>handleRangeChange(e.target.value)}>
                   <option value="month">Theo tháng</option>
-                  <option value="week">Theo tuần</option>
-                  <option value="day">Theo ngày</option>
                   <option value="quarter">Theo quý</option>
                   <option value="year">Theo năm</option>
                 </select>
-                <div className={`stats-filter-mode ${timeFilterMode === "dateRange" ? "date-range-active" : ""}`}>
-                  <select className="form-select" value={timeFilterMode} onChange={(e)=>handleTimeFilterModeChange(e.target.value)}>
-                    <option value="year">Theo năm</option>
-                    <option value="dateRange">Khoảng thời gian</option>
-                  </select>
-                  {timeFilterMode === "dateRange" && (
-                    <div className="stats-date-range">
-                      <input
-                        type="date"
-                        className="form-control"
-                        value={dateFrom}
-                        onChange={(e)=>handleDateFromChange(e.target.value)}
-                      />
-                      <input
-                        type="date"
-                        className="form-control"
-                        value={dateTo}
-                        onChange={(e)=>handleDateToChange(e.target.value)}
-                      />
-                    </div>
-                  )}
+                <div className="stats-filter-mode date-range-active">
+                  <div className="stats-date-range">
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={dateFrom}
+                      onChange={(e)=>handleDateFromChange(e.target.value)}
+                    />
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={dateTo}
+                      onChange={(e)=>handleDateToChange(e.target.value)}
+                    />
+                  </div>
                 </div>
-                {timeFilterMode !== "dateRange" && (range === "month" || range === "quarter" || range === "week" || range === "day") && availableYears && availableYears.length > 0 && (
-                  <div className="mt-2">
-                    <select className="form-select" value={selectedYear||""} onChange={(e)=>handleYearChange(e.target.value)}>
-                      {availableYears.map(y=> (<option key={y} value={y}>{y}</option>))}
-                    </select>
-                  </div>
-                )}
-                {timeFilterMode !== "dateRange" && range === "year" && availableYears && availableYears.length > 0 && (
-                  <div className="stats-year-filter mt-2">
-                    <select className="form-select" value={yearFilterMode} onChange={(e)=>handleYearFilterModeChange(e.target.value)}>
-                      <option value="range">Khoảng năm</option>
-                      <option value="single">Một năm</option>
-                    </select>
-                    {yearFilterMode === "single" ? (
-                      <select className="form-select" value={selectedYear||""} onChange={(e)=>handleYearChange(e.target.value)}>
-                        {availableYears.map(y=> (<option key={y} value={y}>{y}</option>))}
-                      </select>
-                    ) : (
-                      <div className="stats-year-range">
-                        <select className="form-select" value={yearFrom} onChange={(e)=>handleYearFromChange(e.target.value)}>
-                          {availableYears.map(y=> (<option key={y} value={y}>{y}</option>))}
-                        </select>
-                        <select className="form-select" value={yearTo} onChange={(e)=>handleYearToChange(e.target.value)}>
-                          {availableYears.map(y=> (<option key={y} value={y}>{y}</option>))}
-                        </select>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
             </div>
 
             <div key={`bar-frame-${chartAnimationKey}`} className="stats-chart-frame">
-              <ResponsiveContainer>
+              <ResponsiveContainer width="100%" height="100%">
                 {(() => {
-                  if (range === "day") {
-                    const rows = (data.dailyRaw || [])
-                      .filter(r=>timeFilterMode === "dateRange" || !selectedYear || String(r.dayLabel||"").startsWith(String(selectedYear)))
-                      .sort((a,b)=>String(a.dayLabel||"").localeCompare(String(b.dayLabel||"")));
-                    const visibleRows = timeFilterMode === "dateRange" ? rows : rows.slice(-60);
-                    const bars = visibleRows.map(r=>({ day: r.dayLabel, revenue: r.revenue }));
-                    return renderRevenueChart(bars, "day", "day", (entry)=>handleBarClick({
+                  if (drillLevel === "day" && selectedMonthDrill) {
+                    const days = buildMonthDayRows(selectedMonthDrill.year, selectedMonthDrill.monthNumber);
+
+                    return renderRevenueChart(days, "label", "day", (entry)=>handleBarClick({
                       range: "day",
-                      label: formatDateLabel(entry?.payload?.day),
+                      label: entry?.payload?.label,
                       params: { categoryDay: entry?.payload?.day },
                     }));
                   }
 
-                  if (range === "week") {
-                    const weekMap = new Map();
-                    (data.weeklyRaw || [])
-                      .filter(r=>timeFilterMode === "dateRange" || !selectedYear || String(r.year)===String(selectedYear))
-                      .forEach((r)=>{
-                        const week = Number(r.week);
-                        const key = timeFilterMode === "dateRange" ? `${r.year}-${week}` : String(week);
-                        weekMap.set(key, {
-                          year: r.year,
-                          week,
-                          revenue: (weekMap.get(key)?.revenue || 0) + Number(r.revenue||0),
-                        });
-                      });
-                    const list = Array.from(weekMap.values())
-                      .sort((a,b)=>Number(a.year)-Number(b.year) || Number(a.week)-Number(b.week))
-                      .map((item)=>({ label: timeFilterMode === "dateRange" ? `Tuần ${item.week}/${item.year}` : `Tuần ${item.week}`, year: item.year, week: item.week, revenue: item.revenue }));
-                    return renderRevenueChart(list, "label", "week", (entry)=>handleBarClick({
-                      range: "week",
-                      label: `${entry?.payload?.label}${timeFilterMode === "dateRange" ? "" : ` / ${selectedYear}`}`,
+                  if (selectedQuarterDrill) {
+                    const year = selectedQuarterDrill.year;
+                    const quarter = Number(selectedQuarterDrill.quarter);
+                    const startMonth = (quarter - 1) * 3 + 1;
+                    const monthNumbers = [startMonth, startMonth + 1, startMonth + 2];
+                    const map = {};
+                    (data.monthlyRaw || []).forEach((row)=>{
+                      const monthLabel = row.monthLabel || "";
+                      if (monthLabel.startsWith(year)) {
+                        const monthNumber = Number(monthLabel.slice(5, 7));
+                        if (monthNumbers.includes(monthNumber)) {
+                          map[monthNumber] = (map[monthNumber] || 0) + Number(row.revenue || 0);
+                        }
+                      }
+                    });
+                    const months = monthNumbers.map((monthNumber)=>({
+                      month: `Tháng ${monthNumber}`,
+                      monthNumber,
+                      revenue: map[monthNumber] || 0,
+                    }));
+
+                    return renderRevenueChart(months, "month", "month", (entry)=>handleBarClick({
+                      range: "month",
+                      label: entry?.payload?.month,
                       params: {
-                        categoryYear: entry?.payload?.year || selectedYear,
-                        categoryWeek: entry?.payload?.week,
+                        categoryYear: year,
+                        categoryMonth: entry?.payload?.monthNumber,
                       },
                     }));
                   }
 
+                  if (range === "day") {
+                    const rows = (data.dailyRaw || [])
+                      .filter(r=>hasActiveDateRange || String(r.dayLabel||"").startsWith(statsYear))
+                      .sort((a,b)=>String(a.dayLabel||"").localeCompare(String(b.dayLabel||"")));
+                    const visibleRows = hasActiveDateRange ? rows : rows.slice(-60);
+                    const bars = visibleRows.map(r=>({ day: formatDayMonthLabel(r.dayLabel), rawDay: r.dayLabel, revenue: r.revenue }));
+                    return renderRevenueChart(bars, "day", "day", (entry)=>handleBarClick({
+                      range: "day",
+                      label: formatDayMonthLabel(entry?.payload?.day),
+                      params: { categoryDay: entry?.payload?.rawDay },
+                    }));
+                  }
+
                   if (range === "month") {
-                    const year = selectedYear || (data.monthlyRaw[0] && data.monthlyRaw[0].monthLabel && data.monthlyRaw[0].monthLabel.slice(0,4));
-                    if (timeFilterMode === "dateRange") {
+                    const year = statsYear;
+                    if (hasActiveDateRange) {
                       const months = (data.monthlyRaw || [])
                         .slice()
                         .sort((a,b)=>String(a.monthLabel||"").localeCompare(String(b.monthLabel||"")))
@@ -519,7 +774,7 @@ const StatisticsPage = () => {
                           const rowYear = monthLabel.slice(0,4);
                           const monthNumber = Number(monthLabel.slice(5,7));
                           return {
-                            month: `Tháng ${monthNumber}/${rowYear}`,
+                            month: `Tháng ${monthNumber}`,
                             monthNumber,
                             year: rowYear,
                             revenue: Number(r.revenue || 0),
@@ -536,6 +791,16 @@ const StatisticsPage = () => {
                       }));
                     }
 
+                    if (drillLevel === "day" && selectedMonthDrill) {
+                      const days = buildMonthDayRows(selectedMonthDrill.year, selectedMonthDrill.monthNumber);
+
+                      return renderRevenueChart(days, "label", "day", (entry)=>handleBarClick({
+                        range: "day",
+                        label: entry?.payload?.label,
+                        params: { categoryDay: entry?.payload?.day },
+                      }));
+                    }
+
                     const map = {};
                     (data.monthlyRaw || []).forEach((r)=>{
                       const ml = r.monthLabel || "";
@@ -547,7 +812,7 @@ const StatisticsPage = () => {
                     const months = Array.from({length:12},(_,i)=>{ const m=i+1; return { month: `Tháng ${m}`, monthNumber: m, revenue: map[m]||0 }; });
                     return renderRevenueChart(months, "month", "month", (entry)=>handleBarClick({
                       range: "month",
-                      label: `${entry?.payload?.month} / ${year}`,
+                      label: entry?.payload?.month,
                       params: {
                         categoryYear: year,
                         categoryMonth: entry?.payload?.monthNumber,
@@ -555,8 +820,8 @@ const StatisticsPage = () => {
                     }));
                   }
 
-                  if (range === "quarter" && (selectedYear || timeFilterMode === "dateRange")) {
-                    if (timeFilterMode === "dateRange") {
+                  if (range === "quarter") {
+                    if (hasActiveDateRange) {
                       const quarters = (data.quarterRaw || [])
                         .slice()
                         .sort((a,b)=>Number(a.year)-Number(b.year) || Number(a.quarter)-Number(b.quarter))
@@ -572,12 +837,41 @@ const StatisticsPage = () => {
                       }));
                     }
 
-                    const quarters = [1,2,3,4].map(qnum=>({ label: `Quý ${qnum}`, quarter: qnum, revenue: (data.quarterRaw||[]).filter(r=>String(r.year)===String(selectedYear) && r.quarter===qnum).reduce((s,r)=>s+r.revenue,0) }));
+                    const year = statsYear;
+                    const quarters = [1,2,3,4].map(qnum=>({ label: `Quý ${qnum}`, quarter: qnum, revenue: (data.quarterRaw||[]).filter(r=>String(r.year)===year && r.quarter===qnum).reduce((s,r)=>s+r.revenue,0) }));
                     return renderRevenueChart(quarters, "label", "quarter", (entry)=>handleBarClick({
                       range: "quarter",
-                      label: `${entry?.payload?.label} / ${selectedYear}`,
+                      label: `${entry?.payload?.label} / ${year}`,
                       params: {
-                        categoryYear: selectedYear,
+                        categoryYear: year,
+                        categoryQuarter: entry?.payload?.quarter,
+                      },
+                    }));
+                  }
+
+                  if (range === "year" && selectedYearDrill) {
+                    const year = selectedYearDrill.year;
+                    const map = {};
+                    (data.quarterRaw || []).forEach((row)=>{
+                      if (String(row.year) === String(year)) {
+                        const quarter = Number(row.quarter);
+                        map[quarter] = (map[quarter] || 0) + Number(row.revenue || 0);
+                      }
+                    });
+                    const quarters = Array.from({ length: 4 }, (_, index)=>{
+                      const quarter = index + 1;
+                      return {
+                        label: `Quý ${quarter}`,
+                        quarter,
+                        revenue: map[quarter] || 0,
+                      };
+                    });
+
+                    return renderRevenueChart(quarters, "label", "quarter", (entry)=>handleBarClick({
+                      range: "quarter",
+                      label: `${entry?.payload?.label} / ${year}`,
+                      params: {
+                        categoryYear: year,
                         categoryQuarter: entry?.payload?.quarter,
                       },
                     }));
@@ -592,6 +886,15 @@ const StatisticsPage = () => {
                   }));
                 })()}
               </ResponsiveContainer>
+            </div>
+            <div className="stats-chart-year-stepper">
+              <button type="button" className="btn btn-outline-secondary btn-sm" onClick={()=>handleTimeStep(-1)}>
+                &lt;-
+              </button>
+              <div className="stats-year-stepper__label">{timeStepperLabel}</div>
+              <button type="button" className="btn btn-outline-secondary btn-sm" onClick={()=>handleTimeStep(1)}>
+                -&gt;
+              </button>
             </div>
           </div>
         </div>
@@ -613,7 +916,7 @@ const StatisticsPage = () => {
             </div>
 
             <div className="stats-category-chart">
-              <ResponsiveContainer>
+              <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie data={donut} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={(entry)=>`${entry.pct||0}%`}>
                     {(donut||[]).map((entry,idx)=>(<Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />))}

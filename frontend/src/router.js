@@ -107,6 +107,7 @@ const adminRoutes = [
     path: ROUTERS.ADMIN.CUSTOMER.INDEX || "customer", // 👥 Khách hàng
     children: [
       { index: true, element: <CustomerPage /> }, // 🏠 Trang danh sách khách hàng (/admin/customer)
+      { path: ":customerId", element: <CustomerPage /> },
     ],
   },
   {

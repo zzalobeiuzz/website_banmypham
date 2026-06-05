@@ -11,6 +11,8 @@ const DiscountEventsPage = () => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [openCreate, setOpenCreate] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [loadingEditId, setLoadingEditId] = useState(null);
   const [notify, setNotify] = useState({ open: false, status: "info", message: "" });
 
   const showPopup = useCallback(({ status, message }) => {
@@ -41,7 +43,44 @@ const DiscountEventsPage = () => {
     if (!raw) return "";
     if (/^https?:\/\//i.test(raw)) return raw;
     if (raw.startsWith("/uploads/")) return `${API_BASE}${raw}`;
-    return `${API_BASE}/uploads/${raw.replace(/^\//, "")}`;
+    if (raw.includes("/")) return `${API_BASE}/${raw.replace(/^\/+/, "")}`;
+    return `${API_BASE}/uploads/assets/pictures/BannerImage/${raw}`;
+  };
+
+  const formatDate = (value) => {
+    if (!value) return "--";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "--" : date.toLocaleDateString("vi-VN");
+  };
+
+  const closeModal = () => {
+    setOpenCreate(false);
+    setEditingEvent(null);
+  };
+
+  const openCreateModal = () => {
+    setEditingEvent(null);
+    setOpenCreate(true);
+  };
+
+  const openEditModal = async (event) => {
+    const eventId = event?.id;
+    if (!eventId) return;
+
+    try {
+      setLoadingEditId(eventId);
+      const res = await request("GET", `${API_BASE}/api/admin/sale-events/${encodeURIComponent(String(eventId))}`);
+      if (!res?.success || !res?.data) {
+        showPopup({ status: "error", message: res?.message || "Không thể tải chi tiết sự kiện." });
+        return;
+      }
+      setEditingEvent(res.data);
+      setOpenCreate(true);
+    } catch (error) {
+      showPopup({ status: "error", message: error?.message || "Không thể tải chi tiết sự kiện." });
+    } finally {
+      setLoadingEditId(null);
+    }
   };
 
   return (
@@ -49,16 +88,15 @@ const DiscountEventsPage = () => {
       <Notification open={notify.open} status={notify.status} message={notify.message} onClose={closePopup} />
       <CreateDiscountEventModal
         open={openCreate}
-        onClose={() => setOpenCreate(false)}
+        onClose={closeModal}
         onSaved={fetchEvents}
         showPopup={showPopup}
+        event={editingEvent}
       />
 
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h3>Sự kiện giảm giá</h3>
-        <div>
-          <button className="btn btn-primary" onClick={() => setOpenCreate(true)}>Tạo sự kiện mới</button>
-        </div>
+        <button className="btn btn-primary" onClick={openCreateModal}>Tạo sự kiện mới</button>
       </div>
 
       {loading ? (
@@ -75,21 +113,32 @@ const DiscountEventsPage = () => {
               <th>Thời gian</th>
               <th>Ảnh</th>
               <th>Trạng thái</th>
+              <th>Thao tác</th>
             </tr>
           </thead>
           <tbody>
-            {events.map((e, idx) => (
-              <tr key={e.id || idx}>
+            {events.map((event, idx) => (
+              <tr key={event.id || idx}>
                 <td>{idx + 1}</td>
-                <td>{e.code || "-"}</td>
-                <td>{e.title}</td>
+                <td>{event.code || "-"}</td>
+                <td>{event.title}</td>
                 <td>
-                  {e.start_date ? new Date(e.start_date).toLocaleDateString() : "--"} — {e.end_date ? new Date(e.end_date).toLocaleDateString() : "--"}
+                  {formatDate(event.start_date)} - {formatDate(event.end_date)}
                 </td>
                 <td>
-                  {e.banner_image ? <img src={resolveImageUrl(e.banner_image)} alt={e.title} style={{ width: 120 }} /> : "-"}
+                  {event.banner_image ? <img src={resolveImageUrl(event.banner_image)} alt={event.title} style={{ width: 120 }} /> : "-"}
                 </td>
-                <td>{Number(e.status) === 1 ? "Hoạt động" : "Tắt"}</td>
+                <td>{Number(event.status) === 1 ? "Hoạt động" : "Tắt"}</td>
+                <td>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-primary"
+                    onClick={() => openEditModal(event)}
+                    disabled={loadingEditId === event.id}
+                  >
+                    {loadingEditId === event.id ? "Đang tải..." : "Sửa"}
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>

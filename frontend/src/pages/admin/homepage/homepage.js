@@ -58,7 +58,7 @@ const Homepage = () => {
   const [notify, setNotify] = useState({ open: false, status: "info", message: "" });
 
   const managementItems = [
-    { icon: "icons-product-management.png", label: "Sản phẩm", path: `/${ROUTERS.ADMIN.HOME}/${ROUTERS.ADMIN.PRODUCT.INDEX}` },
+    { icon: "icons-product-management.png", label: "Sản phẩm", path: "/admin/product" },
     { icon: "icons-order.png", label: "Đơn hàng", path: `/${ROUTERS.ADMIN.HOME}/${ROUTERS.ADMIN.ORDER.INDEX}` },
     { icon: "icons-product-category.png", label: "Danh mục", path: `/${ROUTERS.ADMIN.HOME}/${ROUTERS.ADMIN.CATEGORY.INDEX}` },
     { icon: "icons8-brand.png", label: "Thương hiệu", path: `/${ROUTERS.ADMIN.HOME}/${ROUTERS.ADMIN.BRAND.INDEX}` },
@@ -187,6 +187,12 @@ const Homepage = () => {
             </li>
 
             <MenuSection
+              title="Thống kê"
+              items={revenueItems}
+              isCollapsed={isCollapsed}
+              onSelect={handleSelect}
+            />
+            <MenuSection
               title="Quản lý"
               items={managementItems}
               isCollapsed={isCollapsed}
@@ -195,12 +201,6 @@ const Homepage = () => {
             <MenuSection
               title="Quản lý sự kiện"
               items={eventItems}
-              isCollapsed={isCollapsed}
-              onSelect={handleSelect}
-            />
-            <MenuSection
-              title="Thống kê"
-              items={revenueItems}
               isCollapsed={isCollapsed}
               onSelect={handleSelect}
             />

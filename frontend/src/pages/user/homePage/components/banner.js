@@ -1,40 +1,97 @@
-import React, { useEffect, useState } from "react";
-import { UPLOAD_BASE } from "../../../../constants";
+import React, { useEffect, useMemo, useState } from "react";
+import { API_BASE } from "../../../../constants";
 
-// Mảng chứa tên file banner chính
-const bannerImages = [
-  "anh-banner-quang-cao-my-pham-dep_083546254.jpg",
-  "beautybox-anh-bia-19-6-2020.jpg",
-  "fbddda114634745.603efda33f7ac.jpg",
-  "vn-11134210-7qukw-lfva4xrp4453d8.jpg",
-];
+const resolveBannerUrl = (value) => {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw) || raw.startsWith("data:image/")) return raw;
+  if (raw.startsWith("/uploads/")) return `${API_BASE}${raw}`;
+  if (raw.startsWith("uploads/")) return `${API_BASE}/${raw}`;
+  return `${API_BASE}/uploads/assets/pictures/BannerImage/${raw}`;
+};
 
-// Mảng chứa tên file banner nhỏ bên dưới (nếu muốn quản lý động luôn)
-const smallBanners = [
-  "OIP.jpg",
-  "1803ba3fbfca9f67ed6e64143c28815c.jpg",
-];
+const getBannerKey = (event) => {
+  const metadata = event?.metadata || {};
+  if (metadata.homeBannerSection === "main" && metadata.homeBannerPosition === "center") return "main";
+  if (metadata.homeBannerSection === "side" && metadata.homeBannerPosition === "top") return "top";
+  if (metadata.homeBannerSection === "side" && metadata.homeBannerPosition === "bottom") return "bottom";
+  return "";
+};
 
 const Banner = () => {
   const [activeIndex, setActiveIndex] = useState(0);
-
-  // Tính transform
-  const translateX = -activeIndex * 710;
+  const [homeBanners, setHomeBanners] = useState([]);
 
   useEffect(() => {
+    let isMounted = true;
+
+    const loadHomeBanners = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/api/user/events/home-banners`);
+        const json = await response.json();
+        if (!isMounted) return;
+        setHomeBanners(Array.isArray(json?.data) ? json.data : []);
+      } catch (error) {
+        if (isMounted) setHomeBanners([]);
+      }
+    };
+
+    loadHomeBanners();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const { mainBanners, sideTopBanner, sideBottomBanner } = useMemo(() => {
+    const grouped = {
+      mainBanners: [],
+      sideTopBanner: null,
+      sideBottomBanner: null,
+    };
+
+    homeBanners.forEach((event) => {
+      const key = getBannerKey(event);
+      if (key === "main") grouped.mainBanners.push(event);
+      if (key === "top" && !grouped.sideTopBanner) grouped.sideTopBanner = event;
+      if (key === "bottom" && !grouped.sideBottomBanner) grouped.sideBottomBanner = event;
+    });
+
+    return grouped;
+  }, [homeBanners]);
+
+  useEffect(() => {
+    if (mainBanners.length <= 1) return undefined;
+
     const interval = setInterval(() => {
-      handleNext();
+      setActiveIndex((prevIndex) => (prevIndex + 1) % mainBanners.length);
     }, 4000);
+
     return () => clearInterval(interval);
-  }, [activeIndex]);
+  }, [mainBanners.length]);
+
+  useEffect(() => {
+    if (activeIndex >= mainBanners.length) setActiveIndex(0);
+  }, [activeIndex, mainBanners.length]);
+
+  if (mainBanners.length === 0 && !sideTopBanner && !sideBottomBanner) {
+    return null;
+  }
+
+  const translateX = -activeIndex * 710;
+  const sideBanners = [
+    { key: "top", event: sideTopBanner },
+    { key: "bottom", event: sideBottomBanner },
+  ].filter((item) => item.event);
 
   const handleNext = () => {
-    setActiveIndex((prevIndex) => (prevIndex + 1) % bannerImages.length);
+    if (mainBanners.length <= 1) return;
+    setActiveIndex((prevIndex) => (prevIndex + 1) % mainBanners.length);
   };
 
   const handlePrev = () => {
+    if (mainBanners.length <= 1) return;
     setActiveIndex((prevIndex) =>
-      prevIndex === 0 ? bannerImages.length - 1 : prevIndex - 1
+      prevIndex === 0 ? mainBanners.length - 1 : prevIndex - 1
     );
   };
 
@@ -48,20 +105,20 @@ const Banner = () => {
               style={{
                 transform: `translate3d(${translateX}px, 0, 0)`,
                 transition: "transform 0.25s ease",
-                width: bannerImages.length * 700 + (bannerImages.length - 1) * 10 + "px",
+                width: mainBanners.length * 700 + Math.max(0, mainBanners.length - 1) * 10 + "px",
               }}
             >
-              {bannerImages.map((item, index) => (
+              {mainBanners.map((event, index) => (
                 <div
                   className={`owl-item${index === activeIndex ? " active" : ""}`}
-                  key={index}
+                  key={event.id || index}
                 >
                   <div>
-                    <a href="./">
+                    <a href="/">
                       <img
-                        src={`${UPLOAD_BASE}/banner/${item}`}
-                        alt={`Banner ${item}`}
-                        loading="lazy"  
+                        src={resolveBannerUrl(event.banner_image)}
+                        alt={event.title || "Banner sự kiện"}
+                        loading="lazy"
                       />
                     </a>
                   </div>
@@ -70,35 +127,37 @@ const Banner = () => {
             </div>
           </div>
 
-          <div className="owl-nav">
-            <button
-              type="button"
-              role="presentation"
-              className="owl-prev"
-              onClick={handlePrev}
-            >
-              <span aria-label="Previous">‹</span>
-            </button>
-            <button
-              type="button"
-              role="presentation"
-              className="owl-next"
-              onClick={handleNext}
-            >
-              <span aria-label="Next">›</span>
-            </button>
-          </div>
+          {mainBanners.length > 1 ? (
+            <div className="owl-nav">
+              <button
+                type="button"
+                role="presentation"
+                className="owl-prev"
+                onClick={handlePrev}
+              >
+                <span aria-label="Previous">‹</span>
+              </button>
+              <button
+                type="button"
+                role="presentation"
+                className="owl-next"
+                onClick={handleNext}
+              >
+                <span aria-label="Next">›</span>
+              </button>
+            </div>
+          ) : null}
 
           <div className="owl-dots disabled"></div>
         </div>
       </div>
 
       <div className="banner-wrap">
-        {smallBanners.map((item, index) => (
-          <a href="/" key={index} aria-label="">
+        {sideBanners.map(({ key, event }) => (
+          <a href="/" key={key} aria-label={event.title || "Banner sự kiện"}>
             <img
-              src={`${UPLOAD_BASE}/banner/${item}`}
-              alt=""
+              src={resolveBannerUrl(event.banner_image)}
+              alt={event.title || ""}
               className="img-fluid"
               loading="lazy"
             />

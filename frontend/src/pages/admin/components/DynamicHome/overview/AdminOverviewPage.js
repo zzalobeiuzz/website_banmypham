@@ -57,6 +57,19 @@ const StatCard = ({ title, value, note, accent, icon: Icon, path, onOpen }) => (
   </button>
 );
 
+const getRankedItemPath = (item, type) => {
+  if (type === "product" && item.ProductID) {
+    return `/admin/product/detail/${encodeURIComponent(String(item.ProductID))}`;
+  }
+  if (type === "category" && item.CategoryID) {
+    return `/admin/product/categories/${encodeURIComponent(String(item.CategoryID))}/products`;
+  }
+  if (type === "customer" && item.CustomerID) {
+    return `/admin/customer/${encodeURIComponent(String(item.CustomerID))}`;
+  }
+  return "";
+};
+
 const RankedList = ({ title, items, type, actionLabel, actionPath, onOpen }) => (
   <section className="overview-panel">
     <div className="panel-head">
@@ -81,9 +94,16 @@ const RankedList = ({ title, items, type, actionLabel, actionPath, onOpen }) => 
               ? `${formatNumber(item.OrderCount)} đơn hàng`
               : `${formatNumber(item.Quantity)} lượt mua`;
           const image = type === "product" ? resolveProductImage(item.Image) : "";
+          const itemPath = getRankedItemPath(item, type);
 
           return (
-            <div className="ranked-item" key={`${type}-${index}-${name}`}>
+            <button
+              type="button"
+              className="ranked-item"
+              key={`${type}-${index}-${name}`}
+              onClick={() => itemPath && onOpen(itemPath)}
+              disabled={!itemPath}
+            >
               <div className="rank-index">{index + 1}</div>
               {type === "product" && (
                 <div className="rank-thumb">
@@ -95,13 +115,30 @@ const RankedList = ({ title, items, type, actionLabel, actionPath, onOpen }) => 
                 <span>{subtitle}</span>
               </div>
               <div className="rank-value">{formatVND(item.Revenue)}</div>
-            </div>
+            </button>
           );
         })
       )}
     </div>
   </section>
 );
+
+const normalizeTopCustomers = (items = []) => {
+  const map = new Map();
+  items.forEach((item) => {
+    const key = String(item.CustomerID || item.CustomerPhone || item.CustomerName || "").trim();
+    if (!key) return;
+    const current = map.get(key);
+    if (!current) {
+      map.set(key, { ...item });
+      return;
+    }
+    current.OrderCount = Number(current.OrderCount || 0) + Number(item.OrderCount || 0);
+    current.Revenue = Number(current.Revenue || 0) + Number(item.Revenue || 0);
+  });
+  return Array.from(map.values())
+    .sort((a, b) => Number(b.OrderCount || 0) - Number(a.OrderCount || 0) || Number(b.Revenue || 0) - Number(a.Revenue || 0));
+};
 
 const AdminOverviewPage = () => {
   const navigate = useNavigate();
@@ -125,7 +162,7 @@ const AdminOverviewPage = () => {
           summary: payload.summary || {},
           topProducts: payload.topProducts || [],
           topCategories: payload.topCategories || [],
-          topCustomers: payload.topCustomers || [],
+          topCustomers: normalizeTopCustomers(payload.topCustomers || []),
           orderStatus: payload.orderStatus || [],
           recentOrders: payload.recentOrders || [],
         });
@@ -278,13 +315,18 @@ const AdminOverviewPage = () => {
             </div>
           ) : (
             overview.recentOrders.map((order) => (
-              <div className="recent-row" key={order.OrderID}>
+              <button
+                type="button"
+                className="recent-row"
+                key={order.OrderID}
+                onClick={() => openPath(`/admin/order/${encodeURIComponent(String(order.OrderID))}`)}
+              >
                 <span>{order.OrderID}</span>
                 <strong>{order.CustomerName}</strong>
                 <span>{order.CreatedAt || "-"}</span>
                 <span className="status-pill">{order.Status}</span>
                 <span>{formatVND(order.Total)}</span>
-              </div>
+              </button>
             ))
           )}
         </div>

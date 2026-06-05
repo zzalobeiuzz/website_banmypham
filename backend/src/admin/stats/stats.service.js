@@ -12,6 +12,11 @@ const adminOrderModel = require("../order/order.model");
 /**
  * Trả về các thống kê doanh thu cần thiết cho dashboard admin
  */
+/**
+ * Trả về thống kê doanh thu cho dashboard admin.
+ * Dữ liệu trả về dùng cho biểu đồ chính, biểu đồ tròn theo danh mục
+ * và bảng chi tiết doanh thu sản phẩm.
+ */
 exports.getAggregatedStats = async ({
   range,
   year,
@@ -28,7 +33,8 @@ exports.getAggregatedStats = async ({
 } = {}) => {
   const pool = await connectDB();
 
-  // Base paid condition (no leading WHERE so we can compose additional filters)
+  // Chỉ tính doanh thu từ đơn đã thanh toán. Điều kiện không có WHERE ở đầu
+  // để có thể ghép thêm bộ lọc ngày/tháng/quý/năm bên dưới.
   const statusTextFor = (alias) => `LOWER(LTRIM(RTRIM(CAST(${alias}.Status AS NVARCHAR(4000)))))`;
   const paidCondFor = (alias) =>
     `(${statusTextFor(alias)} LIKE N'đã thanh toán%' OR ${statusTextFor(alias)} LIKE N'%thanh toán cod%' OR ${statusTextFor(alias)} = N'thanh toán cod')`;
@@ -40,7 +46,8 @@ exports.getAggregatedStats = async ({
   const normalizedToDate = String(toDate || "");
   const hasDateRange = /^\d{4}-\d{2}-\d{2}$/.test(normalizedFromDate) && /^\d{4}-\d{2}-\d{2}$/.test(normalizedToDate);
 
-  // Add time filters depending on requested date range/year
+  // Lọc thời gian cho dữ liệu doanh thu tổng: ưu tiên khoảng ngày,
+  // sau đó là một năm cụ thể, cuối cùng là khoảng năm khi xem theo năm.
   if (hasDateRange) {
     const startDate = normalizedFromDate <= normalizedToDate ? normalizedFromDate : normalizedToDate;
     const endDate = normalizedFromDate <= normalizedToDate ? normalizedToDate : normalizedFromDate;
@@ -71,6 +78,9 @@ exports.getAggregatedStats = async ({
   const catYearText = String(categoryYear || "").slice(0, 4);
   const catYear = /^\d{4}$/.test(catYearText) ? Number(catYearText) : null;
 
+  // Bộ lọc riêng cho biểu đồ tròn và bảng chi tiết. Khi admin bấm vào
+  // một cột doanh thu, categoryRange/categoryYear/... sẽ giới hạn dữ liệu
+  // theo đúng năm, quý, tháng hoặc ngày đã chọn.
   if (categoryRange === "day" && /^\d{4}-\d{2}-\d{2}$/.test(String(categoryDay || ""))) {
     categoryWhereClauses.push(`CONVERT(VARCHAR(10), TRY_CAST(O.CreatedAt AS DATETIME), 23) = '${categoryDay}'`);
   } else if (catYear) {
@@ -97,6 +107,7 @@ exports.getAggregatedStats = async ({
   const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(" AND ")}` : "";
   const categoryWhereSQL = categoryWhereClauses.length ? `WHERE ${categoryWhereClauses.join(" AND ")}` : "";
 
+  // Doanh thu theo danh mục, dùng cho biểu đồ tròn.
   const categorySql = `
     SELECT 
       ISNULL(CAST(C.CategoryID AS NVARCHAR(100)), 'UNKNOWN') AS CategoryID,
@@ -111,6 +122,7 @@ exports.getAggregatedStats = async ({
     ORDER BY Revenue DESC
   `;
 
+  // Doanh thu theo tháng, dùng cho biểu đồ tháng và drill từ quý xuống tháng.
   const monthlySql = `
     SELECT 
       CONVERT(VARCHAR(7), TRY_CAST(O.CreatedAt AS DATETIME), 23) AS MonthLabel,
@@ -122,6 +134,7 @@ exports.getAggregatedStats = async ({
     ORDER BY MonthLabel ASC
   `;
 
+  // Doanh thu theo ngày, dùng khi drill từ tháng xuống danh sách ngày.
   const dailySql = `
     SELECT
       CONVERT(VARCHAR(10), TRY_CAST(O.CreatedAt AS DATETIME), 23) AS DayLabel,
@@ -133,6 +146,8 @@ exports.getAggregatedStats = async ({
     ORDER BY DayLabel ASC
   `;
 
+  // Doanh thu theo tuần. Frontend thống kê hiện không drill theo tuần,
+  // nhưng backend vẫn giữ để tương thích nếu có màn hình khác cần dùng.
   const weeklySql = `
     SELECT
       YEAR(TRY_CAST(O.CreatedAt AS DATETIME)) AS YearLabel,
@@ -145,6 +160,7 @@ exports.getAggregatedStats = async ({
     ORDER BY YearLabel ASC, WeekOfYear ASC
   `;
 
+  // Doanh thu theo quý, dùng cho biểu đồ quý và drill từ năm xuống quý.
   const quarterlySql = `
     SELECT
       YEAR(TRY_CAST(O.CreatedAt AS DATETIME)) AS YearLabel,
@@ -157,6 +173,7 @@ exports.getAggregatedStats = async ({
     ORDER BY YEAR(TRY_CAST(O.CreatedAt AS DATETIME)) ASC, DATEPART(QUARTER, TRY_CAST(O.CreatedAt AS DATETIME)) ASC
   `;
 
+  // Doanh thu theo năm, dùng cho biểu đồ năm.
   const yearlySql = `
     SELECT
       YEAR(TRY_CAST(O.CreatedAt AS DATETIME)) AS YearLabel,
@@ -168,6 +185,8 @@ exports.getAggregatedStats = async ({
     ORDER BY YearLabel ASC
   `;
 
+  // Chi tiết doanh thu theo sản phẩm. Truy vấn này dùng categoryWhereSQL
+  // để bảng chi tiết phản ánh đúng cột biểu đồ đang được chọn.
   const productSalesSql = `
     SELECT
       CAST(ISNULL(D.ProductID, '') AS NVARCHAR(100)) AS ProductID,
@@ -188,6 +207,7 @@ exports.getAggregatedStats = async ({
     ORDER BY Quantity DESC, Revenue DESC
   `;
 
+  // Chạy song song các truy vấn doanh thu để dashboard tải nhanh hơn.
   const [catRes, monRes, dayRes, weekRes, qRes, yRes, productSalesRes] = await Promise.all([
     pool.request().query(categorySql),
     pool.request().query(monthlySql),
@@ -198,6 +218,7 @@ exports.getAggregatedStats = async ({
     pool.request().query(productSalesSql),
   ]);
 
+  // Trả về recordset thô để frontend tự map sang cấu trúc biểu đồ.
   return {
     categoryRevenue: catRes.recordset || [],
     monthlyRevenue: monRes.recordset || [],
@@ -277,6 +298,18 @@ exports.getOverviewStats = async () => {
   const paidOrderIds = new Set(paidOrders.map((order) => String(order.OrderId || "").trim()).filter(Boolean));
   const paidDetails = details.filter((detail) => paidOrderIds.has(String(detail.OrderId || "").trim()));
   const productById = new Map((Array.isArray(products) ? products : []).map((product) => [String(product.ProductID || "").trim(), product]));
+  const customerRows = await adminCustomerModel.getCustomerList().catch((err) => {
+    console.warn("Overview customer rows skipped:", err.message);
+    return [];
+  });
+  const customerById = new Map(
+    (Array.isArray(customerRows) ? customerRows : [])
+      .map((customer) => {
+        const id = String(customer.CustomerID || customer.Email || customer.CustomerCode || "").trim();
+        return id ? [id, customer] : null;
+      })
+      .filter(Boolean)
+  );
 
   const paidRevenue = paidOrders.reduce((sum, order) => sum + toNumber(order.TotalRaw), 0);
   const summary = {
@@ -325,14 +358,18 @@ exports.getOverviewStats = async () => {
 
   const customerMap = new Map();
   paidOrders.forEach((order) => {
-    const customerName = String(order.CustomerName || "Khách hàng").trim() || "Khách hàng";
-    const customerPhone = String(order.CustomerPhone || "").trim();
-    const key = `${customerName}|${customerPhone}`;
+    const customerId = String(order.UserID || "").trim();
+    const customerInfo = customerById.get(customerId);
+    if (!customerId || !customerInfo) return;
+
+    const customerName = String(customerInfo.FullName || customerInfo.CustomerName || customerInfo.Name || order.CustomerName || "Khách hàng").trim() || "Khách hàng";
+    const customerPhone = String(customerInfo.PhoneNumber || customerInfo.Phone || order.CustomerPhone || "").trim();
+    const key = customerId;
     if (!customerMap.has(key)) {
       customerMap.set(key, {
         CustomerName: customerName,
         CustomerPhone: customerPhone,
-        CustomerID: customerPhone,
+        CustomerID: customerId,
         OrderCount: 0,
         Revenue: 0,
       });
@@ -371,7 +408,7 @@ exports.getOverviewStats = async () => {
     summary,
     topProducts: takeTop(productMap),
     topCategories: takeTop(categoryMap),
-    topCustomers: takeTop(customerMap),
+    topCustomers: takeTop(customerMap, 5),
     orderStatus: Array.from(statusMap.entries())
       .map(([Status, Total]) => ({ Status, Total }))
       .sort((a, b) => Number(b.Total || 0) - Number(a.Total || 0)),

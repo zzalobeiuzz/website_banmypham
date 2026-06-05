@@ -5,10 +5,12 @@ const productRoutes = require("./routes/products.routes");
 const authRoutes = require("./routes/auth.routes");
 const orderRoutes = require("./routes/order.routes");
 const voucherRoutes = require("./routes/voucher.routes");
+const eventRoutes = require("./routes/event.routes");
 // 👇 Mount các route liên quan tới user
 router.use("/products", productRoutes);
 router.use("/auth", authRoutes);
 router.use("/orders", orderRoutes);
 router.use("/vouchers", voucherRoutes);
+router.use("/events", eventRoutes);
 
 module.exports = router;

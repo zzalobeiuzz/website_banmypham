@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import Header from "./header";
 import { io } from "socket.io-client";
 import { API_BASE } from "../../../constants";
@@ -56,8 +56,10 @@ const isNotificationPayload = (payload) => {
 // import Sidebar from "./sidebar"; // Nếu có sidebar riêng, hãy import ở đây
 
 const AdminMasterLayout = () => {
+  const location = useLocation();
   const [adminUnreadCount, setAdminUnreadCount] = useState(0);
   const [adminChatRooms, setAdminChatRooms] = useState([]);
+  const scrollContainerRef = useRef(null);
   const adminChatRoomsRef = useRef([]);
   const adminAudioRef = useRef(null);
   const adminSoundWarmRef = useRef(false);
@@ -136,6 +138,10 @@ const AdminMasterLayout = () => {
       // ignore
     }
   }, []);
+
+  useEffect(() => {
+    scrollContainerRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [location.pathname, location.search]);
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -284,6 +290,7 @@ const AdminMasterLayout = () => {
 
   return (
     <div
+      ref={scrollContainerRef}
       className="home"
       style={{
         overflowY: "scroll",

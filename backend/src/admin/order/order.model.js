@@ -45,6 +45,7 @@ const getAllOrdersFromBill = async () => {
     SELECT
       -- Mã đơn hàng
       CAST(O.[OrderID] AS NVARCHAR(100)) AS OrderId,
+      CAST(O.[UserID] AS NVARCHAR(255)) AS UserID,
 
       -- Tên khách hàng
       CAST(O.[CustomerName] AS NVARCHAR(255)) AS CustomerName,

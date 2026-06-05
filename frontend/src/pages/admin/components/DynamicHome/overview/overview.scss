@@ -313,16 +313,30 @@
   grid-template-columns: 30px 48px minmax(0, 1fr) auto;
   gap: 11px;
   align-items: center;
+  width: 100%;
   min-height: 64px;
   padding: 9px;
   border: 1px solid #eef2f7;
   border-radius: 8px;
   background: #f8fafc;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .admin-overview-page .ranked-item:hover {
   border-color: #dbeafe;
   background: #fff;
+}
+
+.admin-overview-page .ranked-item:disabled {
+  cursor: default;
+}
+
+.admin-overview-page .ranked-item:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.22);
+  outline-offset: 2px;
 }
 
 .admin-overview-page .overview-side-column .ranked-item,
@@ -446,14 +460,49 @@
 
 .admin-overview-page .recent-row {
   display: grid;
-  grid-template-columns: 120px minmax(180px, 1fr) 120px 170px 150px;
+  grid-template-columns: minmax(190px, 1.15fr) minmax(180px, 1fr) 120px 170px 150px;
   gap: 12px;
   align-items: center;
-  min-width: 800px;
+  width: 100%;
+  min-width: 920px;
   min-height: 48px;
   padding: 9px 12px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   background: #fff;
+  cursor: pointer;
   border-bottom: 1px solid #f1f5f9;
+}
+
+button.recent-row {
+  border-top: 0;
+  border-right: 0;
+  border-left: 0;
+}
+
+button.recent-row:hover {
+  background: #f8fafc;
+}
+
+button.recent-row:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 3px solid rgba(37, 99, 235, 0.22);
+  outline-offset: -3px;
+}
+
+.admin-overview-page .recent-row > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-overview-page .recent-row > span:first-child {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .admin-overview-page .recent-row:last-child {
@@ -465,6 +514,7 @@
   min-height: 72px;
   justify-items: center;
   color: #64748b;
+  cursor: default;
 }
 
 .admin-overview-page .recent-row.header {
@@ -472,6 +522,7 @@
   color: #334155;
   font-weight: 800;
   background: #f8fafc;
+  cursor: default;
 }
 
 .admin-overview-page .status-pill {

@@ -70,6 +70,15 @@ const PopupNotification = ({
     <div className="notification">
       <div className="notification__overlay">
         <div className="notification__success-box notification__success-box--popup">
+          <button
+            type="button"
+            className="notification__dismiss-btn"
+            aria-label="Đóng thông báo"
+            onClick={onClose}
+          >
+            ×
+          </button>
+
           {resolvedStatus === "success" ? (
             <div
               className="notification__lottie-animation"
