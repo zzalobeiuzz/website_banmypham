@@ -5,6 +5,8 @@ export const ROUTERS = {
       PROFILE: "profile",            // Trang profile: /profile
       PRODUCT_DETAIL: "product/:id", // Chi tiết sản phẩm: /product/123
       BRAND_DETAIL: "brand/:idBrand", // Chi tiết thương hiệu: /brand/BR001
+      EVENT_DETAIL: "event/:eventId", // Sản phẩm theo sự kiện: /event/1
+      PROMOTIONS: "promotions",
       SIGNUP: "signup",              // Trang đăng ký: /signup
       ALL_PRODUCTS: "all-products/:type", // Trang tất cả sản phẩm: /all-products/flash-sale
       CARTDETAIL: "cart-detail",     // Trang chi tiết giỏ hàng: /cart-detail

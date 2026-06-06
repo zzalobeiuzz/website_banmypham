@@ -85,10 +85,11 @@ const TITLE_MAP = {
 };
 
 export default function AllProductsPage() {
-  const { type } = useParams();
+  const { type, eventId } = useParams();
   const [searchParams] = useSearchParams();
   const { request } = useHttp();
   const [products, setProducts] = useState([]);
+  const [eventDetail, setEventDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -116,6 +117,7 @@ export default function AllProductsPage() {
   const decodedType = decodeURIComponent(String(type || "")).trim();
   const isMappedType = Boolean(TITLE_MAP[type]);
   const isCategoryType = Boolean(decodedType) && !isMappedType;
+  const isEventPage = Boolean(eventId);
 
   // Đồng bộ category/subCategory từ query string hoặc từ :type khi mở từ menu danh mục ở header.
   useEffect(() => {
@@ -193,6 +195,11 @@ export default function AllProductsPage() {
     const pageTitle = searchText ? `Tìm kiếm: ${searchText}` : rawPageTitle;
     const shouldUseCategoryPathBreadcrumb = isCategoryType || categoryTitle !== "all" || subCategoryTitle !== "all";
 
+    if (isEventPage) {
+      items.push({ title: eventDetail?.title || "Sự kiện", url: null });
+      return items;
+    }
+
     // Với route động theo category/subcategory thì chỉ giữ chuỗi: Trang chủ > Category > Subcategory.
     // Nếu có từ khóa tìm kiếm -> hiển thị Trang chủ > Tìm kiếm: <từ khóa> và dừng.
     if (searchText) {
@@ -219,16 +226,27 @@ export default function AllProductsPage() {
     }
 
     return items;
-  }, [config?.title, selectedCategory, selectedSubCategory, isCategoryType, searchText]);
+  }, [config?.title, selectedCategory, selectedSubCategory, isCategoryType, searchText, isEventPage, eventDetail?.title]);
 
   useEffect(() => {
     let mounted = true;
     setLoading(true);
     setError("");
     setProducts([]);
-    request("GET", config.api)
+    setEventDetail(null);
+
+    const apiUrl = isEventPage
+      ? `${API_BASE}/api/user/events/${encodeURIComponent(String(eventId))}/products`
+      : config.api;
+
+    request("GET", apiUrl)
       .then((data) => {
         if (!mounted) return;
+        if (isEventPage) {
+          setEventDetail(data?.data?.event || null);
+          setProducts(Array.isArray(data?.data?.products) ? data.data.products : []);
+          return;
+        }
         // Chuẩn hóa response: backend có thể trả trực tiếp [] hoặc { success, data: [] }.
         const nextProducts = Array.isArray(data)
           ? data
@@ -247,7 +265,7 @@ export default function AllProductsPage() {
     return () => {
       mounted = false;
     };
-  }, [type, config.api, request]);
+  }, [type, eventId, isEventPage, config.api, request]);
 
   // Lọc sản phẩm theo filter
   const filteredProducts = React.useMemo(() => {
@@ -285,6 +303,21 @@ export default function AllProductsPage() {
     return `${UPLOAD_BASE}/pictures/${img}`;
   };
 
+  const resolveEventBannerImage = (value) => {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    if (/^https?:\/\//i.test(raw) || raw.startsWith("data:image/")) return raw;
+    if (raw.startsWith("/uploads/")) return `${API_BASE}${raw}`;
+    if (raw.startsWith("uploads/")) return `${API_BASE}/${raw}`;
+    return `${API_BASE}/uploads/assets/pictures/BannerImage/${raw}`;
+  };
+
+  const formatEventDate = (value) => {
+    if (!value) return "";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString("vi-VN");
+  };
+
   // Sắp xếp
   const sortedProducts = React.useMemo(() => {
     let arr = [...filteredProducts];
@@ -311,7 +344,32 @@ export default function AllProductsPage() {
 
   return (
     <section className="all-products-page-2col container">
-      <TitleBanner option={config.title} breadcrumbItems={bannerBreadcrumbItems} />
+      {isEventPage && eventDetail ? (
+        <div className="event-products-hero">
+          {eventDetail.banner_image ? (
+            <img
+              className="event-products-hero__banner"
+              src={resolveEventBannerImage(eventDetail.banner_image)}
+              alt={eventDetail.title || "Banner sự kiện"}
+            />
+          ) : null}
+          <div className="event-products-hero__content">
+            <h1>{eventDetail.title}</h1>
+            {eventDetail.description ? <p>{eventDetail.description}</p> : null}
+            <div className="event-products-hero__meta">
+              {eventDetail.code ? <span>Mã: {eventDetail.code}</span> : null}
+              {(eventDetail.start_date || eventDetail.end_date) ? (
+                <span>
+                  {formatEventDate(eventDetail.start_date) || "--"} - {formatEventDate(eventDetail.end_date) || "--"}
+                </span>
+              ) : null}
+              <span>{products.length} sản phẩm</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <TitleBanner option={config.title} breadcrumbItems={bannerBreadcrumbItems} />
+      )}
       <div className="all-products-layout">
         <BrandProductFilter
           sortBy={sortBy}

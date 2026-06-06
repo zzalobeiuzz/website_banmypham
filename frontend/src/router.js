@@ -9,6 +9,7 @@ import ProfilePage from "./pages/user/profilePage/profile_page.js";
 import ProductDetail from "./pages/user/productDetail/product_detail.js";
 import BrandDetailPage from "./pages/user/brandDetail/brand_detail.js";
 import AllProductsPage from "./pages/user/allProducts/AllProductsPage.js";
+import PromotionsPage from "./pages/user/promotions/PromotionsPage.js";
 import MasterLayout from "./pages/user/theme/masterLayout/masterLayout.js";
 import CartDetail from "./pages/user/CartPage/CartDetail.js"
 import PaymentCallback from "./pages/user/component/checkout/PaymentCallback.js";
@@ -43,6 +44,8 @@ const userRoutes = [
   { path: ROUTERS.USER.PROFILE, element: <ProfilePage />, showHeaderFooter: true },
   { path: ROUTERS.USER.PRODUCT_DETAIL, element: <ProductDetail />, showHeaderFooter: true },
   { path: ROUTERS.USER.BRAND_DETAIL, element: <BrandDetailPage />, showHeaderFooter: true },
+  { path: ROUTERS.USER.PROMOTIONS, element: <PromotionsPage />, showHeaderFooter: true },
+  { path: ROUTERS.USER.EVENT_DETAIL, element: <AllProductsPage />, showHeaderFooter: true },
   { path: ROUTERS.USER.ALL_PRODUCTS, element: <AllProductsPage />, showHeaderFooter: true },
   { path: ROUTERS.USER.SIGNUP, element: <SignUp />, showHeaderFooter: false },
   { path: ROUTERS.USER.CARTDETAIL, element: <CartDetail />, showHeaderFooter: true },

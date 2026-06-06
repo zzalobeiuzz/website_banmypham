@@ -594,17 +594,15 @@ const Header = () => {
             </div>
 
             {[
-              "Khuyến mãi",
-              "Thương hiệu",
-              "Giới thiệu",
-              "Xu hướng làm đẹp",
-              "Hàng mới về",
-              "Hệ thống cửa hàng",
+              { label: "Khuyến mãi", url: `/${ROUTERS.USER.PROMOTIONS}` },
+              { label: "Thương hiệu", url: "/" },
+              { label: "Giới thiệu", url: "/" },
+              { label: "Xu hướng làm đẹp", url: "/" },
+              { label: "Hàng mới về", url: "/" },
+              { label: "Hệ thống cửa hàng", url: "/" },
             ].map((item, i) => (
               <div className="menu_item" key={i}>
-                <a href="/" className="item">
-                  {item}
-                </a>
+                <Link to={item.url} className="item">{item.label}</Link>
               </div>
             ))}
 

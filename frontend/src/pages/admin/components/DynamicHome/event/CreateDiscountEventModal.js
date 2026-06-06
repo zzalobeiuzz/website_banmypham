@@ -329,6 +329,49 @@ const CreateDiscountEventModal = ({ open, onClose, onSaved, showPopup, event = n
     );
   };
 
+  const moveCaretBeforeCurrencyIfNeeded = (event) => {
+    const input = event.target;
+    const displayValue = String(input.value ?? "");
+    const currencyIndex = displayValue.lastIndexOf("đ");
+    const cursorPosition = Number(input.selectionStart ?? displayValue.length);
+    if (currencyIndex < 0 || cursorPosition <= currencyIndex) return;
+
+    requestAnimationFrame(() => {
+      if (document.activeElement !== input) return;
+      input.setSelectionRange(currencyIndex, currencyIndex);
+    });
+  };
+
+  const handleSalePriceChange = (productId, event) => {
+    const input = event.target;
+    const cursorPosition = Number(input.selectionStart ?? String(input.value || "").length);
+    const digitsBeforeCursor = String(input.value || "")
+      .slice(0, cursorPosition)
+      .replace(/\D/g, "")
+      .length;
+
+    updateSaleProductPrice(productId, event.target.value);
+
+    requestAnimationFrame(() => {
+      if (document.activeElement !== input) return;
+      const nextValue = String(input.value || "");
+      let seenDigits = 0;
+      let nextCursorPosition = 0;
+
+      while (nextCursorPosition < nextValue.length) {
+        if (/\d/.test(nextValue[nextCursorPosition])) seenDigits += 1;
+        nextCursorPosition += 1;
+        if (seenDigits >= digitsBeforeCursor) break;
+      }
+
+      const currencyIndex = nextValue.lastIndexOf("đ");
+      if (currencyIndex >= 0 && nextCursorPosition > currencyIndex) {
+        nextCursorPosition = currencyIndex;
+      }
+      input.setSelectionRange(nextCursorPosition, nextCursorPosition);
+    });
+  };
+
   const removeSaleProduct = (productId) => {
     setSaleProducts((prev) => prev.filter((item) => item.product_id !== productId));
   };
@@ -610,7 +653,10 @@ const CreateDiscountEventModal = ({ open, onClose, onSaved, showPopup, event = n
                               className={`form-control form-control-sm ${Number(item.original_price || 0) > 0 && Number(item.sale_price || 0) >= Number(item.original_price || 0) ? "is-invalid" : ""}`}
                               inputMode="numeric"
                               value={formatMoney(item.sale_price)}
-                              onChange={(e) => updateSaleProductPrice(item.product_id, e.target.value)}
+                              onFocus={moveCaretBeforeCurrencyIfNeeded}
+                              onClick={moveCaretBeforeCurrencyIfNeeded}
+                              onKeyUp={moveCaretBeforeCurrencyIfNeeded}
+                              onChange={(e) => handleSalePriceChange(item.product_id, e)}
                             />
                             {Number(item.original_price || 0) > 0 && Number(item.sale_price || 0) >= Number(item.original_price || 0) ? (
                               <div className="invalid-feedback d-block">Phải nhỏ hơn giá gốc</div>

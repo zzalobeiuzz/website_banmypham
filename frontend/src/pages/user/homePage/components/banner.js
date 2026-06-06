@@ -10,11 +10,52 @@ const resolveBannerUrl = (value) => {
   return `${API_BASE}/uploads/assets/pictures/BannerImage/${raw}`;
 };
 
+const emptyBannerSrc =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='390' height='195' viewBox='0 0 390 195'%3E%3C/svg%3E";
+
+const getEventUrl = (event) => `/event/${encodeURIComponent(String(event?.id || ""))}`;
+
 const getBannerKey = (event) => {
-  const metadata = event?.metadata || {};
-  if (metadata.homeBannerSection === "main" && metadata.homeBannerPosition === "center") return "main";
-  if (metadata.homeBannerSection === "side" && metadata.homeBannerPosition === "top") return "top";
-  if (metadata.homeBannerSection === "side" && metadata.homeBannerPosition === "bottom") return "bottom";
+  const slot = String(event?.homeBannerSlot || "").trim().toLowerCase();
+  if (["main", "top", "bottom"].includes(slot)) return slot;
+
+  let metadata = event?.metadata || {};
+  if (typeof metadata === "string") {
+    try {
+      metadata = JSON.parse(metadata);
+    } catch {
+      metadata = {};
+    }
+  }
+
+  const section = String(metadata.homeBannerSection || "").trim().toLowerCase();
+  const position = String(metadata.homeBannerPosition || "").trim().toLowerCase();
+
+  if (
+    (section === "main" && position === "center") ||
+    position === "main" ||
+    position === "banner-slide"
+  ) {
+    return "main";
+  }
+
+  if (
+    (section === "side" && position === "top") ||
+    section === "top" ||
+    position === "top" ||
+    position === "side_top"
+  ) {
+    return "top";
+  }
+
+  if (
+    (section === "side" && position === "bottom") ||
+    section === "bottom" ||
+    position === "bottom" ||
+    position === "side_bottom"
+  ) {
+    return "bottom";
+  }
   return "";
 };
 
@@ -78,10 +119,6 @@ const Banner = () => {
   }
 
   const translateX = -activeIndex * 710;
-  const sideBanners = [
-    { key: "top", event: sideTopBanner },
-    { key: "bottom", event: sideBottomBanner },
-  ].filter((item) => item.event);
 
   const handleNext = () => {
     if (mainBanners.length <= 1) return;
@@ -114,7 +151,7 @@ const Banner = () => {
                   key={event.id || index}
                 >
                   <div>
-                    <a href="/">
+                    <a href={getEventUrl(event)}>
                       <img
                         src={resolveBannerUrl(event.banner_image)}
                         alt={event.title || "Banner sự kiện"}
@@ -153,16 +190,35 @@ const Banner = () => {
       </div>
 
       <div className="banner-wrap">
-        {sideBanners.map(({ key, event }) => (
-          <a href="/" key={key} aria-label={event.title || "Banner sự kiện"}>
+        {sideTopBanner ? (
+          <a href={getEventUrl(sideTopBanner)} className="banner-wrap__slot banner-wrap__slot--top" aria-label={sideTopBanner.title || "Banner sự kiện"}>
             <img
-              src={resolveBannerUrl(event.banner_image)}
-              alt={event.title || ""}
+              src={resolveBannerUrl(sideTopBanner.banner_image)}
+              alt={sideTopBanner.title || ""}
               className="img-fluid"
               loading="lazy"
             />
           </a>
-        ))}
+        ) : (
+          <a href="/" className="banner-wrap__slot banner-wrap__slot--top banner-wrap__slot--empty" aria-hidden="true" tabIndex={-1}>
+            <img src={emptyBannerSrc} alt="" className="img-fluid" loading="lazy" />
+          </a>
+        )}
+
+        {sideBottomBanner ? (
+          <a href={getEventUrl(sideBottomBanner)} className="banner-wrap__slot banner-wrap__slot--bottom" aria-label={sideBottomBanner.title || "Banner sự kiện"}>
+            <img
+              src={resolveBannerUrl(sideBottomBanner.banner_image)}
+              alt={sideBottomBanner.title || ""}
+              className="img-fluid"
+              loading="lazy"
+            />
+          </a>
+        ) : (
+          <a href="/" className="banner-wrap__slot banner-wrap__slot--bottom banner-wrap__slot--empty" aria-hidden="true" tabIndex={-1}>
+            <img src={emptyBannerSrc} alt="" className="img-fluid" loading="lazy" />
+          </a>
+        )}
       </div>
     </div>
   );
