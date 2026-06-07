@@ -99,8 +99,13 @@ const getAllOrdersFromBill = async () => {
       -- Số lượng
       TRY_CAST(D.[Quantity] AS INT) AS Quantity,
 
-      -- Giá bán ưu tiên SalePrice
-      CAST(COALESCE(D.[SalePrice], D.[OriginalPrice]) AS DECIMAL(18,2)) AS UnitPriceRaw,
+      -- Giá bán: chỉ dùng SalePrice khi có giá sale > 0, ngược lại dùng OriginalPrice
+      CAST(
+        CASE
+          WHEN D.[SalePrice] IS NOT NULL AND D.[SalePrice] > 0 THEN D.[SalePrice]
+          ELSE D.[OriginalPrice]
+        END AS DECIMAL(18,2)
+      ) AS UnitPriceRaw,
 
       -- Thành tiền
       CAST(D.[LineTotal] AS DECIMAL(18,2)) AS LineTotalRaw
@@ -223,8 +228,13 @@ const getOrderDetailFromBill = async (orderId) => {
       -- Giá sale
       CAST(D.[SalePrice] AS DECIMAL(18,2)) AS SalePriceRaw,
 
-      -- Giá sử dụng thực tế
-      CAST(COALESCE(D.[SalePrice], D.[OriginalPrice]) AS DECIMAL(18,2)) AS UnitPriceRaw,
+      -- Giá sử dụng thực tế: chỉ dùng SalePrice khi có giá sale > 0, ngược lại dùng OriginalPrice
+      CAST(
+        CASE
+          WHEN D.[SalePrice] IS NOT NULL AND D.[SalePrice] > 0 THEN D.[SalePrice]
+          ELSE D.[OriginalPrice]
+        END AS DECIMAL(18,2)
+      ) AS UnitPriceRaw,
 
       -- Thành tiền
       CAST(D.[LineTotal] AS DECIMAL(18,2)) AS LineTotalRaw,

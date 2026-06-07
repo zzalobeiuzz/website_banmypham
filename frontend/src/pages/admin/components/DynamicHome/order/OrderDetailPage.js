@@ -22,6 +22,16 @@ const ORDER_STATUSES = [
   "Trả hàng",
 ];
 
+const parseMoneyValue = (value) => Number(String(value ?? "").replace(/[^\d]/g, "")) || 0;
+
+const getEffectivePrice = (item) => {
+  const salePrice = Number(item?.salePriceRaw ?? item?.SalePriceRaw ?? parseMoneyValue(item?.salePrice ?? item?.SalePrice));
+  const originalPrice = Number(item?.originalPriceRaw ?? item?.OriginalPriceRaw ?? parseMoneyValue(item?.originalPrice ?? item?.OriginalPrice));
+  const fallbackPrice = parseMoneyValue(item?.price ?? item?.Price);
+
+  return salePrice > 0 ? salePrice : originalPrice || fallbackPrice;
+};
+
 // Normalize API response into the shape the UI expects.
 // Keeps compatibility with different backend field names.
 const normalizeOrder = (raw) => ({
@@ -35,7 +45,7 @@ const normalizeOrder = (raw) => ({
         id: String(item?.id || item?.ProductID || ""),
         name: String(item?.name || item?.ProductName || "Sản phẩm"),
         qty: Number(item?.qty || item?.Quantity || 0) || 0,
-        price: String(item?.price || item?.Price || "0₫"),
+        price: getEffectivePrice(item),
         originalPrice: String(item?.originalPrice || item?.OriginalPrice || "0₫"),
         salePrice: String(item?.salePrice || item?.SalePrice || "0₫"),
         lineTotal: String(item?.lineTotal || item?.LineTotal || "0₫"),
@@ -359,7 +369,7 @@ const OrderDetailPage = () => {
                         </td>
                         <td style={{ textAlign: "center" }}>{item.qty}</td>
                         <td style={{ textAlign: "right" }}>
-                          {item.lineTotal ? item.lineTotal : formatPrice(item.lineTotalRaw || itemTotal)}
+                          {item.lineTotalRaw > 0 ? item.lineTotal : formatPrice(itemTotal)}
                         </td>
                         <td style={{ textAlign: "center" }}>
                           <button

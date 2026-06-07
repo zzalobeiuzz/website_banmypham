@@ -11,7 +11,7 @@
 
   position: relative;
   overflow: hidden;
-  padding: 20px;
+  padding: 0;
   background:
     radial-gradient(
       1400px 500px at -10% -20%,
@@ -200,11 +200,19 @@
     }
   }
 
+  .account-filter-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 14px;
+    animation: fadeUp 1s ease both;
+  }
+
   .account-top-actions {
     display: flex;
     justify-content: flex-end;
-    margin-bottom: 12px;
-    animation: fadeUp 0.8s ease both;
+    margin-bottom: 0;
 
     .btn-action.create-account {
       border: none;
@@ -241,12 +249,11 @@
   }
 
   .account-role-filter {
-    margin-bottom: 14px;
+    margin-bottom: 0;
     display: flex;
     flex-wrap: nowrap;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 10px;
-    animation: fadeUp 1s ease both;
     flex-direction: row;
 
     .filter-btn {
@@ -872,6 +879,19 @@
 @media (max-width: 640px) {
   .account-page {
     padding: 12px;
+
+    .account-filter-row {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .account-role-filter {
+      flex-wrap: wrap;
+
+      .filter-btn {
+        width: 100%;
+      }
+    }
 
     .account-top-actions {
       justify-content: stretch;

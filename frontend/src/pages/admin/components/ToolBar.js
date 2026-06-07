@@ -1,5 +1,5 @@
-import 'bootstrap/dist/css/bootstrap.min.css';
-import React, { useState } from 'react';
+import "bootstrap/dist/css/bootstrap.min.css";
+import React, { useState } from "react";
 import "./components.scss";
 
 const ToolBar = ({ onSearchChange, title }) => {
@@ -15,7 +15,7 @@ const ToolBar = ({ onSearchChange, title }) => {
   const handleChange = (e) => {
     setSearchKeyword(e.target.value);
     if (onSearchChange) {
-      onSearchChange(e.target.value); // Gửi ngay khi thay đổi input
+      onSearchChange(e.target.value);
     }
   };
 
@@ -28,21 +28,23 @@ const ToolBar = ({ onSearchChange, title }) => {
       </div>
 
       <div className="tool-right">
-        <form
-          className="d-flex"
-          role="search"
-          onSubmit={handleSubmit}
-          style={{ maxWidth: "300px" }}
-        >
-          <input
-            className="form-control me-2"
-            type="search"
-            placeholder="Tìm kiếm..."
-            value={searchKeyword}
-            onChange={handleChange}
-          />
-          <button className="btn btn-outline-success" type="submit">Tìm</button>
-        </form>
+        {onSearchChange ? (
+          <form
+            className="d-flex"
+            role="search"
+            onSubmit={handleSubmit}
+            style={{ maxWidth: "300px" }}
+          >
+            <input
+              className="form-control me-2"
+              type="search"
+              placeholder="Tìm kiếm..."
+              value={searchKeyword}
+              onChange={handleChange}
+            />
+            <button className="btn btn-outline-success" type="submit">Tìm</button>
+          </form>
+        ) : null}
       </div>
     </div>
   );

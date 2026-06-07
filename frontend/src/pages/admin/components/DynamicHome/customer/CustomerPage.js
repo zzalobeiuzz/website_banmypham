@@ -792,26 +792,20 @@ const fetchCustomers = async () => {
         message={notify.message}
         onClose={closePopup}
       />
-      <ToolBar title={TXT.title} onSearchChange={handleSearchChange} />
+      <ToolBar
+        title={TXT.title}
+        onSearchChange={handleSearchChange}
+      />
       <div className="customer-container">
         <div className="customer-top-actions">
           <button
             type="button"
-            className="btn-action create-customer"
+            className="btn-action create-customer admin-create-btn"
             onClick={openCreateCustomerPopup}
           >
-            {"+ Tạo khách hàng"}
+            <span className="admin-create-btn__icon" />
+            {"Tạo khách hàng"}
           </button>
-        </div>
-
-        <div className="search-section">
-          <input
-            type="text"
-            placeholder={TXT.searchPlaceholder}
-            className="search-input"
-            value={searchKeyword}
-            onChange={(e) => setSearchKeyword(e.target.value)}
-          />
         </div>
 
         <div className="customer-list">

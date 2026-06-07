@@ -5,9 +5,6 @@ import useHttp from "../../../../../hooks/useHttp";
 import { API_BASE } from "../../../../../constants";
 import "./style.scss";
 
-const COLLAPSED_WIDTH = "70%";
-const EXPANDED_WIDTH = "100%";
-const TRANSITION_TIME = 350; // ms
 const WEEK_DAYS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
 const ORDER_STATUSES = [
   "Tất cả",
@@ -32,6 +29,16 @@ const STATUS_SLUGS = {
   "Trả hàng": "tra-hang",
 };
 
+const parseMoneyValue = (value) => Number(String(value ?? "").replace(/[^\d]/g, "")) || 0;
+
+const getEffectivePrice = (item) => {
+  const salePrice = Number(item?.salePriceRaw ?? item?.SalePriceRaw ?? parseMoneyValue(item?.salePrice ?? item?.SalePrice));
+  const originalPrice = Number(item?.originalPriceRaw ?? item?.OriginalPriceRaw ?? parseMoneyValue(item?.originalPrice ?? item?.OriginalPrice));
+  const fallbackPrice = parseMoneyValue(item?.price ?? item?.Price);
+
+  return salePrice > 0 ? salePrice : originalPrice || fallbackPrice;
+};
+
 const normalizeOrder = (raw) => ({
   id: String(raw?.id || raw?.OrderID || raw?.BillID || ""),
   customer: String(raw?.customer || raw?.CustomerName || "Khách hàng"),
@@ -39,11 +46,19 @@ const normalizeOrder = (raw) => ({
   total: String(raw?.total || raw?.TotalPrice || "0₫"),
   status: String(raw?.status || raw?.Status || "Chờ thanh toán"),
   details: Array.isArray(raw?.details)
-    ? raw.details.map((item) => ({
-        name: String(item?.name || item?.ProductName || "Sản phẩm"),
-        qty: Number(item?.qty || item?.Quantity || 0) || 0,
-        price: String(item?.price || item?.Price || "0₫"),
-      }))
+    ? raw.details.map((item) => {
+        const priceRaw = getEffectivePrice(item);
+
+        return {
+          name: String(item?.name || item?.ProductName || "Sản phẩm"),
+          qty: Number(item?.qty || item?.Quantity || 0) || 0,
+          price: priceRaw,
+          originalPrice: String(item?.originalPrice || item?.OriginalPrice || "0₫"),
+          salePrice: String(item?.salePrice || item?.SalePrice || "0₫"),
+          originalPriceRaw: Number(item?.originalPriceRaw || item?.OriginalPriceRaw || 0) || 0,
+          salePriceRaw: Number(item?.salePriceRaw || item?.SalePriceRaw || 0) || 0,
+        };
+      })
     : [],
   address: String(raw?.address || raw?.CustomerAddress || ""),
   phone: String(raw?.phone || raw?.CustomerPhone || ""),
@@ -57,7 +72,6 @@ const OrderPage = () => {
   const [initialStatusMap, setInitialStatusMap] = useState({});
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [isCollapsed, setIsCollapsed] = useState(false); // Trạng thái co bảng
   const [pendingStatusChange, setPendingStatusChange] = useState(null);
   const [openStatusMenuOrderId, setOpenStatusMenuOrderId] = useState(null);
 
@@ -280,13 +294,11 @@ const OrderPage = () => {
     setOpenStatusMenuOrderId(null);
 
     setSelectedOrder(order);
-    setIsCollapsed(true);
   };
 
   //================== Khi đóng panel chi tiết==================
   const handleCloseDetail = () => {
     setSelectedOrder(null);
-    setIsCollapsed(false);
   };
 
   return (
@@ -295,13 +307,7 @@ const OrderPage = () => {
 
       <div className={`order-flex-container ${selectedOrder ? "show-detail" : ""}`}>
         {/* Danh sách đơn hàng */}
-        <div
-          className="order-list-section"
-          style={{
-            maxWidth: isCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH,
-            transition: `max-width ${TRANSITION_TIME}ms cubic-bezier(0.23, 1, 0.32, 1)`,
-          }}
-        >
+        <div className="order-list-section">
           {/* 🔹 Bộ lọc trạng thái đơn hàng */}
           <div className="order-status-filters">
             {statusFilters.map((status) => {
@@ -357,16 +363,16 @@ const OrderPage = () => {
                     >
                       ▼
                     </span>
-                  </div>
                   {!selectedOrder && (
                     <>
                       <button
                         type="button"
                         className="btn-date-picker"
                         onClick={handleToggleCalendar}
+                        aria-label={`Chọn ngày${dateFilter ? `: ${formatDateLabel(dateFilter)}` : ""}`}
+                        title={formatDateLabel(dateFilter)}
                       >
-                        <span className="calendar-icon" aria-hidden="true">📅</span>
-                        <span>{formatDateLabel(dateFilter)}</span>
+                        <span className="date-picker-icon" aria-hidden="true" />
                       </button>
                       {dateFilter && (
                         <button
@@ -435,8 +441,7 @@ const OrderPage = () => {
                       </div>
                     </div>
                   )}
-
-                  
+                  </div>
                 </li>
                 <li className="column total-amount">Tổng tiền</li>
                 <li className="column status">Trạng thái</li>
@@ -491,12 +496,12 @@ const OrderPage = () => {
                     <li className="column actions">
                       {canEdit(order.status) && (
                         <button className="btn-edit" onClick={(e) => e.stopPropagation()}>
-                          ✏️ Sửa
+                          Sửa
                         </button>
                       )}
 
                       <button className="btn-delete" onClick={(e) => e.stopPropagation()}>
-                        🗑 Xóa
+                        Xóa
                       </button>
                     </li>
                   </ul>
@@ -517,7 +522,7 @@ const OrderPage = () => {
                   onClick={handleCloseDetail}
                   aria-label="Đóng"
                 >
-                  ✖
+                  X
                 </button>
               </div>
               <p>
@@ -560,6 +565,7 @@ const OrderPage = () => {
                   <tbody>
                     {selectedOrder.details.map((item, i) => {
                       const itemPrice = parsePrice(item.price);
+                      console.log("itemPrice", itemPrice, "item.price", item);
                       const itemTotal = itemPrice * (item.qty || 0);
                       return (
                         <tr key={i}>
@@ -598,13 +604,13 @@ const OrderPage = () => {
                 </button>
               </div>
 
-              <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+              <div className="order-detail-actions">
                 <button
                   type="button"
                   className="btn-view-full"
                   onClick={() => navigate(`/admin/order/${selectedOrder.id}`)}
                 >
-                  🔍 Xem chi tiết
+                  Xem chi tiết
                 </button>
               </div>
             </div>

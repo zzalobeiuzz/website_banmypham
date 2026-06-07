@@ -549,7 +549,10 @@ const ProductOverviewComponent = () => {
         onClose={closePopup}
       />
       {/* 🔍 Toolbar tìm kiếm */}
-      <ToolBar title="Sản phẩm" onSearchChange={setSearchKeyword} />
+      <ToolBar
+        title="Sản phẩm"
+        onSearchChange={setSearchKeyword}
+      />
       <div className="product-wrapper">
         {/* 🏷 Topbar category */}
         <div className="product-topbar">
@@ -652,7 +655,7 @@ const ProductOverviewComponent = () => {
           {/* 🛠 Sidebar thao tác & filter */}
           <div className="product-left">
             <button
-              className="btn-add"
+              className="btn-add admin-create-btn admin-create-btn--icon-only"
               onClick={handleAddProduct}
               title="Thêm sản phẩm"
               aria-label="Thêm sản phẩm"

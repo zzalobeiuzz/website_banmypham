@@ -168,7 +168,7 @@ const VoucherPage = () => {
   };
 
   return (
-    <div style={{ padding: "24px 28px" }}>
+    <div className="voucher-admin-page">
       <Notification
         open={notify.open}
         status={notify.status}
@@ -177,7 +177,10 @@ const VoucherPage = () => {
       />
 
       <div className="voucher-admin-header">
-        <ToolBar title="Quản lý voucher" onSearchChange={setSearchKeyword} />
+        <ToolBar
+          title="Quản lý voucher"
+          onSearchChange={setSearchKeyword}
+        />
       </div>
 
       <CreateVoucherModal
@@ -224,11 +227,12 @@ const VoucherPage = () => {
               <div className="voucher-stats-actions">
                 <button
                   type="button"
-                  className="voucher-add-btn"
+                  className="voucher-add-btn admin-create-btn"
                   onClick={openCreateModal}
                   title="Tạo Voucher"
                 >
-                  <i className="bi bi-plus-lg"></i>
+                  <span className="admin-create-btn__icon" />
+                  Tạo voucher
                 </button>
               </div>
             </div>

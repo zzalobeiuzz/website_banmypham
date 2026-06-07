@@ -6,6 +6,43 @@ import AdminLoadingScreen from "../../shared/AdminLoadingScreen";
 import CreateDiscountEventModal from "./CreateDiscountEventModal";
 import "./DiscountEventsPage.scss";
 
+const parseMetadata = (value) => {
+  try {
+    return typeof value === "string" ? JSON.parse(value || "{}") : value || {};
+  } catch {
+    return {};
+  }
+};
+
+const getBannerPositionLabel = (value) => {
+  const metadata = parseMetadata(value);
+  if (metadata?.showOnHome !== true) return "Không hiện trang chủ";
+  if (metadata?.homeBannerSection === "main") return "Main";
+  if (metadata?.homeBannerSection === "side" && metadata?.homeBannerPosition === "top") return "Side trên";
+  if (metadata?.homeBannerSection === "side" && metadata?.homeBannerPosition === "bottom") return "Side dưới";
+  return "Trang chủ";
+};
+
+const getEventStatus = (event) => {
+  if (Number(event?.status) !== 1) {
+    return { label: "Tắt", className: "is-off" };
+  }
+
+  const now = new Date();
+  const start = event?.start_date ? new Date(event.start_date) : null;
+  const end = event?.end_date ? new Date(event.end_date) : null;
+
+  if (start && !Number.isNaN(start.getTime()) && now < start) {
+    return { label: "Sắp diễn ra", className: "is-upcoming" };
+  }
+
+  if (end && !Number.isNaN(end.getTime()) && now > end) {
+    return { label: "Đã kết thúc", className: "is-ended" };
+  }
+
+  return { label: "Đang chạy", className: "is-active" };
+};
+
 const DiscountEventsPage = () => {
   const { request } = useHttp();
   const [events, setEvents] = useState([]);
@@ -13,6 +50,8 @@ const DiscountEventsPage = () => {
   const [openCreate, setOpenCreate] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [loadingEditId, setLoadingEditId] = useState(null);
+  const [deletingEventId, setDeletingEventId] = useState(null);
+  const [searchKeyword, setSearchKeyword] = useState("");
   const [notify, setNotify] = useState({ open: false, status: "info", message: "" });
 
   const showPopup = useCallback(({ status, message }) => {
@@ -53,43 +92,6 @@ const DiscountEventsPage = () => {
     return Number.isNaN(date.getTime()) ? "--" : date.toLocaleDateString("vi-VN");
   };
 
-  const parseMetadata = (value) => {
-    try {
-      return typeof value === "string" ? JSON.parse(value || "{}") : value || {};
-    } catch {
-      return {};
-    }
-  };
-
-  const getBannerPositionLabel = (value) => {
-    const metadata = parseMetadata(value);
-    if (metadata?.showOnHome !== true) return "Không hiện trang chủ";
-    if (metadata?.homeBannerSection === "main") return "Main";
-    if (metadata?.homeBannerSection === "side" && metadata?.homeBannerPosition === "top") return "Side trên";
-    if (metadata?.homeBannerSection === "side" && metadata?.homeBannerPosition === "bottom") return "Side dưới";
-    return "Trang chủ";
-  };
-
-  const getEventStatus = (event) => {
-    if (Number(event?.status) !== 1) {
-      return { label: "Tắt", className: "is-off" };
-    }
-
-    const now = new Date();
-    const start = event?.start_date ? new Date(event.start_date) : null;
-    const end = event?.end_date ? new Date(event.end_date) : null;
-
-    if (start && !Number.isNaN(start.getTime()) && now < start) {
-      return { label: "Sắp diễn ra", className: "is-upcoming" };
-    }
-
-    if (end && !Number.isNaN(end.getTime()) && now > end) {
-      return { label: "Đã kết thúc", className: "is-ended" };
-    }
-
-    return { label: "Đang chạy", className: "is-active" };
-  };
-
   const eventStats = useMemo(() => {
     const active = events.filter((event) => getEventStatus(event).className === "is-active").length;
     const upcoming = events.filter((event) => getEventStatus(event).className === "is-upcoming").length;
@@ -105,6 +107,20 @@ const DiscountEventsPage = () => {
     ];
   }, [events]);
 
+  const filteredEvents = useMemo(() => {
+    const keyword = String(searchKeyword || "").trim().toLowerCase();
+    if (!keyword) return events;
+
+    return events.filter((event) => {
+      const title = String(event?.title || "").toLowerCase();
+      const code = String(event?.code || "").toLowerCase();
+      const position = getBannerPositionLabel(event?.metadata).toLowerCase();
+      const status = getEventStatus(event).label.toLowerCase();
+
+      return title.includes(keyword) || code.includes(keyword) || position.includes(keyword) || status.includes(keyword);
+    });
+  }, [events, searchKeyword]);
+
   const closeModal = () => {
     setOpenCreate(false);
     setEditingEvent(null);
@@ -113,6 +129,10 @@ const DiscountEventsPage = () => {
   const openCreateModal = () => {
     setEditingEvent(null);
     setOpenCreate(true);
+  };
+
+  const handleSearchSubmit = (event) => {
+    event.preventDefault();
   };
 
   const openEditModal = async (event) => {
@@ -135,6 +155,33 @@ const DiscountEventsPage = () => {
     }
   };
 
+  const handleDeleteEvent = async (event) => {
+    const eventId = event?.id;
+    if (!eventId || deletingEventId) return;
+
+    const eventTitle = String(event?.title || `EVENT-${eventId}`).trim();
+    const confirmed = window.confirm(
+      `Xóa sự kiện "${eventTitle}"?\nCác sản phẩm sale thuộc sự kiện này cũng sẽ bị xóa.`
+    );
+    if (!confirmed) return;
+
+    try {
+      setDeletingEventId(eventId);
+      const res = await request("DELETE", `${API_BASE}/api/admin/sale-events/${encodeURIComponent(String(eventId))}`);
+      if (!res?.success) {
+        showPopup({ status: "error", message: res?.message || "Không thể xóa sự kiện giảm giá." });
+        return;
+      }
+
+      showPopup({ status: "success", message: res?.message || "Xóa sự kiện giảm giá thành công." });
+      await fetchEvents();
+    } catch (error) {
+      showPopup({ status: "error", message: error?.message || "Không thể xóa sự kiện giảm giá." });
+    } finally {
+      setDeletingEventId(null);
+    }
+  };
+
   return (
     <div className="admin-discount-events">
       <Notification open={notify.open} status={notify.status} message={notify.message} onClose={closePopup} />
@@ -147,15 +194,19 @@ const DiscountEventsPage = () => {
       />
 
       <div className="discount-events-hero">
-        <div>
-          <span className="discount-events-hero__eyebrow">Quản lý khuyến mãi</span>
-          <h3>Sự kiện giảm giá</h3>
-          <p>Tạo banner, chọn vị trí hiển thị và quản lý danh sách sản phẩm sale trong từng chương trình.</p>
+        <h3>Sự kiện giảm giá</h3>
+        <div className="discount-events-hero__actions">
+          <form className="discount-events-search d-flex" role="search" onSubmit={handleSearchSubmit}>
+            <input
+              className="form-control me-2"
+              type="search"
+              value={searchKeyword}
+              onChange={(event) => setSearchKeyword(event.target.value)}
+              placeholder="Tìm kiếm..."
+            />
+            <button className="btn btn-outline-success" type="submit">Tìm</button>
+          </form>
         </div>
-        <button className="discount-events-hero__button" onClick={openCreateModal}>
-          <span>+</span>
-          Tạo sự kiện
-        </button>
       </div>
 
       <div className="discount-events-stats">
@@ -181,8 +232,12 @@ const DiscountEventsPage = () => {
           <div className="discount-events-table-card__header">
             <div>
               <h4>Danh sách sự kiện</h4>
-              <span>{events.length} chương trình đang được quản lý</span>
+              <span>{filteredEvents.length} / {events.length} chương trình</span>
             </div>
+            <button type="button" className="discount-events-hero__button admin-create-btn" onClick={openCreateModal}>
+              <span className="admin-create-btn__icon" />
+              Tạo sự kiện
+            </button>
           </div>
           <div className="discount-events-table-wrap">
             <table className="table discount-events-table">
@@ -198,7 +253,13 @@ const DiscountEventsPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {events.map((event, idx) => {
+                {filteredEvents.length === 0 ? (
+                  <tr>
+                    <td colSpan={7}>
+                      <div className="discount-events-no-result">Không tìm thấy sự kiện phù hợp.</div>
+                    </td>
+                  </tr>
+                ) : filteredEvents.map((event, idx) => {
                   const status = getEventStatus(event);
 
                   return (
@@ -232,14 +293,24 @@ const DiscountEventsPage = () => {
                         <span className={`discount-event-status ${status.className}`}>{status.label}</span>
                       </td>
                       <td className="text-end">
-                        <button
-                          type="button"
-                          className="discount-event-edit-btn"
-                          onClick={() => openEditModal(event)}
-                          disabled={loadingEditId === event.id}
-                        >
-                          {loadingEditId === event.id ? "Đang tải..." : "Sửa"}
-                        </button>
+                        <div className="discount-event-actions">
+                          <button
+                            type="button"
+                            className="discount-event-edit-btn"
+                            onClick={() => openEditModal(event)}
+                            disabled={loadingEditId === event.id || deletingEventId === event.id}
+                          >
+                            {loadingEditId === event.id ? "Đang tải..." : "Sửa"}
+                          </button>
+                          <button
+                            type="button"
+                            className="discount-event-delete-btn"
+                            onClick={() => handleDeleteEvent(event)}
+                            disabled={deletingEventId === event.id || loadingEditId === event.id}
+                          >
+                            {deletingEventId === event.id ? "Đang xóa..." : "Xóa"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

@@ -80,3 +80,20 @@ exports.handleUpdateSaleEvent = async (req, res) => {
     });
   }
 };
+
+exports.handleDeleteSaleEvent = async (req, res) => {
+  try {
+    const data = await saleEventService.deleteSaleEvent(req.params.id);
+    return res.json({
+      success: true,
+      message: "Xóa sự kiện giảm giá thành công.",
+      data,
+    });
+  } catch (error) {
+    console.error("❌ Lỗi handleDeleteSaleEvent:", error.message);
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || "Không thể xóa sự kiện giảm giá.",
+    });
+  }
+};

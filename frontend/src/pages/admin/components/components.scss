@@ -119,6 +119,178 @@
   }
   .tool-right { min-width: 0; }
 }
+
+/* Header dùng chung cho các page admin có ToolBar, không áp dụng cho Tổng quan/Doanh thu. */
+.tool-bar-style {
+  min-height: 86px;
+  margin-bottom: 18px;
+  padding: 18px 22px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 0 16px 38px rgba(15, 23, 42, 0.08);
+  gap: 18px;
+
+  .tool-center .title {
+    margin: 0;
+    padding-bottom: 12px;
+    color: #0f172a;
+    font-size: 30px;
+    line-height: 1.1;
+    font-weight: 900;
+    letter-spacing: 0;
+  }
+
+  .tool-center .title::after {
+    width: min(140px, 72%);
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #0f766e 0%, #14b8a6 42%, #2563eb 100%);
+    background-size: 220% 100%;
+    box-shadow: 0 8px 18px rgba(15, 118, 110, 0.18);
+    animation: adminTitleLine 2.4s ease-in-out infinite;
+  }
+
+  .tool-right form {
+    max-width: 340px !important;
+  }
+
+  .tool-right .form-control {
+    min-height: 40px;
+    border: 1px solid #dbe3ef;
+    border-radius: 10px;
+    background: #fff;
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: none;
+
+    &:focus {
+      border-color: #0f766e;
+      box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.12);
+    }
+  }
+
+  .tool-right .btn {
+    min-height: 40px;
+    border-radius: 10px;
+    border-color: rgba(15, 118, 110, 0.34);
+    color: #0f766e;
+    font-weight: 800;
+
+    &:hover {
+      border-color: #0f766e;
+      background: #0f766e;
+      color: #fff;
+    }
+  }
+}
+
+@keyframes adminTitleLine {
+  0% {
+    background-position: 0% 50%;
+    transform: translateX(-50%);
+  }
+
+  50% {
+    background-position: 100% 50%;
+    transform: translateX(-50%);
+  }
+
+  100% {
+    background-position: 0% 50%;
+    transform: translateX(-50%);
+  }
+}
+
+@media (max-width: 768px) {
+  .tool-bar-style {
+    display: grid;
+    gap: 14px;
+    justify-items: stretch;
+
+    .tool-center {
+      justify-content: flex-start;
+    }
+
+    .tool-right,
+    .tool-right form {
+      width: 100%;
+    }
+  }
+}
+
+/* Chuẩn hóa phần tên trang cho các page admin dùng ToolBar. */
+.tool-bar-style {
+  --admin-page-accent: #0f766e;
+  --admin-page-accent-soft: rgba(15, 118, 110, 0.12);
+  --admin-page-accent-2: #2563eb;
+
+  .tool-left {
+    display: none;
+  }
+
+  .tool-center {
+    flex: 1 1 0;
+    justify-content: center;
+    min-width: 0;
+  }
+
+  .tool-center .title {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: inline-block;
+    white-space: normal;
+    pointer-events: auto;
+  }
+
+  .tool-center .title::after {
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(90deg, var(--admin-page-accent) 0%, #14b8a6 42%, var(--admin-page-accent-2) 100%);
+    box-shadow: 0 8px 18px var(--admin-page-accent-soft);
+    animation-name: adminPageTitleLine;
+  }
+
+  .tool-right .form-control:focus {
+    border-color: var(--admin-page-accent);
+    box-shadow: 0 0 0 4px var(--admin-page-accent-soft);
+  }
+
+  .tool-right .btn {
+    border-color: var(--admin-page-accent-soft);
+    color: var(--admin-page-accent);
+
+    &:hover {
+      border-color: var(--admin-page-accent);
+      background: var(--admin-page-accent);
+      color: #fff;
+    }
+  }
+
+  .tool-right {
+    gap: 14px;
+  }
+}
+
+@keyframes adminPageTitleLine {
+  0% {
+    background-position: 0% 50%;
+    transform: translateX(-50%);
+  }
+
+  50% {
+    background-position: 100% 50%;
+    transform: translateX(-50%);
+  }
+
+  100% {
+    background-position: 0% 50%;
+    transform: translateX(-50%);
+  }
+}
+
 //====================BARCODE POPUP======================
 //=======================================================
 .scanner-popup {

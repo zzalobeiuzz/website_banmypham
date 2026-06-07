@@ -642,10 +642,10 @@ const StatisticsPage = () => {
     );
   };
 
-  if (loading && !hasLoadedStats) return <div className="p-3">Đang tải thống kê...</div>;
+  if (loading && !hasLoadedStats) return <div>Đang tải thống kê...</div>;
 
   return (
-    <div className="admin-stats-page p-3">
+    <div className="admin-stats-page">
       <div className="stats-top row g-3">
         <div className="col-lg-6">
           <div className="card p-3 h-100">

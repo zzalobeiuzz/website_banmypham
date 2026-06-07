@@ -323,7 +323,10 @@ const BrandPage = () => {
 
   return (
     <div className="brand-page">
-      <ToolBar title="Quản lý thương hiệu" onSearchChange={handleSearchChange} />
+      <ToolBar
+        title="Quản lý thương hiệu"
+        onSearchChange={handleSearchChange}
+      />
 
       {notify.visible && (
         <Notification
@@ -369,12 +372,13 @@ const BrandPage = () => {
         <div className="brand-page__actions">
           <button
             type="button"
-            className="brand-btn-create"
+            className="brand-btn-create admin-create-btn"
             onClick={() => setShowCreateForm((prev) => !prev)}
             aria-label={showCreateForm ? "Đóng form" : "Tạo mới thương hiệu"}
             title={showCreateForm ? "Đóng form" : "Tạo mới thương hiệu"}
           >
-            {showCreateForm ? "✕" : "＋"}
+            <span className={`admin-create-btn__icon ${showCreateForm ? "admin-create-btn__icon--close" : ""}`} />
+            {showCreateForm ? "Đóng form" : "Tạo thương hiệu"}
           </button>
         </div>
 

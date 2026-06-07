@@ -676,3 +676,53 @@ exports.updateSaleEvent = async ({ id, body, file }) => {
     throw error;
   }
 };
+
+exports.deleteSaleEvent = async (id) => {
+  const pool = await connectDB();
+  const saleEventId = Number(id || 0);
+
+  if (!saleEventId) {
+    const error = new Error("Thiếu mã sự kiện.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const existsResult = await pool.request()
+    .input("id", sql.Int, saleEventId)
+    .query(`
+      SELECT id
+      FROM SALE_EVENT
+      WHERE id = @id
+    `);
+
+  if (!existsResult.recordset?.[0]) {
+    const error = new Error("Không tìm thấy sự kiện giảm giá.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const transaction = new sql.Transaction(pool);
+  await transaction.begin();
+
+  try {
+    const deleteProductsRequest = new sql.Request(transaction);
+    deleteProductsRequest.input("SaleEventID", sql.Int, saleEventId);
+    await deleteProductsRequest.query(`
+      DELETE FROM PRODUCT_SALE
+      WHERE SaleEventID = @SaleEventID
+    `);
+
+    const deleteEventRequest = new sql.Request(transaction);
+    deleteEventRequest.input("id", sql.Int, saleEventId);
+    await deleteEventRequest.query(`
+      DELETE FROM SALE_EVENT
+      WHERE id = @id
+    `);
+
+    await transaction.commit();
+    return { id: saleEventId };
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+};

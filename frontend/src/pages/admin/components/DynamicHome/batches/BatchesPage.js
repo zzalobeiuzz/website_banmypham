@@ -327,17 +327,21 @@ const BatchesPage = () => {
 
   return (
     <div className="lo-hang-page">
-      <ToolBar title="Lô hàng" onSearchChange={setKeyword} />
+      <ToolBar
+        title="Lô hàng"
+        onSearchChange={setKeyword}
+      />
 
       <div className="lo-hang-card">
         {!isShowForm && (
           <div className="lo-hang-form-toggle">
             <button
               type="button"
-              className="btn-create-lot-main"
+              className="btn-create-lot-main admin-create-btn"
               onClick={() => setIsShowForm(true)}
             >
-              ➕ Tạo lô hàng mới
+              <span className="admin-create-btn__icon" />
+              Tạo lô hàng mới
             </button>
           </div>
         )}

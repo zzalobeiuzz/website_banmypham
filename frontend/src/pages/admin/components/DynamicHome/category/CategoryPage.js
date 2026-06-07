@@ -316,7 +316,10 @@ const CategoryPage = () => {
 
   return (
     <div className="category-page">
-      <ToolBar title="Danh mục hàng hóa" onSearchChange={setSearchKeyword} />
+      <ToolBar
+        title="Danh mục hàng hóa"
+        onSearchChange={setSearchKeyword}
+      />
       <div className="category-grid">
         <button
           type="button"

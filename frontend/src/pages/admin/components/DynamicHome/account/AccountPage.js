@@ -462,7 +462,10 @@ const AccountPage = () => {
       <div className="account-bg-orb orb-two" />
       <div className="account-bg-grid" />
       <Notification open={notify.open} status={notify.status} message={notify.message} onClose={closePopup} />
-      <ToolBar title={TXT.title} onSearchChange={handleSearchChange} />
+      <ToolBar
+        title={TXT.title}
+        onSearchChange={handleSearchChange}
+      />
 
       <div className="account-container">
         <div className="account-summary-cards">
@@ -480,39 +483,42 @@ const AccountPage = () => {
           </div>
         </div>
 
-        <div className="account-top-actions">
-          <button
-            type="button"
-            className="btn-action create-account"
-            onClick={openCreatePopup}
-            disabled={creatingAccount}
-          >
-            {creatingAccount ? "Đang tạo..." : "+ Tạo tài khoản"}
-          </button>
-        </div>
+        <div className="account-filter-row">
+          <div className="account-role-filter">
+            <button
+              type="button"
+              className={`filter-btn ${roleFilter === ROLE_FILTERS.ALL ? "active" : ""}`}
+              onClick={() => setRoleFilter(ROLE_FILTERS.ALL)}
+            >
+              Tất cả
+            </button>
+            <button
+              type="button"
+              className={`filter-btn ${roleFilter === ROLE_FILTERS.ADMIN ? "active" : ""}`}
+              onClick={() => setRoleFilter(ROLE_FILTERS.ADMIN)}
+            >
+              Admin
+            </button>
+            <button
+              type="button"
+              className={`filter-btn ${roleFilter === ROLE_FILTERS.CUSTOMER ? "active" : ""}`}
+              onClick={() => setRoleFilter(ROLE_FILTERS.CUSTOMER)}
+            >
+              Khách hàng
+            </button>
+          </div>
 
-        <div className="account-role-filter">
-          <button
-            type="button"
-            className={`filter-btn ${roleFilter === ROLE_FILTERS.ALL ? "active" : ""}`}
-            onClick={() => setRoleFilter(ROLE_FILTERS.ALL)}
-          >
-            Tất cả
-          </button>
-          <button
-            type="button"
-            className={`filter-btn ${roleFilter === ROLE_FILTERS.ADMIN ? "active" : ""}`}
-            onClick={() => setRoleFilter(ROLE_FILTERS.ADMIN)}
-          >
-            Admin
-          </button>
-          <button
-            type="button"
-            className={`filter-btn ${roleFilter === ROLE_FILTERS.CUSTOMER ? "active" : ""}`}
-            onClick={() => setRoleFilter(ROLE_FILTERS.CUSTOMER)}
-          >
-            Khách hàng
-          </button>
+          <div className="account-top-actions">
+            <button
+              type="button"
+              className="btn-action create-account admin-create-btn"
+              onClick={openCreatePopup}
+              disabled={creatingAccount}
+            >
+              <span className="admin-create-btn__icon" />
+              {creatingAccount ? "Đang tạo..." : "Tạo tài khoản"}
+            </button>
+          </div>
         </div>
 
         <div className="account-list">

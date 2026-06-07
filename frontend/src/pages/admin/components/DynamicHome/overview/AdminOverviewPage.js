@@ -191,11 +191,11 @@ const AdminOverviewPage = () => {
     : 0;
 
   if (loading && !overview.counts.Products) {
-    return <div className="admin-overview-page p-3">Đang tải tổng quan...</div>;
+    return <div className="admin-overview-page">Đang tải tổng quan...</div>;
   }
 
   return (
-    <div className="admin-overview-page p-3">
+    <div className="admin-overview-page">
       <div className="overview-header">
         <div className="overview-title-block">
           <span className="overview-eyebrow">Dashboard</span>

@@ -9,6 +9,7 @@ const {
   handleGetSaleEventDetail,
   handleCreateSaleEvent,
   handleUpdateSaleEvent,
+  handleDeleteSaleEvent,
 } = require("./saleEvent.controller");
 
 router.use(authMiddleware.verifyToken, authMiddleware.verifyAdmin);
@@ -18,5 +19,6 @@ router.get("/", handleGetSaleEvents);
 router.get("/:id", handleGetSaleEventDetail);
 router.post("/", upload.single("bannerFile"), handleCreateSaleEvent);
 router.put("/:id", upload.single("bannerFile"), handleUpdateSaleEvent);
+router.delete("/:id", handleDeleteSaleEvent);
 
 module.exports = router;
