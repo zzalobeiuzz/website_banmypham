@@ -13,7 +13,7 @@ const resolveBannerUrl = (value) => {
 const emptyBannerSrc =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='390' height='195' viewBox='0 0 390 195'%3E%3C/svg%3E";
 
-const getEventUrl = (event) => `/event/${encodeURIComponent(String(event?.id || ""))}`;
+const getEventUrl = (event) => `/event/${encodeURIComponent(String(event?.code || event?.id || "").trim())}`;
 
 const getBannerKey = (event) => {
   const slot = String(event?.homeBannerSlot || "").trim().toLowerCase();

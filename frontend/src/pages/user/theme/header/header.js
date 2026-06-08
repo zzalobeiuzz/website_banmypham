@@ -595,7 +595,7 @@ const Header = () => {
 
             {[
               { label: "Khuyến mãi", url: `/${ROUTERS.USER.PROMOTIONS}` },
-              { label: "Thương hiệu", url: "/" },
+              { label: "Thương hiệu", url: "/all-products/featured-brands" },
               { label: "Giới thiệu", url: "/" },
               { label: "Xu hướng làm đẹp", url: "/" },
               { label: "Hàng mới về", url: "/" },

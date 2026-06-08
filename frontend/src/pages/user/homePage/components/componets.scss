@@ -683,7 +683,6 @@
 
 //===========================================Banner Page==================================
 .section-banner-top {
-  margin-top: 10px;
   padding-left: 220px;
   height: 400px;
   display: flex;
@@ -902,6 +901,21 @@
 
                 svg {
                   vertical-align: middle;
+                }
+
+                .coupon-gift-lottie {
+                  width: 62px;
+                  height: 62px;
+                  margin: 0 auto;
+                  overflow: hidden;
+
+                  svg {
+                    display: block;
+                    width: 100% !important;
+                    height: 100% !important;
+                    max-width: 62px;
+                    max-height: 62px;
+                  }
                 }
               }
 

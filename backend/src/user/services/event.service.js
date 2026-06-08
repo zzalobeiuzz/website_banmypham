@@ -162,8 +162,8 @@ exports.getActivePromotionPrograms = async ({ productLimit = 8 } = {}) => {
 };
 
 exports.getEventProducts = async (id) => {
-  const eventId = Number(id || 0);
-  if (!eventId) {
+  const eventKey = String(id || "").trim();
+  if (!eventKey) {
     const error = new Error("Thiếu mã sự kiện.");
     error.statusCode = 400;
     throw error;
@@ -171,9 +171,9 @@ exports.getEventProducts = async (id) => {
 
   const pool = await connectDB();
   const eventResult = await pool.request()
-    .input("id", sql.Int, eventId)
+    .input("eventKey", sql.NVarChar(100), eventKey)
     .query(`
-      SELECT
+      SELECT TOP 1
         id,
         code,
         title,
@@ -185,8 +185,11 @@ exports.getEventProducts = async (id) => {
         metadata,
         created_at
       FROM SALE_EVENT
-      WHERE id = @id
+      WHERE (code = @eventKey OR CAST(id AS NVARCHAR(100)) = @eventKey)
         AND status = 1
+      ORDER BY
+        CASE WHEN code = @eventKey THEN 0 ELSE 1 END,
+        id DESC
     `);
 
   const event = eventResult.recordset?.[0] || null;
@@ -196,6 +199,7 @@ exports.getEventProducts = async (id) => {
     throw error;
   }
 
+  const eventId = Number(event.id || 0);
   const productResult = await pool.request()
     .input("SaleEventID", sql.Int, eventId)
     .query(`

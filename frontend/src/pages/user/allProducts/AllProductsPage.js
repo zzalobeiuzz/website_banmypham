@@ -84,12 +84,37 @@ const TITLE_MAP = {
   },
 };
 
+const EVENT_ACCENT_COLORS = [
+  "#0f766e",
+  "#2563eb",
+  "#db2777",
+  "#ea580c",
+  "#7c3aed",
+  "#0891b2",
+  "#16a34a",
+  "#dc2626",
+];
+
+const getRandomEventAccentColor = () => {
+  const randomIndex = Math.floor(Math.random() * EVENT_ACCENT_COLORS.length);
+  return EVENT_ACCENT_COLORS[randomIndex];
+};
+
+const hexToRgb = (hex) => {
+  const normalized = String(hex || "").replace("#", "");
+  const value = parseInt(normalized, 16);
+
+  return `${(value >> 16) & 255}, ${(value >> 8) & 255}, ${value & 255}`;
+};
+
 export default function AllProductsPage() {
   const { type, eventId } = useParams();
   const [searchParams] = useSearchParams();
   const { request } = useHttp();
   const [products, setProducts] = useState([]);
   const [eventDetail, setEventDetail] = useState(null);
+  const [eventInfoVisible, setEventInfoVisible] = useState(true);
+  const [eventAccentColor, setEventAccentColor] = useState(() => getRandomEventAccentColor());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -234,6 +259,7 @@ export default function AllProductsPage() {
     setError("");
     setProducts([]);
     setEventDetail(null);
+    setEventInfoVisible(true);
 
     const apiUrl = isEventPage
       ? `${API_BASE}/api/user/events/${encodeURIComponent(String(eventId))}/products`
@@ -266,6 +292,12 @@ export default function AllProductsPage() {
       mounted = false;
     };
   }, [type, eventId, isEventPage, config.api, request]);
+
+  useEffect(() => {
+    if (eventDetail) {
+      setEventAccentColor(getRandomEventAccentColor());
+    }
+  }, [eventDetail]);
 
   // Lọc sản phẩm theo filter
   const filteredProducts = React.useMemo(() => {
@@ -342,29 +374,64 @@ export default function AllProductsPage() {
     return `${UPLOAD_BASE}/pictures/Brands/${value}`;
   };
 
+  const eventAccentRgb = React.useMemo(
+    () => hexToRgb(eventAccentColor),
+    [eventAccentColor],
+  );
+
   return (
     <section className="all-products-page-2col container">
       {isEventPage && eventDetail ? (
-        <div className="event-products-hero">
+        <div
+          className="event-products-hero"
+          style={{
+            "--event-accent": eventAccentColor,
+            "--event-accent-rgb": eventAccentRgb,
+          }}
+        >
           {eventDetail.banner_image ? (
-            <img
-              className="event-products-hero__banner"
-              src={resolveEventBannerImage(eventDetail.banner_image)}
-              alt={eventDetail.title || "Banner sự kiện"}
-            />
+            <div className="event-products-hero__banner-frame">
+              <img
+                className="event-products-hero__banner-bg"
+                src={resolveEventBannerImage(eventDetail.banner_image)}
+                alt=""
+                aria-hidden="true"
+              />
+              <img
+                className="event-products-hero__banner"
+                src={resolveEventBannerImage(eventDetail.banner_image)}
+                alt={eventDetail.title || "Banner sự kiện"}
+              />
+            </div>
           ) : null}
           <div className="event-products-hero__content">
-            <h1>{eventDetail.title}</h1>
-            {eventDetail.description ? <p>{eventDetail.description}</p> : null}
-            <div className="event-products-hero__meta">
-              {eventDetail.code ? <span>Mã: {eventDetail.code}</span> : null}
-              {(eventDetail.start_date || eventDetail.end_date) ? (
-                <span>
-                  {formatEventDate(eventDetail.start_date) || "--"} - {formatEventDate(eventDetail.end_date) || "--"}
-                </span>
-              ) : null}
-              <span>{products.length} sản phẩm</span>
+            <div className="event-products-hero__head">
+              <div className="event-products-hero__title-block">
+                {eventDetail.code ? <span>{eventDetail.code}</span> : null}
+                <h1>{eventDetail.title}</h1>
+              </div>
+              <button
+                type="button"
+                className="event-products-hero__toggle"
+                onClick={() => setEventInfoVisible((prev) => !prev)}
+                aria-expanded={eventInfoVisible}
+              >
+                {eventInfoVisible ? "Bớt thông tin" : "Đọc thêm"}
+              </button>
             </div>
+            {eventInfoVisible ? (
+              <div className="event-products-hero__info">
+                {eventDetail.description ? <p>{eventDetail.description}</p> : null}
+                <div className="event-products-hero__meta">
+                  {(eventDetail.start_date || eventDetail.end_date) ? (
+                    <span>
+                      {formatEventDate(eventDetail.start_date) || "--"} - {formatEventDate(eventDetail.end_date) || "--"}
+                    </span>
+                  ) : null}
+                  <span>{products.length} sản phẩm</span>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : (

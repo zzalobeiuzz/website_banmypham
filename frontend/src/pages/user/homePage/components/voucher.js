@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import lottie from "lottie-web";
 import { API_BASE } from "../../../../constants";
 import useHttp from "../../../../hooks/useHttp";
+import giftAnimation from "../../../../animation/gift.json";
 import "./componets.scss";
 
 /*
@@ -74,6 +76,34 @@ const formatCurrency = (value) => {
   return `${number.toLocaleString("vi-VN")}đ`;
 };
 
+const GiftCouponLottie = () => {
+  const animationRef = useRef(null);
+
+  useEffect(() => {
+    if (!animationRef.current) return undefined;
+
+    const anim = lottie.loadAnimation({
+      container: animationRef.current,
+      renderer: "svg",
+      loop: true,
+      autoplay: true,
+      animationData: giftAnimation,
+    });
+
+    return () => {
+      anim.destroy();
+    };
+  }, []);
+
+  return (
+    <div
+      ref={animationRef}
+      className="coupon-gift-lottie"
+      aria-hidden="true"
+    />
+  );
+};
+
 // Component hiển thị 1 voucher trong carousel
 // - Hiển thị tiêu đề, mô tả ngắn, thanh tiến độ và các nút hành động
 const VoucherItem = ({ voucher, onOpenDetail, onCopyCode, copiedCode }) => {
@@ -85,11 +115,7 @@ const VoucherItem = ({ voucher, onOpenDetail, onCopyCode, copiedCode }) => {
       <div className="item-coupon">
         <div className="d-flex align-items-center justify-content-between">
           <div className="box-coupon box-coupon-left text-center">
-            {/* Icon đơn giản cho voucher */}
-            <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="25" cy="25" r="25" fill="#C73030" />
-              <path d="M20 18 L30 32 M30 18 L20 32" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <GiftCouponLottie />
           </div>
           <div className="box-coupon box-coupon-right w-100">
             <p className="sub-title-coupon">{voucher.title}</p>
