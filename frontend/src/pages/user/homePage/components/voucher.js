@@ -159,7 +159,7 @@ const VoucherItem = ({ voucher, onOpenDetail, onCopyCode, copiedCode }) => {
   );
 };
 
-const Voucher = () => {
+const Voucher = ({ onReady }) => {
   // Hook lấy request wrapper (custom) để gọi API
   const { request } = useHttp();
 
@@ -249,7 +249,10 @@ const Voucher = () => {
       } catch (error) {
         if (mounted) setVouchers([]);
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted) {
+          setLoading(false);
+          onReady?.();
+        }
       }
     };
 
@@ -263,7 +266,7 @@ const Voucher = () => {
         clearTimeout(copyToastTimerRef.current);
       }
     };
-  }, [request]);
+  }, [request, onReady]);
 
   const visibleVouchers = useMemo(() => vouchers, [vouchers]);
   const showNavButtons = visibleVouchers.length > 4;

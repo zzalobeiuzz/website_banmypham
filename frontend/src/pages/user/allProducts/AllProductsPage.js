@@ -221,6 +221,7 @@ export default function AllProductsPage() {
     const shouldUseCategoryPathBreadcrumb = isCategoryType || categoryTitle !== "all" || subCategoryTitle !== "all";
 
     if (isEventPage) {
+      items.push({ title: "Sự kiện", url: `/${ROUTERS.USER.PROMOTIONS}` });
       items.push({ title: eventDetail?.title || "Sự kiện", url: null });
       return items;
     }
@@ -381,6 +382,10 @@ export default function AllProductsPage() {
 
   return (
     <section className="all-products-page-2col container">
+      <TitleBanner
+        option={isEventPage ? (eventDetail?.title || "Sự kiện") : config.title}
+        breadcrumbItems={bannerBreadcrumbItems}
+      />
       {isEventPage && eventDetail ? (
         <div
           className="event-products-hero"
@@ -434,9 +439,7 @@ export default function AllProductsPage() {
             ) : null}
           </div>
         </div>
-      ) : (
-        <TitleBanner option={config.title} breadcrumbItems={bannerBreadcrumbItems} />
-      )}
+      ) : null}
       <div className="all-products-layout">
         <BrandProductFilter
           sortBy={sortBy}

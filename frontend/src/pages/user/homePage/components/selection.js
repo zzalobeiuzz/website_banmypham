@@ -119,7 +119,7 @@ const animateImageToCart = (sourceImage) => {
   setTimeout(cleanup, 800);
 };
 
-const Select = ({ title }) => {
+const Select = ({ title, onReady }) => {
 
 
   
@@ -168,7 +168,10 @@ const Select = ({ title }) => {
         url = `${API_BASE}/api/user/products/featured-brands`;
       }
 
-      if (!url) return;
+      if (!url) {
+        onReady?.();
+        return;
+      }
 
       const attemptFetch = async (attempt = 0) => {
         try {
@@ -194,6 +197,7 @@ const Select = ({ title }) => {
           } else {
             setProducts(data);
           }
+          onReady?.();
         } catch (err) {
           if (!isMounted) return;
 
@@ -209,6 +213,7 @@ const Select = ({ title }) => {
             }, delayMs);
           } else {
             console.error(`❌ Lỗi lấy ${title} sau ${MAX_RETRIES} lần thử:`, err.message);
+            onReady?.();
           }
         }
       };
@@ -225,7 +230,7 @@ const Select = ({ title }) => {
     return () => {
       isMounted = false;
     };
-  }, [title, request, isTopBrandSection]);
+  }, [title, request, isTopBrandSection, onReady]);
 
   // ⏱️ Countdown flash sale
   useEffect(() => {
@@ -574,6 +579,7 @@ const Select = ({ title }) => {
 
 Select.propTypes = {
   title: PropTypes.string.isRequired,
+  onReady: PropTypes.func,
 };
 
 export default Select;

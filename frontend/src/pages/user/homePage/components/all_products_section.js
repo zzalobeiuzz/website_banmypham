@@ -8,7 +8,7 @@ import "./componets.scss";
 const ITEM_WIDTH = 254;
 const VISIBLE_COUNT = 5;
 
-export default function AllProductsSection() {
+export default function AllProductsSection({ onReady }) {
   const { request } = useHttp();
   const [products, setProducts] = useState([]);
   
@@ -29,9 +29,12 @@ export default function AllProductsSection() {
         if (!mounted) return;
         setProducts(next); // load tất cả sản phẩm, không giới hạn
       })
-      .catch((err) => console.error(err));
+      .catch((err) => console.error(err))
+      .finally(() => {
+        if (mounted) onReady?.();
+      });
     return () => { mounted = false; };
-  }, [request]);
+  }, [request, onReady]);
 
   // Tự động trượt giống các section flash sale/hot product.
   useEffect(() => {

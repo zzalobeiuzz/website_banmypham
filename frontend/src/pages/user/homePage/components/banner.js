@@ -59,7 +59,7 @@ const getBannerKey = (event) => {
   return "";
 };
 
-const Banner = () => {
+const Banner = ({ onReady }) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [homeBanners, setHomeBanners] = useState([]);
 
@@ -74,6 +74,8 @@ const Banner = () => {
         setHomeBanners(Array.isArray(json?.data) ? json.data : []);
       } catch (error) {
         if (isMounted) setHomeBanners([]);
+      } finally {
+        if (isMounted) onReady?.();
       }
     };
 
@@ -81,7 +83,7 @@ const Banner = () => {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [onReady]);
 
   const { mainBanners, sideTopBanner, sideBottomBanner } = useMemo(() => {
     const grouped = {

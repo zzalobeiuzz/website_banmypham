@@ -8,6 +8,7 @@ import RouterCustom from "./router";
 import GlobalAlertPopup, {
   installGlobalAlertPopup,
 } from "./components/GlobalAlertPopup";
+import ScrollToTop from "./components/ScrollToTop";
 
 import { CartProvider } from "./pages/user/context/CartContext";
 import { AuthProvider } from "./pages/user/context/AuthContext"; // ✅ THÊM
@@ -20,6 +21,7 @@ const root = ReactDOM.createRoot(document.getElementById("root"));
 
 root.render(
   <BrowserRouter>
+    <ScrollToTop />
     {/* 🔐 AUTH TOÀN APP */}
     <AuthProvider>
       {/* 🛒 CART TOÀN APP */}

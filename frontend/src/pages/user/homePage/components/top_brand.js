@@ -1,11 +1,11 @@
 import React from 'react';
 import Select from './selection';
 
-const top_brand = () => {
+const top_brand = ({ onReady }) => {
     const Title = "Thương hiệu nổi bật";
 
     return (
-        <Select title={Title} />
+        <Select title={Title} onReady={onReady} />
     );
 };
 

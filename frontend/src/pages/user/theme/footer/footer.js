@@ -3,78 +3,100 @@ import { memo } from "react";
 import { Link } from "react-router-dom";
 import { UPLOAD_BASE } from "../../../../constants";
 import "./footer.scss";
+
+const MAP_EMBED_URL =
+  "https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d87446.40016390059!2d107.80578528435586!3d14.391302934621212!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x316bf7b43a4b4d47%3A0x95fc9633e9f89e08!2zTeG7uSBwaOG6qW0gVElOWSggVGlueSBjb3NtZXRpY3Mp!5e0!3m2!1svi!2sus!4v1781018937862!5m2!1svi!2sus";
+
 const Footer = () => {
   return (
     <footer className="footer">
-      <div className="container">
-        <div className="footer-top">
-          <div className="footer-col">
-            <Link to="/">
-              <img
-                className="logo-img"
-                src={`${UPLOAD_BASE}/images/logo-removebg.png`}
-                alt="logo"
-                loading="lazy"
-              />
-            </Link>
-            <p className="mt-4">
-              Cocolux là hệ thống phân phối mỹ phẩm chính hãng uy tín và dịch vụ
-              chăm sóc khách hàng tận tâm.
-            </p>
-            <p className="mt-4">
-              Đến với Cocolux bạn có thể hoàn toàn yên tâm khi lựa chọn cho mình
-              những bộ sản phẩm phù hợp và ưng ý từ các nhãn hàng nổi tiếng trên
-              toàn thế giới.
-            </p>
+      <div className="container footer__inner">
+        <section className="footer__brand">
+          <Link to="/" className="footer__logo-link" aria-label="Về trang chủ">
+            <img
+              className="footer__logo"
+              src={`${UPLOAD_BASE}/images/logo-removebg.png`}
+              alt="TINY Store"
+              loading="lazy"
+            />
+          </Link>
+          <p>
+            TINY Store phân phối mỹ phẩm chính hãng, tập trung vào sản phẩm
+            chất lượng, tư vấn rõ ràng và trải nghiệm mua sắm đáng tin cậy.
+          </p>
+          <div className="footer__contact-list">
+            <a href="tel:0334383068">Hotline: 0334 383 068</a>
+            <a href="mailto:storetiny82@gmail.com">Email: storetiny82@gmail.com</a>
+            <span>Thời gian hỗ trợ: 8:00 - 21:30</span>
           </div>
-          <div className="footer-col">
-            <p className="title">VỀ TINY SHOP</p>
-            <Link className="mt-2">Về chúng tôi</Link>
-            <Link className="mt-2">Câu chuyện thương hiệu</Link>
-            <Link className="mt-2">Liên hệ</Link>
+        </section>
+
+        <section className="footer__links">
+          <div>
+            <h3>Về TINY Shop</h3>
+            <Link to="/">Về chúng tôi</Link>
+            <Link to="/">Câu chuyện thương hiệu</Link>
+            <Link to="/">Liên hệ</Link>
           </div>
-          <div className="footer-col">
-            <p className="title">CHÍNH SÁCH</p>
-            <Link className="mt-2">Chính sách và giao nhận thanh toán</Link>
-            <Link className="mt-2">Chính sách bảo mật thông tin cá nhân</Link>
-            <Link className="mt-2">Điều khoản sử dụng</Link>
-            <Link className="mt-2">Chính sách và quy định chung</Link>
-            <Link className="mt-2">Khách hàng thân thiết</Link>
+          <div>
+            <h3>Chính sách</h3>
+            <Link to="/">Giao nhận và thanh toán</Link>
+            <Link to="/">Bảo mật thông tin</Link>
+            <Link to="/">Điều khoản sử dụng</Link>
+            <Link to="/">Khách hàng thân thiết</Link>
           </div>
-          <div className="footer-col">
+        </section>
+
+        <section className="footer__social">
+          <div className="footer__section-head">
+            <h3>Facebook</h3>
+          </div>
+          <div className="footer__facebook-card">
+            <img
+              className="footer__facebook-logo"
+              src={`${UPLOAD_BASE}/images/logo-removebg.png`}
+              alt="TINY Store"
+              loading="lazy"
+            />
+            <div className="footer__facebook-info">
+              <div className="footer__facebook-name">TINY Store</div>
+              <p>Fanpage chính thức của cửa hàng.</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="footer__map">
+          <div className="footer__section-head">
+            <h3>Địa chỉ cửa hàng</h3>
+            <a
+              href="https://www.google.com/maps/search/?api=1&query=405%20Tr%E1%BA%A7n%20H%C6%B0ng%20%C4%90%E1%BA%A1o%2C%20Kon%20Tum%2C%20Vi%E1%BB%87t%20Nam"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Chỉ đường
+            </a>
+          </div>
+          <p>Số 405, Trần Hưng Đạo, Sa Thầy, Kon Tum, Việt Nam</p>
+          <div className="footer__map-frame">
             <iframe
-              name="zaloFrame"
-              width="380"
-              height="130"
-              src="https://www.facebook.com/plugins/page.php?href=https%3A%2F%2Fwww.facebook.com%2Fprofile.php%3Fid%3D100092350185509&tabs=timeline&width=340&height=70&small_header=true&adapt_container_width=true&hide_cover=false&show_facepile=true&appId=1110895930215923"
-              style={{ border: "none", overflow: "hidden" }} // Control border and scrolling with CSS
+              title="Bản đồ TINY Store"
+              src={MAP_EMBED_URL}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
               allowFullScreen
-              title="Facebook Page Plugin" // Thêm thuộc tính title
             />
           </div>
-        </div>
-        <div className="footer-bottom">
-          <div className="footer-col">
-            <p className="title-2">
-              Cocolux.com thuộc bản quyền của Cocolux -<br />
-              Hệ thống phân phối mỹ phẩm chính hãng
-            </p>
-            <p>
-              Hệ thống cửa hàng của TINY:
-              <Link>Website: TINY Store</Link>
-              <Link>Hotline: 0988888825</Link>
-              <Link>Email: cskh@cocolux.com</Link>
-            </p>
-          </div>
-          <div className="footer-col">
-            <p className="title-2">
-              Địa Chỉ Cửa Hàng Chính: Số 405, Trần Hưng Đạo, Thành phố Kon Tum,
-              Việt Nam
-            </p>
-          </div>
+        </section>
+
+        <div className="footer__bottom">
+          <span>
+            TINY Store - Hệ thống phân phối mỹ phẩm chính hãng.
+          </span>
+          <span>© 2026 TINY Store. All rights reserved.</span>
         </div>
       </div>
     </footer>
   );
 };
+
 export default memo(Footer);

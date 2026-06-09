@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import Header from "./header";
 import { io } from "socket.io-client";
@@ -139,9 +139,26 @@ const AdminMasterLayout = () => {
     }
   }, []);
 
-  useEffect(() => {
-    scrollContainerRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" });
-  }, [location.pathname, location.search]);
+  useLayoutEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) return undefined;
+
+    let frameId = 0;
+    let timeoutId = 0;
+
+    const scrollToPageTop = () => {
+      scrollContainer.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    };
+
+    scrollToPageTop();
+    frameId = window.requestAnimationFrame(scrollToPageTop);
+    timeoutId = window.setTimeout(scrollToPageTop, 120);
+
+    return () => {
+      if (frameId) window.cancelAnimationFrame(frameId);
+      if (timeoutId) window.clearTimeout(timeoutId);
+    };
+  }, [location.key]);
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
