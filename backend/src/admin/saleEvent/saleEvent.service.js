@@ -308,6 +308,151 @@ exports.getUnavailableProductSales = async ({ startDate: rawStartDate, endDate: 
   return Array.from(uniqueMap.values());
 };
 
+exports.createProductSale = async ({ body }) => {
+  const pool = await connectDB();
+  const saleMode = String(body?.saleMode || body?.sale_mode || "independent").trim();
+  const productId = String(body?.productId || body?.product_id || "").trim();
+  const salePrice = Number(body?.salePrice || body?.sale_price || 0);
+  const saleEventId = saleMode === "event" ? parseIntSafe(body?.saleEventId || body?.SaleEventID, 0) : null;
+  let startDate = parseDateOrNull(body?.startDate || body?.start_date);
+  let endDate = parseDateOrNull(body?.endDate || body?.end_date);
+  let programName = String(body?.programName || body?.ProgramName || "").trim();
+
+  validateSaleProducts([{ productId, salePrice }]);
+
+  const transaction = new sql.Transaction(pool);
+  await transaction.begin();
+
+  try {
+    if (saleMode === "event") {
+      if (!saleEventId) {
+        const error = new Error("Vui lòng chọn sự kiện sale.");
+        error.statusCode = 400;
+        throw error;
+      }
+
+      const eventResult = await new sql.Request(transaction)
+        .input("id", sql.Int, saleEventId)
+        .query(`
+          SELECT id, title, start_date, end_date
+          FROM SALE_EVENT
+          WHERE id = @id
+        `);
+
+      const saleEvent = eventResult.recordset?.[0];
+      if (!saleEvent) {
+        const error = new Error("Không tìm thấy sự kiện sale.");
+        error.statusCode = 404;
+        throw error;
+      }
+
+      startDate = parseDateOrNull(saleEvent.start_date);
+      endDate = parseDateOrNull(saleEvent.end_date);
+      programName = programName || saleEvent.title;
+    } else {
+      programName = null;
+    }
+
+    if (startDate && endDate && startDate > endDate) {
+      const error = new Error("Ngày bắt đầu phải nhỏ hơn hoặc bằng ngày kết thúc.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const saleProducts = [{ productId, salePrice }];
+    await assertSalePriceNotHigherThanOriginal({ transaction, saleProducts });
+    await assertNoOverlappingProductSales({
+      transaction,
+      saleProducts,
+      startDate,
+      endDate,
+      excludeSaleEventId: null,
+    });
+
+    const insertResult = await new sql.Request(transaction)
+      .input("product_id", sql.NVarChar(50), productId)
+      .input("sale_price", sql.Decimal(10, 2), salePrice)
+      .input("start_date", sql.DateTime, startDate)
+      .input("end_date", sql.DateTime, endDate)
+      .input("SaleEventID", sql.Int, saleEventId || null)
+      .input("ProgramName", sql.NVarChar(255), programName || null)
+      .query(`
+        INSERT INTO PRODUCT_SALE
+          (product_id, sale_price, start_date, end_date, status, SaleEventID, ProgramName)
+        OUTPUT INSERTED.*
+        VALUES
+          (@product_id, @sale_price, @start_date, @end_date, 1, @SaleEventID, @ProgramName)
+      `);
+
+    if (saleEventId) {
+      await new sql.Request(transaction)
+        .input("id", sql.Int, saleEventId)
+        .query(`
+          UPDATE SALE_EVENT
+          SET total_products_count = (
+            SELECT COUNT(*) FROM PRODUCT_SALE WHERE SaleEventID = @id
+          )
+          WHERE id = @id
+        `);
+    }
+
+    await transaction.commit();
+    return insertResult.recordset?.[0] || null;
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+};
+
+exports.deleteProductSale = async (id) => {
+  const productSaleId = parseIntSafe(id, 0);
+  if (!productSaleId) {
+    const error = new Error("Thiếu mã sản phẩm sale.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const pool = await connectDB();
+  const transaction = new sql.Transaction(pool);
+  await transaction.begin();
+
+  try {
+    const deleteResult = await new sql.Request(transaction)
+      .input("id", sql.Int, productSaleId)
+      .query(`
+        DELETE FROM PRODUCT_SALE
+        OUTPUT DELETED.id, DELETED.product_id, DELETED.SaleEventID
+        WHERE id = @id
+      `);
+
+    const deletedRow = deleteResult.recordset?.[0];
+    if (!deletedRow) {
+      const error = new Error("Không tìm thấy sản phẩm sale cần xóa.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const saleEventId = Number(deletedRow.SaleEventID || 0);
+    if (saleEventId) {
+      await new sql.Request(transaction)
+        .input("id", sql.Int, saleEventId)
+        .query(`
+          UPDATE SALE_EVENT
+          SET total_products_count = (
+            SELECT COUNT(*) FROM PRODUCT_SALE WHERE SaleEventID = @id
+          )
+          WHERE id = @id
+        `);
+    }
+
+    await transaction.commit();
+    return deletedRow;
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+};
+
 exports.getAllSaleEvents = async () => {
   const pool = await connectDB();
 

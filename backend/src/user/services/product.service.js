@@ -1,6 +1,8 @@
 const {
   findSaleProducts,
   findHotProducts,
+  findNewArrivalProducts,
+  findBeautyTrendProducts,
   findFeaturedBrands,
   findCategories,
   findAllProducts,
@@ -59,6 +61,30 @@ exports.getHotProducts = async () => {
   return data.map(p => ({
     ...p,
     discountPercent: calculateDiscountPercent(p),
+  }));
+};
+
+// ================================ LAY SAN PHAM CUA 3 LO HANG MOI NHAT ==============================
+exports.getNewArrivalProducts = async () => {
+  triggerBatchSyncInBackground();
+
+  const data = await findNewArrivalProducts();
+  return data.map((product) => ({
+    ...product,
+    discountPercent: product.sale_price ? calculateDiscountPercent(product) : 0,
+    discountTimeLeft: product.end_date ? calculateTimeLeft(product.end_date) : null,
+  }));
+};
+
+// ================================ LAY XU HUONG LAM DEP THEO SO LUONG BAN RA ==============================
+exports.getBeautyTrendProducts = async () => {
+  triggerBatchSyncInBackground();
+
+  const data = await findBeautyTrendProducts();
+  return data.map((product) => ({
+    ...product,
+    discountPercent: product.sale_price ? calculateDiscountPercent(product) : 0,
+    discountTimeLeft: product.end_date ? calculateTimeLeft(product.end_date) : null,
   }));
 };
 

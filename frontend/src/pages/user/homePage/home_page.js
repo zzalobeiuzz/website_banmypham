@@ -40,6 +40,28 @@ const HomePage = () => {
         </div>
       ) : null}
 
+      <div className="home-floating-decor home-floating-decor--left" aria-hidden="true">
+        <div className="home-floating-decor__badge">
+          <span>Free</span>
+          <strong>Giao nhanh</strong>
+        </div>
+        <div className="home-floating-decor__badge home-floating-decor__badge--soft">
+          <span>100%</span>
+          <strong>Chính hãng</strong>
+        </div>
+      </div>
+
+      <div className="home-floating-decor home-floating-decor--right" aria-hidden="true">
+        <div className="home-floating-decor__badge home-floating-decor__badge--soft">
+          <span>7d</span>
+          <strong>Đổi trả</strong>
+        </div>
+        <div className="home-floating-decor__badge">
+          <span>Hot</span>
+          <strong>Ưu đãi</strong>
+        </div>
+      </div>
+
       <div className="container home-page-content" aria-hidden={!pageReady}>
         <Banner onReady={readyHandlers.banner} />
         <Voucher onReady={readyHandlers.voucher} />

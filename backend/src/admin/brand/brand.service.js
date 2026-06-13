@@ -281,3 +281,21 @@ exports.updateBrand = async (req) => {
     data,
   };
 };
+
+exports.deleteBrand = async (req) => {
+  const idBrand = String(req?.params?.idBrand || "").trim();
+
+  if (!idBrand) {
+    const error = new Error("idBrand không hợp lệ.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const data = await brandModel.deleteBrand(idBrand);
+
+  return {
+    success: true,
+    message: "Xóa thương hiệu thành công.",
+    data,
+  };
+};

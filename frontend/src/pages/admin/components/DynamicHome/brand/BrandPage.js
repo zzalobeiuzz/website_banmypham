@@ -252,6 +252,40 @@ const BrandPage = () => {
     }
   };
 
+  const handleDeleteBrand = async (brand) => {
+    const idBrand = String(brand?.idBrand || "").trim();
+    if (!idBrand) return;
+
+    const brandName = String(brand?.Brand || brand?.name || idBrand).trim();
+    const productCount = Number(brand?.productCount || 0);
+
+    if (productCount > 0) {
+      showNotification(
+        `Không thể xóa thương hiệu "${brandName}" vì còn ${productCount} sản phẩm.`,
+        "error",
+      );
+      return;
+    }
+
+    const confirmed = window.confirm(`Bạn có chắc muốn xóa thương hiệu "${brandName}" không?`);
+    if (!confirmed) return;
+
+    try {
+      await request(
+        "DELETE",
+        `${API_BASE}/api/admin/brand/${encodeURIComponent(idBrand)}`,
+      );
+
+      setBrands((prev) => prev.filter((item) => String(item.idBrand) !== idBrand));
+      if (String(detailBrand?.idBrand || "") === idBrand) {
+        setDetailBrand(null);
+      }
+      showNotification("Xóa thương hiệu thành công.", "success");
+    } catch (err) {
+      showNotification(err?.message || "Không thể xóa thương hiệu.", "error");
+    }
+  };
+
   const handleCreateFormChange = (key, value) => {
     setCreateForm((prev) => ({ ...prev, [key]: value }));
   };
@@ -478,6 +512,15 @@ const BrandPage = () => {
                             title="Xem sản phẩm"
                           >
                             +
+                          </button>
+                          <button
+                            type="button"
+                            className="brand-btn-delete"
+                            onClick={() => handleDeleteBrand(brand)}
+                            aria-label="Xóa thương hiệu"
+                            title="Xóa thương hiệu"
+                          >
+                            Xóa
                           </button>
                         </div>
                       </td>

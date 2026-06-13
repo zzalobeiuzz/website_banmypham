@@ -198,9 +198,14 @@ const AdminOverviewPage = () => {
     <div className="admin-overview-page">
       <div className="overview-header">
         <div className="overview-title-block">
-          <span className="overview-eyebrow">Dashboard</span>
-          <h4>Tổng quan quản trị</h4>
-          <p>Theo dõi nhanh quy mô dữ liệu, nhóm bán chạy và khách hàng nổi bật.</p>
+          <div className="overview-title-content">
+            <span className="overview-eyebrow">Dashboard</span>
+            <h4>Tổng quan quản trị</h4>
+            <p>Theo dõi nhanh quy mô dữ liệu, nhóm bán chạy và khách hàng nổi bật.</p>
+          </div>
+          <div className="overview-brand-logo" aria-label="Logo cửa hàng">
+            <img src={`${UPLOAD_BASE}/images/logo-removebg.png`} alt="Tiny Store" loading="lazy" />
+          </div>
         </div>
         <div className="overview-revenue">
           <span className="revenue-label">

@@ -146,3 +146,52 @@ exports.updateBrand = async ({ idBrand, Brand, description, status, logo_url }) 
     logo_url: normalizedLogo,
   };
 };
+
+exports.deleteBrand = async (idBrand) => {
+  const pool = await connectDB();
+  const normalizedId = String(idBrand || "").trim();
+
+  if (!normalizedId) {
+    const error = new Error("idBrand không hợp lệ.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const existing = await exports.getBrandById(normalizedId);
+  if (!existing) {
+    const error = new Error("Không tìm thấy thương hiệu cần xóa.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const productResult = await pool
+    .request()
+    .input("idBrand", sql.NVarChar(100), normalizedId)
+    .query(`
+      SELECT COUNT(*) AS productCount
+      FROM PRODUCT
+      WHERE SupplierID = @idBrand
+        AND (IsHidden = 0 OR IsHidden IS NULL)
+    `);
+
+  const productCount = Number(productResult.recordset?.[0]?.productCount || 0);
+  if (productCount > 0) {
+    const error = new Error(
+      `Không thể xóa thương hiệu vì còn ${productCount} sản phẩm đang thuộc thương hiệu này.`,
+    );
+    error.statusCode = 409;
+    throw error;
+  }
+
+  await pool
+    .request()
+    .input("idBrand", sql.NVarChar(100), normalizedId)
+    .query(`
+      DELETE FROM BRAND
+      WHERE idBrand = @idBrand
+    `);
+
+  return {
+    idBrand: normalizedId,
+  };
+};

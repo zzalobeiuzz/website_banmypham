@@ -10,6 +10,10 @@ import ProductDetail from "./pages/user/productDetail/product_detail.js";
 import BrandDetailPage from "./pages/user/brandDetail/brand_detail.js";
 import AllProductsPage from "./pages/user/allProducts/AllProductsPage.js";
 import PromotionsPage from "./pages/user/promotions/PromotionsPage.js";
+import AboutPage from "./pages/user/about/AboutPage.js";
+import BeautyTrendsPage from "./pages/user/beautyTrends/BeautyTrendsPage.js";
+import StoreSystemPage from "./pages/user/storeSystem/StoreSystemPage.js";
+import OrderLookupPage from "./pages/user/orderLookup/OrderLookupPage.js";
 import MasterLayout from "./pages/user/theme/masterLayout/masterLayout.js";
 import CartDetail from "./pages/user/CartPage/CartDetail.js"
 import PaymentCallback from "./pages/user/component/checkout/PaymentCallback.js";
@@ -34,6 +38,7 @@ import AccountPage from "./pages/admin/components/DynamicHome/account/AccountPag
 import VoucherPage from "./pages/admin/components/DynamicHome/voucher/VoucherPage.js";
 import AdminChatPage from "./pages/admin/components/DynamicHome/chat/AdminChatPage.js";
 import DiscountEventsPage from "./pages/admin/components/DynamicHome/event/DiscountEventsPage.js";
+import AdminFeaturedProductsPage from "./pages/admin/components/DynamicHome/event/AdminFeaturedProductsPage.js";
 import StatisticsPage from "./pages/admin/components/DynamicHome/stats/StatisticsPage.js";
 import AdminOverviewPage from "./pages/admin/components/DynamicHome/overview/AdminOverviewPage.js";
 
@@ -45,6 +50,11 @@ const userRoutes = [
   { path: ROUTERS.USER.PRODUCT_DETAIL, element: <ProductDetail />, showHeaderFooter: true },
   { path: ROUTERS.USER.BRAND_DETAIL, element: <BrandDetailPage />, showHeaderFooter: true },
   { path: ROUTERS.USER.PROMOTIONS, element: <PromotionsPage />, showHeaderFooter: true },
+  { path: ROUTERS.USER.ABOUT, element: <AboutPage />, showHeaderFooter: true },
+  { path: ROUTERS.USER.BEAUTY_TRENDS, element: <BeautyTrendsPage />, showHeaderFooter: true },
+  { path: "beauty-trends", element: <Navigate to={`/${ROUTERS.USER.BEAUTY_TRENDS}`} replace />, showHeaderFooter: true },
+  { path: ROUTERS.USER.STORES, element: <StoreSystemPage />, showHeaderFooter: true },
+  { path: ROUTERS.USER.ORDER_LOOKUP, element: <OrderLookupPage />, showHeaderFooter: true },
   { path: ROUTERS.USER.EVENT_DETAIL, element: <AllProductsPage />, showHeaderFooter: true },
   { path: ROUTERS.USER.ALL_PRODUCTS, element: <AllProductsPage />, showHeaderFooter: true },
   { path: ROUTERS.USER.SIGNUP, element: <SignUp />, showHeaderFooter: false },
@@ -123,6 +133,8 @@ const adminRoutes = [
     path: "event",
     children: [
       { path: "discount", element: <DiscountEventsPage /> },
+      { path: "hot", element: <AdminFeaturedProductsPage type="hot" /> },
+      { path: "sale", element: <AdminFeaturedProductsPage type="sale" /> },
     ],
   },
   {

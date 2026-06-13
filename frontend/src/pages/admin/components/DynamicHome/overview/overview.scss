@@ -27,23 +27,52 @@
   position: relative;
   overflow: hidden;
   min-height: 180px;
-  padding: 24px;
+  padding: 24px 240px 24px 24px;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  align-items: center;
 }
 
 .admin-overview-page .overview-title-block::after {
   content: "";
   position: absolute;
-  right: 24px;
-  top: 24px;
-  width: 150px;
-  height: 150px;
-  border: 1px solid rgba(37, 99, 235, 0.14);
+  right: 38px;
+  top: 26px;
+  width: 156px;
+  height: 156px;
+  border: 1px solid rgba(15, 118, 110, 0.12);
   border-radius: 50%;
   background:
+    radial-gradient(circle at 32% 24%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.62) 45%, rgba(20, 184, 166, 0.14)),
     linear-gradient(135deg, rgba(14, 165, 164, 0.12), rgba(249, 115, 22, 0.08));
+}
+
+.admin-overview-page .overview-title-content {
+  position: relative;
+  z-index: 1;
+}
+
+.admin-overview-page .overview-brand-logo {
+  position: absolute;
+  right: 45px;
+  top: 33px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 142px;
+  height: 142px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(15, 118, 110, 0.16);
+  box-shadow:
+    inset 0 0 0 8px rgba(255, 255, 255, 0.55),
+    0 18px 34px rgba(15, 23, 42, 0.08);
+}
+
+.admin-overview-page .overview-brand-logo img {
+  display: block;
+  width: 78%;
+  height: 78%;
+  object-fit: contain;
 }
 
 .admin-overview-page .overview-eyebrow {
@@ -568,6 +597,11 @@ button.recent-row:focus-visible {
   .admin-overview-page .overview-title-block {
     min-height: 150px;
     padding: 18px;
+  }
+
+  .admin-overview-page .overview-title-block::after,
+  .admin-overview-page .overview-brand-logo {
+    display: none;
   }
 
   .admin-overview-page .overview-header h4 {

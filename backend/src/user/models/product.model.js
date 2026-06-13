@@ -69,6 +69,7 @@ exports.findSaleProducts = async () => {
   const pool = await connectDB();
   const result = await pool.request().query(`
     SELECT 
+      PS.id AS ProductSaleID,
       P.ProductID,
       P.ProductName,
       P.SupplierID,
@@ -78,16 +79,24 @@ exports.findSaleProducts = async () => {
       ISNULL(BDQ.StockQuantity, 0) AS StockQuantity,
       PS.sale_price,
       PS.start_date,
-      PS.end_date
+      PS.end_date,
+      PS.SaleEventID,
+      PS.ProgramName,
+      SE.code AS SaleEventCode,
+      SE.title AS SaleEventTitle
     FROM PRODUCT_SALE PS
     JOIN PRODUCT P ON PS.product_id = P.ProductID
+    LEFT JOIN SALE_EVENT SE ON SE.id = PS.SaleEventID
     LEFT JOIN (
       SELECT ProductID, SUM(CAST(Quantity AS INT)) AS StockQuantity
       FROM BATCH_DETAIL
       WHERE ISNULL(IsActive, 1) = 1
       GROUP BY ProductID
     ) BDQ ON BDQ.ProductID = P.ProductID
-    WHERE (P.IsHidden = 0 OR P.IsHidden IS NULL);
+    WHERE (P.IsHidden = 0 OR P.IsHidden IS NULL)
+      AND ISNULL(PS.status, 1) = 1
+      AND (PS.start_date IS NULL OR PS.start_date <= GETDATE())
+      AND (PS.end_date IS NULL OR PS.end_date >= GETDATE());
   `);
   return result.recordset;
 };
@@ -105,9 +114,25 @@ exports.findHotProducts = async () => {
     P.isHot,             -- Lấy trạng thái "hot" (1 = sản phẩm hot)
     -- 📦 Tồn kho = tổng số lượng còn lại của tất cả lô trong BATCH_DETAIL
     ISNULL(BDQ.StockQuantity, 0) AS StockQuantity,
-    PS.sale_price        -- Lấy giá khuyến mãi từ bảng PRODUCT_SALE nếu 
+    PS.id AS ProductSaleID,
+    PS.sale_price,       -- Lấy giá khuyến mãi từ bảng PRODUCT_SALE nếu 
+    PS.start_date,
+    PS.end_date,
+    PS.SaleEventID,
+    PS.ProgramName,
+    SE.code AS SaleEventCode,
+    SE.title AS SaleEventTitle
     FROM PRODUCT P
-    LEFT JOIN PRODUCT_SALE PS ON P.ProductID = PS.product_id
+    OUTER APPLY (
+      SELECT TOP 1 *
+      FROM PRODUCT_SALE PS
+      WHERE PS.product_id = P.ProductID
+        AND ISNULL(PS.status, 1) = 1
+        AND (PS.start_date IS NULL OR PS.start_date <= GETDATE())
+        AND (PS.end_date IS NULL OR PS.end_date >= GETDATE())
+      ORDER BY PS.created_at DESC, PS.id DESC
+    ) PS
+    LEFT JOIN SALE_EVENT SE ON SE.id = PS.SaleEventID
     LEFT JOIN (
       SELECT ProductID, SUM(CAST(Quantity AS INT)) AS StockQuantity
       FROM BATCH_DETAIL
@@ -121,6 +146,189 @@ exports.findHotProducts = async () => {
 };
 
 // ===============TRUY VẤN THƯƠNG HIỆU NỔI BẬT===============
+//===============TRUY VAN SAN PHAM THUOC 3 LO HANG MOI NHAT===============
+exports.findNewArrivalProducts = async () => {
+  const pool = await connectDB();
+  const result = await pool.request().query(`
+    WITH LatestBatches AS (
+      SELECT TOP 3
+        ID,
+        CreatedAt
+      FROM BATCHES
+      WHERE IsActive = 1 OR IsActive IS NULL
+      ORDER BY CreatedAt DESC, ID DESC
+    ),
+    ProductInLatestBatches AS (
+      SELECT
+        BD.ProductID,
+        MAX(LB.CreatedAt) AS LatestBatchCreatedAt,
+        MAX(BD.CreatedAt) AS LatestBatchDetailCreatedAt
+      FROM BATCH_DETAIL BD
+      INNER JOIN LatestBatches LB
+        ON CAST(LB.ID AS NVARCHAR(100)) = CAST(BD.BatchID AS NVARCHAR(100))
+      WHERE ISNULL(BD.IsActive, 1) = 1
+        AND ISNULL(TRY_CAST(BD.Quantity AS INT), 0) > 0
+      GROUP BY BD.ProductID
+    )
+    SELECT
+      P.ProductID,
+      P.ProductName,
+      LOT.Barcode,
+      P.Type,
+      P.SupplierID,
+      P.Price,
+      P.Image,
+      P.isHot,
+      ISNULL(BDQ.StockQuantity, 0) AS StockQuantity,
+      P.CategoryID,
+      P.SubCategoryID,
+      P.IsHidden,
+      C.CategoryName,
+      SC.SubCategoryName,
+      PS.sale_price,
+      PS.start_date,
+      PS.end_date,
+      NBP.LatestBatchCreatedAt
+    FROM ProductInLatestBatches NBP
+    INNER JOIN PRODUCT P
+      ON CAST(P.ProductID AS NVARCHAR(100)) = CAST(NBP.ProductID AS NVARCHAR(100))
+    LEFT JOIN CATEGORY C ON P.CategoryID = C.CategoryID
+    LEFT JOIN SUB_CATEGORY SC ON P.SubCategoryID = SC.SubCategoryID
+    OUTER APPLY (
+      SELECT TOP 1
+        BD.Barcode
+      FROM BATCH_DETAIL BD
+      INNER JOIN LatestBatches LB
+        ON CAST(LB.ID AS NVARCHAR(100)) = CAST(BD.BatchID AS NVARCHAR(100))
+      WHERE CAST(BD.ProductID AS NVARCHAR(100)) = CAST(P.ProductID AS NVARCHAR(100))
+        AND ISNULL(BD.IsActive, 1) = 1
+        AND ISNULL(BD.Barcode, '') <> ''
+      ORDER BY LB.CreatedAt DESC, BD.CreatedAt DESC
+    ) LOT
+    LEFT JOIN (
+      SELECT ProductID, SUM(TRY_CAST(Quantity AS INT)) AS StockQuantity
+      FROM BATCH_DETAIL
+      WHERE ISNULL(IsActive, 1) = 1
+      GROUP BY ProductID
+    ) BDQ ON CAST(BDQ.ProductID AS NVARCHAR(100)) = CAST(P.ProductID AS NVARCHAR(100))
+    OUTER APPLY (
+      SELECT TOP 1
+        PS.sale_price,
+        PS.start_date,
+        PS.end_date
+      FROM PRODUCT_SALE PS
+      WHERE CAST(PS.product_id AS NVARCHAR(100)) = CAST(P.ProductID AS NVARCHAR(100))
+        AND PS.status = 1
+        AND (PS.start_date IS NULL OR PS.start_date <= GETDATE())
+        AND (PS.end_date IS NULL OR PS.end_date >= GETDATE())
+      ORDER BY PS.created_at DESC, PS.id DESC
+    ) PS
+    WHERE (P.IsHidden = 0 OR P.IsHidden IS NULL)
+      AND (C.IsHidden = 0 OR C.IsHidden IS NULL)
+      AND (SC.IsHidden = 0 OR SC.IsHidden IS NULL)
+    ORDER BY NBP.LatestBatchCreatedAt DESC, NBP.LatestBatchDetailCreatedAt DESC, P.ProductID DESC
+  `);
+
+  return result.recordset || [];
+};
+
+//===============TRUY VAN XU HUONG LAM DEP THEO SO LUONG BAN RA===============
+exports.findBeautyTrendProducts = async () => {
+  const pool = await connectDB();
+  const result = await pool.request().query(`
+    WITH SoldProducts AS (
+      SELECT
+        CAST(D.ProductID AS NVARCHAR(100)) AS ProductID,
+        SUM(ISNULL(TRY_CAST(D.Quantity AS INT), 0)) AS SoldQuantity,
+        COUNT(DISTINCT CAST(D.OrderID AS NVARCHAR(100))) AS OrderCount,
+        SUM(ISNULL(TRY_CAST(D.LineTotal AS DECIMAL(18,2)), 0)) AS Revenue
+      FROM ORDER_DETAILS D
+      LEFT JOIN ORDERS O
+        ON CAST(O.OrderID AS NVARCHAR(100)) = CAST(D.OrderID AS NVARCHAR(100))
+      WHERE ISNULL(NULLIF(LTRIM(RTRIM(CAST(D.ProductID AS NVARCHAR(100)))), ''), '') <> ''
+        AND ISNULL(TRY_CAST(D.Quantity AS INT), 0) > 0
+        AND (
+          O.Status IS NULL
+          OR (
+            LOWER(CAST(O.Status AS NVARCHAR(255))) NOT LIKE N'%hủy%'
+            AND LOWER(CAST(O.Status AS NVARCHAR(255))) NOT LIKE N'%huỷ%'
+            AND LOWER(CAST(O.Status AS NVARCHAR(255))) NOT LIKE N'%trả%'
+            AND LOWER(CAST(O.Status AS NVARCHAR(255))) NOT LIKE N'%chờ thanh toán%'
+          )
+        )
+      GROUP BY CAST(D.ProductID AS NVARCHAR(100))
+    ),
+    RankedProducts AS (
+      SELECT
+        ROW_NUMBER() OVER (ORDER BY S.SoldQuantity DESC, S.OrderCount DESC, S.Revenue DESC) AS TrendRank,
+        S.*
+      FROM SoldProducts S
+    )
+    SELECT TOP 20
+      R.TrendRank,
+      R.SoldQuantity,
+      R.OrderCount,
+      R.Revenue,
+      P.ProductID,
+      P.ProductName,
+      LOT.Barcode,
+      P.Type,
+      P.SupplierID,
+      P.Price,
+      P.Image,
+      P.isHot,
+      ISNULL(BDQ.StockQuantity, 0) AS StockQuantity,
+      P.CategoryID,
+      P.SubCategoryID,
+      P.IsHidden,
+      C.CategoryName,
+      SC.SubCategoryName,
+      PS.sale_price,
+      PS.start_date,
+      PS.end_date
+    FROM RankedProducts R
+    INNER JOIN PRODUCT P
+      ON CAST(P.ProductID AS NVARCHAR(100)) = CAST(R.ProductID AS NVARCHAR(100))
+    LEFT JOIN CATEGORY C ON P.CategoryID = C.CategoryID
+    LEFT JOIN SUB_CATEGORY SC ON P.SubCategoryID = SC.SubCategoryID
+    OUTER APPLY (
+      SELECT TOP 1
+        BD.Barcode
+      FROM BATCH_DETAIL BD
+      LEFT JOIN BATCHES B ON B.ID = BD.BatchID
+      WHERE CAST(BD.ProductID AS NVARCHAR(100)) = CAST(P.ProductID AS NVARCHAR(100))
+        AND ISNULL(BD.IsActive, 1) = 1
+        AND (B.IsActive = 1 OR B.IsActive IS NULL)
+        AND ISNULL(BD.Barcode, '') <> ''
+      ORDER BY B.CreatedAt DESC, BD.CreatedAt DESC
+    ) LOT
+    LEFT JOIN (
+      SELECT ProductID, SUM(TRY_CAST(Quantity AS INT)) AS StockQuantity
+      FROM BATCH_DETAIL
+      WHERE ISNULL(IsActive, 1) = 1
+      GROUP BY ProductID
+    ) BDQ ON CAST(BDQ.ProductID AS NVARCHAR(100)) = CAST(P.ProductID AS NVARCHAR(100))
+    OUTER APPLY (
+      SELECT TOP 1
+        PS.sale_price,
+        PS.start_date,
+        PS.end_date
+      FROM PRODUCT_SALE PS
+      WHERE CAST(PS.product_id AS NVARCHAR(100)) = CAST(P.ProductID AS NVARCHAR(100))
+        AND PS.status = 1
+        AND (PS.start_date IS NULL OR PS.start_date <= GETDATE())
+        AND (PS.end_date IS NULL OR PS.end_date >= GETDATE())
+      ORDER BY PS.created_at DESC, PS.id DESC
+    ) PS
+    WHERE (P.IsHidden = 0 OR P.IsHidden IS NULL)
+      AND (C.IsHidden = 0 OR C.IsHidden IS NULL)
+      AND (SC.IsHidden = 0 OR SC.IsHidden IS NULL)
+    ORDER BY R.TrendRank ASC
+  `);
+
+  return result.recordset || [];
+};
+
 exports.findFeaturedBrands = async () => {
   const pool = await connectDB();
   const result = await pool.request().query(`
@@ -128,19 +336,10 @@ exports.findFeaturedBrands = async () => {
       B.idBrand,
       B.Brand,
       B.logo_url,
-      PR.Image AS preview_image
+      NULL AS preview_image
     FROM BRAND B
-    OUTER APPLY (
-      SELECT TOP 1
-        P.Image
-      FROM PRODUCT P
-      WHERE P.SupplierID = B.idBrand
-        AND (P.IsHidden = 0 OR P.IsHidden IS NULL)
-        AND ISNULL(NULLIF(LTRIM(RTRIM(CAST(P.Image AS NVARCHAR(MAX)))), ''), '') <> ''
-      ORDER BY NEWID()
-    ) PR
     WHERE ISNULL(B.status, 0) = 1
-      AND ISNULL(NULLIF(LTRIM(RTRIM(CAST(PR.Image AS NVARCHAR(MAX)))), ''), '') <> ''
+      AND ISNULL(NULLIF(LTRIM(RTRIM(CAST(B.logo_url AS NVARCHAR(MAX)))), ''), '') <> ''
     ORDER BY B.idBrand DESC
   `);
 

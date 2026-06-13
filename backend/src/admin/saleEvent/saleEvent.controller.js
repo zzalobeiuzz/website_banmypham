@@ -43,6 +43,40 @@ exports.handleGetSaleEventDetail = async (req, res) => {
   }
 };
 
+exports.handleCreateProductSale = async (req, res) => {
+  try {
+    const data = await saleEventService.createProductSale({ body: req.body });
+    return res.status(201).json({
+      success: true,
+      message: "Thêm sản phẩm sale thành công.",
+      data,
+    });
+  } catch (error) {
+    console.error("❌ Lỗi handleCreateProductSale:", error.message);
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || "Không thể thêm sản phẩm sale.",
+    });
+  }
+};
+
+exports.handleDeleteProductSale = async (req, res) => {
+  try {
+    const data = await saleEventService.deleteProductSale(req.params.id);
+    return res.json({
+      success: true,
+      message: "Xóa sản phẩm sale thành công.",
+      data,
+    });
+  } catch (error) {
+    console.error("❌ Lỗi handleDeleteProductSale:", error.message);
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || "Không thể xóa sản phẩm sale.",
+    });
+  }
+};
+
 exports.handleCreateSaleEvent = async (req, res) => {
   try {
     const row = await saleEventService.createSaleEvent({ body: req.body, file: req.file });

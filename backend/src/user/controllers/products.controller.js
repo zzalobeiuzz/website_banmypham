@@ -3,6 +3,8 @@ const {
   getAllCategories,
   getSaleProducts,
   getHotProducts,
+  getNewArrivalProducts,
+  getBeautyTrendProducts,
   getFeaturedBrands,
   getAllProducts,
   getProductDetailById,
@@ -41,6 +43,40 @@ exports.getHotProductsHandler = async (req, res) => {
   } catch (err) {
     console.error("Lỗi khi truy vấn sản phẩm theo ID:", err);
     res.status(500).json({ message: "Lỗi server." });
+  }
+};
+
+//============================= Gui danh sach san pham cua 3 lo hang moi nhat =============================
+exports.getNewArrivalProductsHandler = async (req, res) => {
+  try {
+    const products = await getNewArrivalProducts();
+    return res.status(200).json({
+      success: true,
+      data: products,
+    });
+  } catch (err) {
+    console.error("❌ Lỗi khi lấy sản phẩm hàng mới về:", err.message);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server khi lấy sản phẩm hàng mới về.",
+    });
+  }
+};
+
+//============================= Gui san pham xu huong theo so luong ban ra =============================
+exports.getBeautyTrendProductsHandler = async (req, res) => {
+  try {
+    const products = await getBeautyTrendProducts();
+    return res.status(200).json({
+      success: true,
+      data: products,
+    });
+  } catch (err) {
+    console.error("❌ Lỗi khi lấy sản phẩm xu hướng:", err.message);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server khi lấy sản phẩm xu hướng.",
+    });
   }
 };
 

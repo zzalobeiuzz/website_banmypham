@@ -4,8 +4,9 @@ import { Link } from "react-router-dom";
 import { UPLOAD_BASE } from "../../../../constants";
 import "./footer.scss";
 
-const MAP_EMBED_URL =
-  "https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d87446.40016390059!2d107.80578528435586!3d14.391302934621212!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x316bf7b43a4b4d47%3A0x95fc9633e9f89e08!2zTeG7uSBwaOG6qW0gVElOWSggVGlueSBjb3NtZXRpY3Mp!5e0!3m2!1svi!2sus!4v1781018937862!5m2!1svi!2sus";
+const STORE_ADDRESS = "405 Đường Trần Hưng Đạo, Sa Thầy, Quảng Ngãi";
+const MAP_EMBED_URL = `https://www.google.com/maps?q=${encodeURIComponent(STORE_ADDRESS)}&output=embed`;
+const MAP_DIRECTIONS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(STORE_ADDRESS)}`;
 
 const Footer = () => {
   return (
@@ -69,14 +70,14 @@ const Footer = () => {
           <div className="footer__section-head">
             <h3>Địa chỉ cửa hàng</h3>
             <a
-              href="https://www.google.com/maps/search/?api=1&query=405%20Tr%E1%BA%A7n%20H%C6%B0ng%20%C4%90%E1%BA%A1o%2C%20Kon%20Tum%2C%20Vi%E1%BB%87t%20Nam"
+              href={MAP_DIRECTIONS_URL}
               target="_blank"
               rel="noreferrer"
             >
               Chỉ đường
             </a>
           </div>
-          <p>Số 405, Trần Hưng Đạo, Sa Thầy, Kon Tum, Việt Nam</p>
+          <p>{STORE_ADDRESS}</p>
           <div className="footer__map-frame">
             <iframe
               title="Bản đồ TINY Store"

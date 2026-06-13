@@ -4,6 +4,8 @@ const router = express.Router();
 const {
 	getSaleProductsHandler,
 	getHotProductsHandler,
+	getNewArrivalProductsHandler,
+	getBeautyTrendProductsHandler,
 	getFeaturedBrandsHandler,
 	getCategoryHandler,
 	getProductsHandler,
@@ -16,6 +18,9 @@ const {
 // Định nghĩa các route trong Express Router
 router.get("/sale", getSaleProductsHandler);
 router.get("/hot", getHotProductsHandler);
+router.get("/new-arrivals", getNewArrivalProductsHandler);
+router.get("/best-selling-products", getBeautyTrendProductsHandler);
+router.get("/beauty-trends", getBeautyTrendProductsHandler);
 router.get("/featured-brands", getFeaturedBrandsHandler);
 router.get("/brands", getAllBrandsHandler);
 router.get("/loadCategory", getCategoryHandler);

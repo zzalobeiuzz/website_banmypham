@@ -2,6 +2,7 @@ const {
   getAllBrands: getAllBrandsService,
   createBrand: createBrandService,
   updateBrand: updateBrandService,
+  deleteBrand: deleteBrandService,
 } = require("./brand.service");
 
 async function getAllBrands(req, res) {
@@ -43,8 +44,22 @@ async function updateBrand(req, res) {
   }
 }
 
+async function deleteBrand(req, res) {
+  try {
+    const result = await deleteBrandService(req);
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error("❌ Lỗi deleteBrand:", error.message);
+    return res.status(error.statusCode || 400).json({
+      success: false,
+      message: error.message || "Không thể xóa thương hiệu.",
+    });
+  }
+}
+
 module.exports = {
   getAllBrands,
   createBrand,
   updateBrand,
+  deleteBrand,
 };

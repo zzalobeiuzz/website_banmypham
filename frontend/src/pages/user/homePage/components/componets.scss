@@ -14,9 +14,11 @@
 }
 
 .home-page-content.container {
-  max-width: 1325px;
+  max-width: 1288px;
   margin-right: auto;
   margin-left: auto;
+  padding-right: 0;
+  padding-left: 0;
 }
 
 .home-page-content::before,
@@ -43,6 +45,125 @@
   background:
     linear-gradient(270deg, rgba(244, 63, 94, 0.08), transparent),
     repeating-linear-gradient(45deg, rgba(244, 63, 94, 0.07) 0 1px, transparent 1px 18px);
+}
+
+.home-floating-decor {
+  position: fixed;
+  top: 270px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  pointer-events: none;
+}
+
+.home-floating-decor--left {
+  left: max(8px, calc((100vw - 1325px) / 2 - 86px));
+}
+
+.home-floating-decor--right {
+  right: max(8px, calc((100vw - 1325px) / 2 - 86px));
+}
+
+.home-floating-decor__badge {
+  position: relative;
+  width: 78px;
+  min-height: 76px;
+  padding: 10px 7px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(241, 253, 251, 0.78)),
+    radial-gradient(circle at 20% 0%, rgba(20, 184, 166, 0.18), transparent 56%);
+  box-shadow:
+    0 18px 45px rgba(15, 23, 42, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(14px);
+  text-align: center;
+  animation: homeFloatBadge 5s ease-in-out infinite;
+  overflow: hidden;
+}
+
+.home-floating-decor__badge:nth-child(2) {
+  animation-delay: 1.2s;
+}
+
+.home-floating-decor__badge::before {
+  content: "";
+  position: absolute;
+  inset: -34px auto auto -26px;
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  background: rgba(20, 184, 166, 0.18);
+}
+
+.home-floating-decor__badge::after {
+  content: "";
+  position: absolute;
+  right: 10px;
+  bottom: 9px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #14b8a6;
+  box-shadow: 0 0 0 5px rgba(20, 184, 166, 0.12);
+}
+
+.home-floating-decor__badge--soft::before {
+  background: rgba(244, 63, 94, 0.16);
+}
+
+.home-floating-decor__badge--soft::after {
+  background: #fb7185;
+  box-shadow: 0 0 0 5px rgba(244, 63, 94, 0.12);
+}
+
+.home-floating-decor__badge span,
+.home-floating-decor__badge strong {
+  position: relative;
+  z-index: 1;
+}
+
+.home-floating-decor__badge span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  height: 28px;
+  margin-bottom: 6px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #0f766e, #10b981);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.2px;
+  box-shadow: 0 8px 18px rgba(15, 118, 110, 0.24);
+}
+
+.home-floating-decor__badge--soft span {
+  background: linear-gradient(135deg, #be123c, #fb7185);
+  box-shadow: 0 8px 18px rgba(190, 18, 60, 0.22);
+}
+
+.home-floating-decor__badge strong {
+  display: block;
+  color: #1f2937;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1.22;
+}
+
+@keyframes homeFloatBadge {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
 }
 
 .home-page-load-wrap.is-loading .home-page-content {
@@ -152,7 +273,6 @@
       .owl-stage-outer {
         position: relative;
         overflow: hidden;
-        margin: 0 20px;
 
         .owl-stage {
           display: flex;
@@ -250,8 +370,8 @@
 
               .brand-only-wrap {
                 position: relative;
-                padding: 10px 10px 22px;
-                height: 300px;
+                padding: 18px 10px 22px;
+                height: 260px;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
@@ -259,20 +379,20 @@
               }
 
               .brand-only-image {
-                width: 220px;
-                height: 220px;
-                object-fit: cover;
+                width: 150px;
+                height: 150px;
+                object-fit: contain;
                 padding: 0;
                 border: none;
                 border-radius: 999px;
                 background: #fff;
-                box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+                box-shadow: 0 8px 18px rgba(0, 0, 0, 0.1);
               }
 
               .brand-name-pill {
                 position: absolute;
                 left: 50%;
-                top: 210px;
+                top: 168px;
                 transform: translate(-50%, -50%);
                 min-width: 220px;
                 max-width: 220px;
@@ -456,16 +576,83 @@
 
 @media (max-width: 1200px) {
   .home-page-content.container {
-    width: calc(100% - 48px);
+    width: auto;
+    margin-left: 96px;
+    margin-right: 96px;
   }
 
   .home-page-content::before,
   .home-page-content::after {
     display: none;
   }
+
+  .home-floating-decor {
+    top: 235px;
+    gap: 10px;
+  }
+
+  .home-floating-decor--left {
+    left: 10px;
+  }
+
+  .home-floating-decor--right {
+    right: 10px;
+  }
+
+  .home-floating-decor__badge {
+    width: 62px;
+    min-height: 62px;
+    padding: 7px 5px;
+    border-radius: 14px;
+  }
+
+  .home-floating-decor__badge span {
+    min-width: 30px;
+    height: 23px;
+    margin-bottom: 4px;
+    padding: 0 5px;
+    font-size: 8px;
+  }
+
+  .home-floating-decor__badge strong {
+    font-size: 8px;
+  }
+}
+
+@media (max-width: 992px) {
+  .home-page-content.container {
+    margin-left: 78px;
+    margin-right: 78px;
+  }
+
+  .home-floating-decor {
+    top: 228px;
+  }
+
+  .home-floating-decor__badge {
+    width: 56px;
+    min-height: 58px;
+    padding: 7px 5px;
+    border-radius: 12px;
+  }
+
+  .home-floating-decor__badge span {
+    min-width: 30px;
+    height: 24px;
+    font-size: 9px;
+  }
+
+  .home-floating-decor__badge strong {
+    font-size: 9px;
+    line-height: 1.18;
+  }
 }
 
 @media (max-width: 768px) {
+  .home-floating-decor {
+    display: none;
+  }
+
   .home-page-content.container {
     width: auto;
     margin-left: 20px;
@@ -474,6 +661,33 @@
 
   .section-flash-mobile {
     border-radius: 12px;
+  }
+
+  .section-flash-mobile .slide-top {
+    height: auto;
+    min-height: 52px;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .section-flash-mobile .slide-top .slide-title {
+    min-width: 0;
+  }
+
+  .section-flash-mobile .slide-top .slide-title a {
+    min-width: 0;
+  }
+
+  .section-flash-mobile .slide-top .slide-title h2 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .section-flash-mobile .slide-top .slide-more {
+    flex: 0 0 auto;
+    font-size: 12px;
+    white-space: nowrap;
   }
 
   .section-flash-mobile .slide-main {
@@ -974,13 +1188,85 @@
   }
 }
 
+@media (max-width: 1200px) {
+  .section-banner-top {
+    height: auto;
+    padding-left: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr);
+    gap: 8px;
+
+    .banner-slide {
+      width: 100%;
+
+      .banner-slick {
+        .owl-stage-outer {
+          height: auto;
+          aspect-ratio: 7 / 4;
+
+          .owl-stage {
+            height: 100%;
+
+            .owl-item {
+              width: 100%;
+              height: 100%;
+
+              div a img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    .banner-wrap {
+      height: auto;
+      gap: 8px;
+
+      &__slot {
+        width: 100%;
+        aspect-ratio: 7 / 4;
+      }
+
+      &__slot img {
+        width: 100%;
+        height: 100%;
+      }
+    }
+  }
+}
+
+@media (max-width: 992px) {
+  .section-banner-top {
+    grid-template-columns: 1fr;
+
+    .banner-wrap {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: none;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .section-banner-top {
+    gap: 10px;
+
+    .banner-wrap {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
 //===========================================Voucher==================================
 .list-coupon {
   position: relative;
   margin-bottom: 30px;
   overflow: hidden;
-  padding-right: 38px;
-  padding-left: 38px;
+  padding-right: 0;
+  padding-left: 0;
 
   h2 {
     color: #000;
@@ -1008,18 +1294,19 @@
 
     &.voucher-nav-btn-left {
       top: 83px;
-      left: 8px;
+      left: 4px;
       transform: none;
     }
 
     &.voucher-nav-btn-right {
       top: 83px;
-      right: 8px;
+      right: 4px;
       transform: none;
     }
   }
   .slide-main-coupon {
     overflow: hidden;
+    margin: 0 30px;
 
     .voucher-carousel-wrap {
       position: relative;
@@ -1065,8 +1352,9 @@
         .owl-item {
           position: relative;
           min-height: 1px;
-          width: 330px;
-          flex: 0 0 313px;
+          width: calc(100% / 4);
+          flex: 0 0 calc(100% / 4);
+          padding: 0 4px;
           touch-action: pan-y;
           -webkit-user-select: none;
           user-select: none;
@@ -1082,20 +1370,24 @@
             border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             background-size: cover;
+            overflow: hidden;
+            min-height: 116px;
 
             .box-coupon {
-              padding: 10px;
+              padding: 7px;
 
               &.box-coupon-left {
-                padding-left: 20px;
+                flex: 0 0 82px;
+                padding-left: 12px;
+                padding-right: 8px;
 
                 svg {
                   vertical-align: middle;
                 }
 
                 .coupon-gift-lottie {
-                  width: 62px;
-                  height: 62px;
+                  width: 54px;
+                  height: 54px;
                   margin: 0 auto;
                   overflow: hidden;
 
@@ -1103,8 +1395,8 @@
                     display: block;
                     width: 100% !important;
                     height: 100% !important;
-                    max-width: 62px;
-                    max-height: 62px;
+                    max-width: 54px;
+                    max-height: 54px;
                   }
                 }
               }
@@ -1112,22 +1404,29 @@
               &.box-coupon-right {
                 border-left: 1px dotted #ddd;
                 height: 100%;
+                min-width: 0;
 
                 .sub-title-coupon {
                   color: #000;
-                  font-size: 16px;
+                  font-size: 14px;
                   font-weight: 600;
-                  line-height: 20px;
+                  line-height: 18px;
                   margin-bottom: 2px;
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                  white-space: nowrap;
                 }
 
                 .voucher-detail {
                   color: #707070;
-                  font-size: 12px;
+                  font-size: 11px;
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                  white-space: nowrap;
                 }
 
                 .progress {
-                  height: 4px;
+                  height: 3px;
 
                   .progress-bar {
                     width: 1.28%;
@@ -1147,7 +1446,7 @@
 
                   &.btn-call-modal {
                     color: #c73030;
-                    font-size: 12px;
+                    font-size: 11px;
                     font-weight: 400;
                     line-height: normal;
 
@@ -1158,9 +1457,10 @@
 
                   &.btn-copy {
                     color: #fff;
-                    font-size: 13px;
+                    font-size: 12px;
                     font-weight: 400;
-                    line-height: 20px;
+                    line-height: 18px;
+                    padding: 6px 10px;
 
                     &:hover {
                       color: #fff;
@@ -1173,6 +1473,25 @@
         }
       }
     }
+  }
+}
+
+@media (max-width: 1200px) {
+  .list-coupon .slide-main-coupon .slide-template-slide-coupon .owl-stage-outer .owl-item {
+    width: calc(100% / 4);
+    flex-basis: calc(100% / 4);
+    padding: 0 3px;
+  }
+
+  .list-coupon .slide-main-coupon .slide-template-slide-coupon .owl-stage-outer .owl-item .item-coupon .box-coupon {
+    padding: 6px;
+  }
+}
+
+@media (max-width: 992px) {
+  .list-coupon .slide-main-coupon .slide-template-slide-coupon .owl-stage-outer .owl-item {
+    width: calc(100% / 3);
+    flex-basis: calc(100% / 3);
   }
 }
 

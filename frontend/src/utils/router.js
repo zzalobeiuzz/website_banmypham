@@ -7,6 +7,10 @@ export const ROUTERS = {
       BRAND_DETAIL: "brand/:idBrand", // Chi tiết thương hiệu: /brand/BR001
       EVENT_DETAIL: "event/:eventId", // Sản phẩm theo sự kiện: /event/SUMMER-2026
       PROMOTIONS: "promotions",
+      ABOUT: "about",
+      BEAUTY_TRENDS: "san-pham-ban-chay",
+      STORES: "he-thong-cua-hang",
+      ORDER_LOOKUP: "order-lookup",
       SIGNUP: "signup",              // Trang đăng ký: /signup
       ALL_PRODUCTS: "all-products/:type", // Trang tất cả sản phẩm: /all-products/flash-sale
       CARTDETAIL: "cart-detail",     // Trang chi tiết giỏ hàng: /cart-detail

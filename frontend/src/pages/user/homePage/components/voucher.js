@@ -111,7 +111,7 @@ const VoucherItem = ({ voucher, onOpenDetail, onCopyCode, copiedCode }) => {
   const isCopied = copiedCode === voucher.code;
 
   return (
-    <div className="owl-item active" style={{ width: "330px" }}>
+    <div className="owl-item active">
       <div className="item-coupon">
         <div className="d-flex align-items-center justify-content-between">
           <div className="box-coupon box-coupon-left text-center">

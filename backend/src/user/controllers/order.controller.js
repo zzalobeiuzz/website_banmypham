@@ -140,3 +140,37 @@ exports.getOrderDetail = async (req, res) => {
     });
   }
 };
+
+exports.lookupOrderPublic = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const normalizedOrderId = String(orderId || "").trim();
+
+    if (!normalizedOrderId) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng nhập mã đơn hàng.",
+      });
+    }
+
+    const order = await getOrderByOrderId(normalizedOrderId);
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy đơn hàng với mã đã nhập.",
+      });
+    }
+
+    return res.json({
+      success: true,
+      order,
+    });
+  } catch (err) {
+    console.error("❌ lookupOrderPublic error:", err);
+    return res.status(err.status || 500).json({
+      success: false,
+      message: err.message || "Lỗi server.",
+    });
+  }
+};

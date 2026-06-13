@@ -596,10 +596,10 @@ const Header = () => {
             {[
               { label: "Khuyến mãi", url: `/${ROUTERS.USER.PROMOTIONS}` },
               { label: "Thương hiệu", url: "/all-products/featured-brands" },
-              { label: "Giới thiệu", url: "/" },
-              { label: "Xu hướng làm đẹp", url: "/" },
-              { label: "Hàng mới về", url: "/" },
-              { label: "Hệ thống cửa hàng", url: "/" },
+              { label: "Giới thiệu", url: `/${ROUTERS.USER.ABOUT}` },
+              { label: "Sản phẩm bán chạy", url: `/${ROUTERS.USER.BEAUTY_TRENDS}` },
+              { label: "Hàng mới về", url: "/all-products/new-arrivals" },
+              { label: "Hệ thống cửa hàng", url: `/${ROUTERS.USER.STORES}` },
             ].map((item, i) => (
               <div className="menu_item" key={i}>
                 <Link to={item.url} className="item">{item.label}</Link>
@@ -607,9 +607,9 @@ const Header = () => {
             ))}
 
             <div className="menu_search_order">
-              <a href="/" className="item">
+              <Link to={`/${ROUTERS.USER.ORDER_LOOKUP}`} className="item">
                 Tra cứu đơn hàng
-              </a>
+              </Link>
             </div>
           </div>
         </div>

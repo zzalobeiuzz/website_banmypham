@@ -42,8 +42,10 @@ export function flyToCart(
   clone.style.height = `${sourceRect.height}px`;
 
   // 🎨 Style thêm cho đẹp
-  clone.style.objectFit = "cover";
-  clone.style.borderRadius = "8px";
+  clone.style.objectFit = "contain";
+  clone.style.borderRadius = "12px";
+  clone.style.background = "#fff";
+  clone.style.boxShadow = "0 16px 34px rgba(15, 23, 42, 0.18)";
 
   // 🔝 Luôn nổi trên cùng
   clone.style.zIndex = "9999";

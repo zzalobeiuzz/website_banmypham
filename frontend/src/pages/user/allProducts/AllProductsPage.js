@@ -74,6 +74,10 @@ const TITLE_MAP = {
     title: "Sản phẩm hot",
     api: `${API_BASE}/api/user/products/hot`,
   },
+  "new-arrivals": {
+    title: "Hàng mới về",
+    api: `${API_BASE}/api/user/products/new-arrivals`,
+  },
   "featured-brands": {
     title: "Thương hiệu nổi bật",
     api: `${API_BASE}/api/user/products/brands`,

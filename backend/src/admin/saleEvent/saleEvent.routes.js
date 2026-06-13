@@ -7,6 +7,8 @@ const {
   handleGetSaleEvents,
   handleGetUnavailableProductSales,
   handleGetSaleEventDetail,
+  handleCreateProductSale,
+  handleDeleteProductSale,
   handleCreateSaleEvent,
   handleUpdateSaleEvent,
   handleDeleteSaleEvent,
@@ -16,6 +18,8 @@ router.use(authMiddleware.verifyToken, authMiddleware.verifyAdmin);
 
 router.get("/unavailable-products", handleGetUnavailableProductSales);
 router.get("/", handleGetSaleEvents);
+router.post("/product-sale", handleCreateProductSale);
+router.delete("/product-sale/:id", handleDeleteProductSale);
 router.get("/:id", handleGetSaleEventDetail);
 router.post("/", upload.single("bannerFile"), handleCreateSaleEvent);
 router.put("/:id", upload.single("bannerFile"), handleUpdateSaleEvent);

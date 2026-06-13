@@ -49,24 +49,15 @@ const resolveBrandLogoSrc = (logoUrl) => {
     return `${UPLOAD_BASE}/${raw}`;
   }
 
-  return `${UPLOAD_BASE}/${raw.replace(/^\/+/, "")}`;
-};
-
-const resolveBrandPreviewSrc = (image) => {
-  const raw = String(image || "").trim();
-  if (!raw) return "";
-
-  if (/^https?:\/\//i.test(raw) || raw.startsWith("data:")) return raw;
-
-  if (raw.startsWith("/uploads/")) {
-    return `${API_BASE}${raw}`;
+  if (raw.startsWith("pictures/Brands/")) {
+    return `${UPLOAD_BASE}/${raw.replace(/^\/+/, "")}`;
   }
 
-  if (raw.startsWith("uploads/")) {
-    return `${API_BASE}/${raw}`;
+  if (raw.startsWith("Brands/")) {
+    return `${UPLOAD_BASE}/pictures/${raw.replace(/^\/+/, "")}`;
   }
 
-  return `${UPLOAD_BASE}/pictures/${raw.replace(/^\/+/, "")}`;
+  return `${UPLOAD_BASE}/pictures/Brands/${raw.replace(/^\/+/, "")}`;
 };
 
 // ✨ Bay ảnh vào giỏ
@@ -238,7 +229,7 @@ const Select = ({ title, onReady }) => {
 
     const updateCountdown = () => {
       const now = new Date();
-      const updated = products.map((product) => {
+      setProducts((currentProducts) => currentProducts.map((product) => {
         const end = new Date(product.end_date);
         const diff = Math.max(0, end - now);
         const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -249,18 +240,17 @@ const Select = ({ title, onReady }) => {
         const formatted = `Còn ${days} ngày ${String(hours).padStart(2, "0")} : ${String(minutes).padStart(2, "0")} : ${String(seconds).padStart(2, "0")}`;
 
         return { ...product, discountTimeLeft: formatted };
-      });
-
-      setProducts(updated);
+      }));
     };
 
     const interval = setInterval(updateCountdown, 1000);
     return () => clearInterval(interval);
-  }, [products, title]);
+  }, [products.length, title]);
 
   // ↔️ Auto slide
   useEffect(() => {
-    if (!products.length || products.length <= VISIBLE_COUNT) return;
+    const productCount = products.length;
+    if (!productCount || productCount <= VISIBLE_COUNT) return;
     let autoSlideTimer = null;
     let paused = false;
 
@@ -269,7 +259,7 @@ const Select = ({ title, onReady }) => {
       autoSlideTimer = setInterval(() => {
         if (paused) return;
         scrolledItemsCount.current++;
-        if (scrolledItemsCount.current > products.length - VISIBLE_COUNT) {
+        if (scrolledItemsCount.current > productCount - VISIBLE_COUNT) {
           scrolledItemsCount.current = 0;
         }
         const finalTranslateX = -scrolledItemsCount.current * ITEM_WIDTH;
@@ -278,7 +268,7 @@ const Select = ({ title, onReady }) => {
         const newActiveIndexes = [];
         for (let i = 0; i < VISIBLE_COUNT; i++) {
           const idx = scrolledItemsCount.current + i;
-          if (idx < products.length) newActiveIndexes.push(idx);
+          if (idx < productCount) newActiveIndexes.push(idx);
         }
         setActiveIndexes(newActiveIndexes);
       }, 3000);
@@ -307,7 +297,7 @@ const Select = ({ title, onReady }) => {
         slider.removeEventListener("mouseleave", resumeAutoSlide);
       }
     };
-  }, [products]);
+  }, [products.length]);
 
   // 🖱️ Kéo ngang
   const handleMouseMove = useCallback((e) => {
@@ -503,11 +493,14 @@ const Select = ({ title, onReady }) => {
                     {isTopBrandSection ? (
                       <div className="brand-only-wrap">
                         <img
-                          src={resolveBrandPreviewSrc(product.previewImage) || resolveBrandLogoSrc(product.logoUrl)}
+                          src={resolveBrandLogoSrc(product.logoUrl)}
                           alt={product.brandName || "Thương hiệu"}
                           loading="lazy"
                           className="brand-only-image"
                           draggable={false}
+                          onError={(event) => {
+                            event.currentTarget.src = `${UPLOAD_BASE}/pictures/no_image.jpg`;
+                          }}
                           onDragStart={e => e.preventDefault()}
                         />
                         <div className="brand-name-pill">{product.brandName || "Thương hiệu"}</div>
