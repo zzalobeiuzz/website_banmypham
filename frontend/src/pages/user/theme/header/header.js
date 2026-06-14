@@ -14,6 +14,10 @@ import "./header.scss";
 import { useCart } from "../../context/CartContext";
 import { useAuth } from "../../context/AuthContext";
 
+const SUPPORT_PHONE = "0364670752";
+const SUPPORT_PHONE_LABEL = "0364 670 752";
+const FACEBOOK_MESSAGE_URL = "https://www.messenger.com/t/112296541854958";
+
 const Header = () => {
   const { user, logout, login } = useAuth(); // 👈 thêm login
   const [isFixed, setIsFixed] = useState(false);
@@ -36,6 +40,8 @@ const Header = () => {
 
   const isFixedRef = useRef(false);
   const tickingRef = useRef(false);
+  const supportMenuRef = useRef(null);
+  const supportMenuOpen = false;
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -44,6 +50,18 @@ const Header = () => {
   const isProfilePage = location.pathname === `/${ROUTERS.USER.PROFILE}`;
   const normalizedPath = (location.pathname || "/").replace(/\/+$/, "") || "/";
   const isHomePage = normalizedPath === "/";
+
+  const toggleCustomerSupport = () => {
+    navigate(`/${ROUTERS.USER.SUPPORT}`);
+  };
+
+  const openWebChat = () => {
+    try {
+      window.dispatchEvent(new Event("open-web-chat"));
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const resolveAvatarSrc = (avatar) => {
     const value = String(avatar || "").trim();
@@ -262,8 +280,11 @@ const Header = () => {
         {/* ---------- Header top ---------- */}
         <div className="header-top">
           <div className="container">
-            <FontAwesomeIcon icon={faPhoneVolume} />
-            <span className="ms-2">0364670752</span>
+            <Link to={`/${ROUTERS.USER.SUPPORT}`} className="header-support-trigger">
+              <FontAwesomeIcon icon={faPhoneVolume} />
+              <span>0364670752</span>
+              <strong>Hỗ trợ khách hàng</strong>
+            </Link>
           </div>
         </div>
 
@@ -476,13 +497,46 @@ const Header = () => {
                 </Link>
 
                 {!isFixed && (
-                  <Link className="custom-service">
+                  <div className="custom-service-wrap" ref={supportMenuRef}>
+                    <button type="button" className="custom-service" onClick={toggleCustomerSupport}>
                     <img
                       src={`${UPLOAD_BASE}/icons/hotline-icon.png`}
                       alt="icon-hotline"
                     />
                     <span>Hỗ trợ khách hàng</span>
-                  </Link>
+                    </button>
+
+                    {supportMenuOpen && (
+                      <div className="custom-service-menu">
+                        <a className="custom-service-menu__item" href={`tel:${SUPPORT_PHONE}`}>
+                          <span className="custom-service-menu__icon custom-service-menu__icon--phone">Tel</span>
+                          <span>
+                            <strong>Gọi hỗ trợ</strong>
+                            <small>{SUPPORT_PHONE_LABEL}</small>
+                          </span>
+                        </a>
+                        <a
+                          className="custom-service-menu__item"
+                          href={FACEBOOK_MESSAGE_URL}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <span className="custom-service-menu__icon custom-service-menu__icon--facebook">f</span>
+                          <span>
+                            <strong>Nhắn Facebook</strong>
+                            <small>Fanpage TINY Store</small>
+                          </span>
+                        </a>
+                        <button type="button" className="custom-service-menu__item" onClick={openWebChat}>
+                          <span className="custom-service-menu__icon custom-service-menu__icon--chat">Chat</span>
+                          <span>
+                            <strong>Chat trên web</strong>
+                            <small>Trao đổi trực tiếp tại đây</small>
+                          </span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {user ? (
@@ -597,6 +651,7 @@ const Header = () => {
               { label: "Khuyến mãi", url: `/${ROUTERS.USER.PROMOTIONS}` },
               { label: "Thương hiệu", url: "/all-products/featured-brands" },
               { label: "Giới thiệu", url: `/${ROUTERS.USER.ABOUT}` },
+              { label: "Liên hệ", url: `/${ROUTERS.USER.CONTACT}` },
               { label: "Sản phẩm bán chạy", url: `/${ROUTERS.USER.BEAUTY_TRENDS}` },
               { label: "Hàng mới về", url: "/all-products/new-arrivals" },
               { label: "Hệ thống cửa hàng", url: `/${ROUTERS.USER.STORES}` },

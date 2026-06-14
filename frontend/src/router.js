@@ -11,6 +11,8 @@ import BrandDetailPage from "./pages/user/brandDetail/brand_detail.js";
 import AllProductsPage from "./pages/user/allProducts/AllProductsPage.js";
 import PromotionsPage from "./pages/user/promotions/PromotionsPage.js";
 import AboutPage from "./pages/user/about/AboutPage.js";
+import ContactPage from "./pages/user/contact/ContactPage.js";
+import SupportPage from "./pages/user/support/SupportPage.js";
 import BeautyTrendsPage from "./pages/user/beautyTrends/BeautyTrendsPage.js";
 import StoreSystemPage from "./pages/user/storeSystem/StoreSystemPage.js";
 import OrderLookupPage from "./pages/user/orderLookup/OrderLookupPage.js";
@@ -39,6 +41,7 @@ import VoucherPage from "./pages/admin/components/DynamicHome/voucher/VoucherPag
 import AdminChatPage from "./pages/admin/components/DynamicHome/chat/AdminChatPage.js";
 import DiscountEventsPage from "./pages/admin/components/DynamicHome/event/DiscountEventsPage.js";
 import AdminFeaturedProductsPage from "./pages/admin/components/DynamicHome/event/AdminFeaturedProductsPage.js";
+import AdminSupportRequestsPage from "./pages/admin/components/DynamicHome/supportRequests/AdminSupportRequestsPage.js";
 import StatisticsPage from "./pages/admin/components/DynamicHome/stats/StatisticsPage.js";
 import AdminOverviewPage from "./pages/admin/components/DynamicHome/overview/AdminOverviewPage.js";
 
@@ -51,6 +54,8 @@ const userRoutes = [
   { path: ROUTERS.USER.BRAND_DETAIL, element: <BrandDetailPage />, showHeaderFooter: true },
   { path: ROUTERS.USER.PROMOTIONS, element: <PromotionsPage />, showHeaderFooter: true },
   { path: ROUTERS.USER.ABOUT, element: <AboutPage />, showHeaderFooter: true },
+  { path: ROUTERS.USER.CONTACT, element: <ContactPage />, showHeaderFooter: true },
+  { path: ROUTERS.USER.SUPPORT, element: <SupportPage />, showHeaderFooter: true },
   { path: ROUTERS.USER.BEAUTY_TRENDS, element: <BeautyTrendsPage />, showHeaderFooter: true },
   { path: "beauty-trends", element: <Navigate to={`/${ROUTERS.USER.BEAUTY_TRENDS}`} replace />, showHeaderFooter: true },
   { path: ROUTERS.USER.STORES, element: <StoreSystemPage />, showHeaderFooter: true },
@@ -153,6 +158,12 @@ const adminRoutes = [
     path: "chat",
     children: [
       { index: true, element: <AdminChatPage /> },
+    ],
+  },
+  {
+    path: "support-requests",
+    children: [
+      { index: true, element: <AdminSupportRequestsPage /> },
     ],
   },
 ];

@@ -8,6 +8,8 @@ export const ROUTERS = {
       EVENT_DETAIL: "event/:eventId", // Sản phẩm theo sự kiện: /event/SUMMER-2026
       PROMOTIONS: "promotions",
       ABOUT: "about",
+      CONTACT: "contact",
+      SUPPORT: "support",
       BEAUTY_TRENDS: "san-pham-ban-chay",
       STORES: "he-thong-cua-hang",
       ORDER_LOOKUP: "order-lookup",

@@ -77,7 +77,11 @@ const Homepage = () => {
   const revenueItems = [
     { icon: "icons-analytics.png", label: "Tổng quan", path: "/admin" },
     { icon: "icons-revenue.png", label: "Doanh thu", path: "/admin/stats" },
-    { icon: "icons-conversion-rate.png", label: "Tỷ lệ chuyển đổi", path: "/admin/conversion" },
+  ];
+
+  const customerCareItems = [
+    { icon: "icons8-message-100.png", label: "Tư vấn khách hàng", path: "/admin/chat" },
+    { icon: "icons8-purchase-order-100.png", label: "Yêu cầu hỗ trợ", path: "/admin/support-requests" },
   ];
 
   const showPopup = ({ status, message }) => {
@@ -201,6 +205,12 @@ const Homepage = () => {
             <MenuSection
               title="Quản lý sự kiện"
               items={eventItems}
+              isCollapsed={isCollapsed}
+              onSelect={handleSelect}
+            />
+            <MenuSection
+              title="Chăm sóc khách hàng"
+              items={customerCareItems}
               isCollapsed={isCollapsed}
               onSelect={handleSelect}
             />

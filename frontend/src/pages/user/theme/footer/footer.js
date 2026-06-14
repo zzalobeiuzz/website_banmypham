@@ -2,6 +2,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import { memo } from "react";
 import { Link } from "react-router-dom";
 import { UPLOAD_BASE } from "../../../../constants";
+import { ROUTERS } from "../../../../utils/router";
 import "./footer.scss";
 
 const STORE_ADDRESS = "405 Đường Trần Hưng Đạo, Sa Thầy, Quảng Ngãi";
@@ -37,7 +38,7 @@ const Footer = () => {
             <h3>Về TINY Shop</h3>
             <Link to="/">Về chúng tôi</Link>
             <Link to="/">Câu chuyện thương hiệu</Link>
-            <Link to="/">Liên hệ</Link>
+            <Link to={`/${ROUTERS.USER.CONTACT}`}>Liên hệ</Link>
           </div>
           <div>
             <h3>Chính sách</h3>

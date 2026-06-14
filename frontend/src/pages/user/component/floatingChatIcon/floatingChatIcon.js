@@ -17,6 +17,10 @@ const SOCKET_URL = String(
    API_BASE || window.location.origin,
 ).replace(/\/$/, "");
 
+const SUPPORT_PHONE = "0334383068";
+const SUPPORT_PHONE_LABEL = "0334 383 068";
+const FACEBOOK_MESSAGE_URL = "https://www.messenger.com/t/112296541854958";
+
 //  ======================== CHUẨN HÓA USER ID =================================   
 const resolveChatUserId = (value) => {
   return String(value || "")
@@ -101,6 +105,8 @@ const FloatingChatIcon = ({
   const [showSettings, setShowSettings] = useState(false);
   const [showSoundMenu, setShowSoundMenu] = useState(false);
   const settingsRef = useRef(null);
+  const supportMenuRef = useRef(null);
+  const [showSupportMenu, setShowSupportMenu] = useState(false);
 
   const initNotificationAudio = useCallback(() => {
     if (audioRef.current) return;
@@ -847,7 +853,7 @@ const FloatingChatIcon = ({
    * CLICK ICON CHAT
    * =========================================================
    */
-  const handleClick = () => {
+  const handleClick = useCallback(() => {
     /**
      * Nếu có callback ngoài
      */
@@ -862,6 +868,8 @@ const FloatingChatIcon = ({
       try { window.dispatchEvent(new Event("open-login")); } catch (e) {}
       return;
     }
+
+    setShowSupportMenu(false);
 
     // Initialize audio on first user gesture so browsers allow future play
     if (!soundUnlocked) {
@@ -919,7 +927,52 @@ const FloatingChatIcon = ({
 
       return nextOpen;
     });
+  }, [
+    onClick,
+    isAuthenticated,
+    soundUnlocked,
+    initNotificationAudio,
+    soundMuted,
+    room?.RoomID,
+    markCurrentRoomAsSeen,
+    normalizeMessage,
+  ]);
+
+  const handleSupportButtonClick = () => {
+    setShowSupportMenu((value) => !value);
   };
+
+  useEffect(() => {
+    if (!showSupportMenu) return undefined;
+
+    const onDocumentClick = (event) => {
+      if (supportMenuRef.current && !supportMenuRef.current.contains(event.target)) {
+        setShowSupportMenu(false);
+      }
+    };
+
+    document.addEventListener("click", onDocumentClick);
+    return () => document.removeEventListener("click", onDocumentClick);
+  }, [showSupportMenu]);
+
+  useEffect(() => {
+    const openCustomerSupport = () => {
+      setIsOpen(false);
+      setShowSupportMenu(true);
+    };
+
+    window.addEventListener("open-customer-support", openCustomerSupport);
+    return () => window.removeEventListener("open-customer-support", openCustomerSupport);
+  }, []);
+
+  useEffect(() => {
+    const openWebChat = () => {
+      if (!isOpen) handleClick();
+    };
+
+    window.addEventListener("open-web-chat", openWebChat);
+    return () => window.removeEventListener("open-web-chat", openWebChat);
+  }, [isOpen, handleClick]);
 
   // close settings when clicking outside
   useEffect(() => {
@@ -1212,18 +1265,66 @@ const FloatingChatIcon = ({
       )}
 
       {!isOpen && (
-        <button
-          type="button"
-          onClick={handleClick}
-          aria-label="Mở chat"
-          title="Chat"
-          className="floating-chat-button"
-        >
-          <img src={src} alt={alt} className="floating-chat-button__image" />
-          <span className="floating-chat-button__badge" aria-hidden>
-            {unreadCount > 99 ? "99+" : unreadCount > 0 ? String(unreadCount) : ""}
-          </span>
-        </button>
+        <div className="floating-support" ref={supportMenuRef}>
+          {showSupportMenu && (
+            <div className="floating-support__menu" role="menu" aria-label="Ho tro khach hang">
+              <a className="floating-support__item floating-support__item--phone" href={`tel:${SUPPORT_PHONE}`} role="menuitem">
+                <span className="floating-support__icon" aria-hidden>
+                  <svg viewBox="0 0 24 24" width="20" height="20">
+                    <path d="M6.6 10.8c1.4 2.7 3.6 4.9 6.4 6.4l2.1-2.1c.3-.3.7-.4 1.1-.3 1.2.4 2.4.6 3.7.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.5 21 3 13.5 3 4c0-.6.4-1 1-1h3.7c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.7.1.4 0 .8-.3 1.1l-2.4 2Z" fill="currentColor" />
+                  </svg>
+                </span>
+                <span>
+                  <strong>Gọi hotline</strong>
+                  <small>{SUPPORT_PHONE_LABEL}</small>
+                </span>
+              </a>
+
+              <a
+                className="floating-support__item floating-support__item--facebook"
+                href={FACEBOOK_MESSAGE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                role="menuitem"
+              >
+                <span className="floating-support__icon" aria-hidden>
+                  <svg viewBox="0 0 24 24" width="20" height="20">
+                    <path d="M12 2C6.5 2 2 6.2 2 11.4c0 3 1.5 5.7 3.9 7.4V22l3.6-2c.8.2 1.6.3 2.5.3 5.5 0 10-4.2 10-9.4S17.5 2 12 2Zm1 12.5-2.5-2.7-4.9 2.7 5.4-5.8 2.5 2.7 4.9-2.7-5.4 5.8Z" fill="currentColor" />
+                  </svg>
+                </span>
+                <span>
+                  <strong>Nhắn Facebook</strong>
+                  <small>Fanpage TINY Store</small>
+                </span>
+              </a>
+
+              <button type="button" className="floating-support__item floating-support__item--chat" onClick={handleClick} role="menuitem">
+                <span className="floating-support__icon" aria-hidden>
+                  <svg viewBox="0 0 24 24" width="20" height="20">
+                    <path d="M4 5.8C4 4.8 4.8 4 5.8 4h12.4c1 0 1.8.8 1.8 1.8v8.4c0 1-.8 1.8-1.8 1.8H9l-4.1 3.3c-.3.2-.9 0-.9-.5v-13ZM7.5 9.5a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm4.5 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm4.5 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z" fill="currentColor" />
+                  </svg>
+                </span>
+                <span>
+                  <strong>Chat trên web</strong>
+                  <small>Trao đổi trực tiếp tại đây</small>
+                </span>
+              </button>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={handleSupportButtonClick}
+            aria-label="Mở hỗ trợ khách hàng"
+            title="Hỗ trợ khách hàng"
+            className={`floating-chat-button${showSupportMenu ? " is-open" : ""}`}
+          >
+            <img src={src} alt={alt} className="floating-chat-button__image" />
+            <span className="floating-chat-button__badge" aria-hidden>
+              {unreadCount > 99 ? "99+" : unreadCount > 0 ? String(unreadCount) : ""}
+            </span>
+          </button>
+        </div>
       )}
     </>
   );

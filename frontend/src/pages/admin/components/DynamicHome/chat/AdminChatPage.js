@@ -864,7 +864,7 @@ const AdminChatPage = () => {
     <div className="admin-chat-page">
       <div className="admin-chat-page__header">
         <div>
-          <h2>Chat với khách hàng</h2>
+          <h2>Tư vấn khách hàng</h2>
           <p>{connectionStatus}</p>
         </div>
         <div className="admin-chat-page__header-actions" ref={adminSettingsRef}>
