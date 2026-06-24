@@ -476,14 +476,18 @@ exports.register = async (data) => {
 //==========================RESET PASSWORD==============================
 // 🔁 Đổi mật khẩu theo luồng quên mật khẩu (xác minh bằng code/session).
 exports.resetPassword = async ({ email, code, newPassword, sessionData }) => {
-  if (sessionData.code !== code) {
+  // So mã người dùng nhập với mã đã lấy từ session ở controller.
+  // Mã này không lấy từ frontend/server response, mà lấy từ session lưu trong bảng "sessions".
+  if (String(sessionData.code || "").trim() !== String(code || "").trim()) {
     throw new Error("Mã xác thực không đúng.");
   }
 
+  // Chặn đổi mật khẩu nếu mã đã quá thời hạn 15 phút.
   if (sessionData.expireAt && sessionData.expireAt < Date.now()) {
     throw new Error("Mã xác thực đã hết hạn.");
   }
 
+  // Chỉ khi mã hợp lệ mới hash mật khẩu mới và cập nhật vào bảng ACCOUNT.
   const hashedPassword = await bcrypt.hash(newPassword, 10);
 
   const result = await resetPass(email, hashedPassword);

@@ -92,6 +92,28 @@ const CreateAccountPopup = ({
             </select>
           </div>
 
+          <div className="account-create-field">
+            <label htmlFor="account-create-avatar-file">Ảnh từ máy</label>
+            <input
+              id="account-create-avatar-file"
+              type="file"
+              accept="image/*"
+              onChange={(event) => onChangeField("avatarFile", event.target.files?.[0] || null)}
+              disabled={isCreating}
+            />
+          </div>
+
+          <div className="account-create-field">
+            <label htmlFor="account-create-avatar-url">Ảnh từ web</label>
+            <input
+              id="account-create-avatar-url"
+              type="url"
+              value={form.avatarUrl || ""}
+              onChange={(event) => onChangeField("avatarUrl", event.target.value)}
+              placeholder="https://example.com/avatar.png"
+              disabled={isCreating}
+            />
+          </div>
           <div className="account-create-hint">Mẹo: Chọn vai trò Admin chỉ cho tài khoản quản trị nội bộ.</div>
 
           <div className="account-create-actions">

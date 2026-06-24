@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken"); // Thư viện dùng để verify JWT token
 const chatService = require("./chat.service"); // Service xử lý logic chat/database
+
 const {
   getSupportRoomForUser,
   markSeen,

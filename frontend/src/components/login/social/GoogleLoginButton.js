@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 
-const GoogleLoginButton = ({ googleClientId, onGoogleCode }) => {
+const GoogleLoginButton = ({ googleClientId, onGoogleCode, label = "Đăng nhập bằng Google", compact = false }) => {
   // ✅ Chỉ bật nút đăng nhập khi SDK Google đã sẵn sàng.
   const [googleReady, setGoogleReady] = useState(false);
 
@@ -55,10 +55,10 @@ const GoogleLoginButton = ({ googleClientId, onGoogleCode }) => {
   return (
     <button
       type="button"
-      className="btn btn-outline-danger mb-2"
+      className={`btn btn-outline-danger mb-2 ${compact ? "social-auth-btn social-auth-btn--google" : ""}`}
       onClick={handleGoogleLogin}
     >
-      <i className="fab fa-google me-2"></i> Đăng nhập bằng Google
+      <i className="fab fa-google me-2"></i> {label}
     </button>
   );
 };

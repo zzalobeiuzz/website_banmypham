@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 
-const FacebookLoginButton = ({ facebookAppId, onFacebookAccessToken }) => {
+const FacebookLoginButton = ({ facebookAppId, onFacebookAccessToken, label = "Đăng nhập bằng Facebook", compact = false }) => {
   // ✅ Chỉ bật đăng nhập khi SDK Facebook đã init thành công.
   const [facebookReady, setFacebookReady] = useState(false);
 
@@ -97,10 +97,10 @@ const FacebookLoginButton = ({ facebookAppId, onFacebookAccessToken }) => {
   return (
     <button
       type="button"
-      className="btn btn-outline-primary"
+      className={`btn btn-outline-primary ${compact ? "social-auth-btn social-auth-btn--facebook" : ""}`}
       onClick={handleFacebookLogin}
     >
-      <i className="fab fa-facebook-f me-2"></i> Đăng nhập bằng Facebook
+      <i className="fab fa-facebook-f me-2"></i> {label}
     </button>
   );
 };

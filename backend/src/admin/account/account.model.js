@@ -75,6 +75,60 @@ exports.createAccount = async ({ email, password, displayName, role = 0, avatar 
   }
 };
 
+exports.updateAccount = async ({ email, displayName, avatar, role, isActive }) => {
+  try {
+    const pool = await connectDB();
+    const columnsRes = await pool.request().query(`
+      SELECT COLUMN_NAME
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_NAME = 'ACCOUNT'
+    `);
+
+    const columns = new Set((columnsRes.recordset || []).map((row) => String(row.COLUMN_NAME || "").toLowerCase()));
+    const request = pool.request().input("email", sql.VarChar, email);
+    const updates = [];
+
+    if (columns.has("displayname")) {
+      request.input("displayName", sql.NVarChar, displayName || email);
+      updates.push("DisplayName = @displayName");
+    }
+
+    if (columns.has("avatar")) {
+      request.input("avatar", sql.NVarChar, avatar || "");
+      updates.push("Avatar = @avatar");
+    }
+
+    if (columns.has("role")) {
+      request.input("role", sql.Int, role);
+      updates.push("Role = @role");
+    }
+
+    if (columns.has("isactive")) {
+      request.input("isActive", sql.Bit, Number(isActive) === 1);
+      updates.push("IsActive = @isActive");
+    }
+
+    if (columns.has("updatedat")) {
+      updates.push("UpdatedAt = GETDATE()");
+    }
+
+    if (!updates.length) {
+      throw new Error("Bang ACCOUNT khong co cot nao co the cap nhat.");
+    }
+
+    const result = await request.query(`
+      UPDATE ACCOUNT
+      SET ${updates.join(", ")}
+      WHERE Email = @email
+    `);
+
+    return result.rowsAffected[0] > 0;
+  } catch (error) {
+    console.error("❌ Lỗi updateAccount:", error.message);
+    throw error;
+  }
+};
+
 exports.deleteAccount = async ({ email }) => {
   try {
     const pool = await connectDB();

@@ -21,8 +21,10 @@ const LoginPopup = ({ toggleLoginPopup, onLoginSuccess }) => {
   const [loginError, setLoginError] = useState("");
   // 📣 Thông báo từ bước quên mật khẩu
   const [forgotMessage, setForgotMessage] = useState("");
-  // 🔐 Mã xác thực server trả về (session hiện tại)
-  const [serverCode, setServerCode] = useState("");
+  // 🔐 Mã người dùng nhập; backend sẽ đối chiếu với mã đang lưu trong session.
+  const [resetCode, setResetCode] = useState("");
+  const [resetSuccessMessage, setResetSuccessMessage] = useState("");
+  const [rememberLogin, setRememberLogin] = useState(false);
   const { request } = useHttp();
   const googleClientId = String(
     process.env.REACT_APP_GOOGLE_CLIENT_ID || "",
@@ -46,6 +48,8 @@ const LoginPopup = ({ toggleLoginPopup, onLoginSuccess }) => {
       });
       localStorage.setItem("accessToken", res.accessToken);
       localStorage.setItem("refreshToken", res.refreshToken);
+      localStorage.setItem("authRemember", rememberLogin ? "true" : "false");
+      sessionStorage.setItem("authSessionActive", "true");
       const decoded = jwtDecode(res.accessToken);
       localStorage.setItem("user", JSON.stringify(decoded));
       onLoginSuccess(decoded);
@@ -73,7 +77,7 @@ const LoginPopup = ({ toggleLoginPopup, onLoginSuccess }) => {
 
       if (response.success) {
         setForgotMessage({ success: true, message: response.message });
-        setServerCode(response.code);
+        setResetCode("");
         setTimeout(() => nextStep(), 0);
       }
     } catch (err) {
@@ -86,13 +90,30 @@ const LoginPopup = ({ toggleLoginPopup, onLoginSuccess }) => {
       const res = await request(
         "POST",
         `${API_BASE}/api/user/auth/resetPassword`,
-        { email, code: serverCode, newPassword },
+        { email, code: resetCode, newPassword },
       );
-      alert(res.message || "🎉 Đổi mật khẩu thành công!");
-      setStep(1);
+      setPassword("");
+      setResetCode("");
+      setResetSuccessMessage(res.message || "Đổi mật khẩu thành công!");
+      setStep(5);
     } catch (err) {
       alert("❌ Lỗi đổi mật khẩu: " + err.message);
     }
+  };
+
+  const goToLoginAfterReset = () => {
+    setForgotMessage("");
+    setLoginError("");
+    setResetSuccessMessage("");
+    setStep(1);
+  };
+
+  const goHomeAfterReset = () => {
+    setForgotMessage("");
+    setLoginError("");
+    setResetSuccessMessage("");
+    toggleLoginPopup();
+    navigate("/");
   };
 
   // 🔁 Gửi lại mã khôi phục cho cùng email hiện tại.
@@ -106,18 +127,14 @@ const LoginPopup = ({ toggleLoginPopup, onLoginSuccess }) => {
       },
     );
 
-    if (response.success && response.code) {
-      setServerCode(response.code);
+    if (response.success) {
+      setResetCode("");
     }
   };
 
-  // ✅ So sánh mã người dùng nhập với mã server vừa cấp trong phiên hiện tại.
-  // Đúng mã thì chuyển sang bước đổi mật khẩu.
+  // ✅ Ghi nhận mã người dùng nhập. Backend sẽ xác thực khi đặt lại mật khẩu.
   const handleVerifyCodeSubmit = (codeInput) => {
-    if (codeInput !== serverCode) {
-      alert("❌ Mã xác thực không đúng!");
-      return;
-    }
+    setResetCode(String(codeInput || "").trim());
     nextStep();
   };
 
@@ -133,6 +150,8 @@ const LoginPopup = ({ toggleLoginPopup, onLoginSuccess }) => {
 
       localStorage.setItem("accessToken", res.accessToken);
       localStorage.setItem("refreshToken", res.refreshToken);
+      localStorage.setItem("authRemember", "true");
+      sessionStorage.setItem("authSessionActive", "true");
 
       const decoded = jwtDecode(res.accessToken);
       localStorage.setItem("user", JSON.stringify(decoded));
@@ -164,6 +183,8 @@ const LoginPopup = ({ toggleLoginPopup, onLoginSuccess }) => {
 
       localStorage.setItem("accessToken", res.accessToken);
       localStorage.setItem("refreshToken", res.refreshToken);
+      localStorage.setItem("authRemember", "true");
+      sessionStorage.setItem("authSessionActive", "true");
 
       const decoded = jwtDecode(res.accessToken);
       const mergedUser = {
@@ -202,7 +223,9 @@ const LoginPopup = ({ toggleLoginPopup, onLoginSuccess }) => {
                   ? "Quên mật khẩu"
                   : step === 3
                     ? "Xác thực mã"
-                    : "Đổi mật khẩu"}
+                    : step === 4
+                      ? "Đổi mật khẩu"
+                      : "Hoàn tất"}
             </h3>
 
             {step === 1 && (
@@ -214,6 +237,8 @@ const LoginPopup = ({ toggleLoginPopup, onLoginSuccess }) => {
                 loginError={loginError}
                 googleClientId={googleClientId}
                 facebookAppId={facebookAppId}
+                rememberLogin={rememberLogin}
+                setRememberLogin={setRememberLogin}
                 onGoogleCode={handleGoogleCode}
                 onFacebookAccessToken={handleFacebookAccessToken}
                 onSubmit={handleLoginSubmit}
@@ -238,7 +263,6 @@ const LoginPopup = ({ toggleLoginPopup, onLoginSuccess }) => {
             {step === 3 && (
               <VerifyCodeForm
                 email={email}
-                codeServer={serverCode}
                 onSubmit={handleVerifyCodeSubmit}
                 onResend={handleResend}
                 goBack={prevStep}
@@ -250,6 +274,22 @@ const LoginPopup = ({ toggleLoginPopup, onLoginSuccess }) => {
                 onSubmit={handleResetPassword}
                 goBack={() => setStep(3)}
               />
+            )}
+
+            {step === 5 && (
+              <div className="reset-success-panel">
+                <div className="reset-success-icon">✓</div>
+                <h4>Đổi mật khẩu thành công</h4>
+                <p>{resetSuccessMessage}</p>
+                <div className="reset-success-actions">
+                  <button type="button" className="btn-login-now" onClick={goToLoginAfterReset}>
+                    Quay lại đăng nhập
+                  </button>
+                  <button type="button" className="btn-home-now" onClick={goHomeAfterReset}>
+                    Về trang chủ
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </section>

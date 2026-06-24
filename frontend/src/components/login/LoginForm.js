@@ -12,6 +12,8 @@ const LoginForm = ({
   loginError,
   googleClientId,
   facebookAppId,
+  rememberLogin,
+  setRememberLogin,
   onGoogleCode,
   onFacebookAccessToken,
   onSubmit,
@@ -21,7 +23,7 @@ const LoginForm = ({
   const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <form onSubmit={onSubmit}>
+    <form onSubmit={onSubmit} autoComplete="on">
       {loginError && (
         // 🚨 Hiển thị lỗi backend (sai thông tin, token lỗi, v.v.)
         <div className="login-error-message" role="alert">
@@ -33,10 +35,12 @@ const LoginForm = ({
         {/* 📧 Input email đăng nhập */}
         <input
           type="email"
+          name="email"
           className="form-control form-control-lg"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          autoComplete="username"
           required
         />
       </div>
@@ -45,10 +49,12 @@ const LoginForm = ({
         {/* 🔒 Input mật khẩu */}
         <input
           type={showPassword ? "text" : "password"}
+          name="password"
           className="form-control form-control-lg"
           placeholder="Mật khẩu"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
           required
         />
         {password && (
@@ -67,7 +73,13 @@ const LoginForm = ({
       <div className="d-flex justify-content-between mb-3">
         {/* 🧠 Checkbox ghi nhớ (UI-level) */}
         <div>
-          <input type="checkbox" id="remember" className="form-check-input" />
+          <input
+            type="checkbox"
+            id="remember"
+            className="form-check-input"
+            checked={rememberLogin}
+            onChange={(e) => setRememberLogin(e.target.checked)}
+          />
           <label htmlFor="remember" className="form-check-label ms-1">Ghi nhớ</label>
         </div>
         <button

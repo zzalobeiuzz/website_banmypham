@@ -215,6 +215,26 @@ const Header = ({ chatBadgeCount = 0, chatRooms = [], onOpenMiniChatRoom }) => {
     };
   }, [popupMiniChatRooms.length]);
 
+  useEffect(() => {
+    if (!isAdminChatPage) return;
+    setMiniChatRooms([]);
+    try {
+      window.__adminMiniChatOpenCount = 0;
+    } catch (e) {}
+  }, [isAdminChatPage]);
+
+  useEffect(() => {
+    const closeMiniChatsOnAdminChatPage = () => {
+      setMiniChatRooms([]);
+      try {
+        window.__adminMiniChatOpenCount = 0;
+      } catch (e) {}
+    };
+
+    window.addEventListener("admin-chat-page-active", closeMiniChatsOnAdminChatPage);
+    return () => window.removeEventListener("admin-chat-page-active", closeMiniChatsOnAdminChatPage);
+  }, []);
+
   const insertRoomIntoOpenStack = useCallback((prevRooms, room) => {
     const nextRooms = prevRooms.filter((item) => String(item?.RoomID) !== String(room.RoomID));
     const firstMinimizedIndex = nextRooms.findIndex((item) => Boolean(item?.__isMinimized));
@@ -306,6 +326,12 @@ const Header = ({ chatBadgeCount = 0, chatRooms = [], onOpenMiniChatRoom }) => {
 
       // Đóng menu chat dropdown khi có auto-open từ socket
       setOpenMenu("");
+
+      if (isAdminChatPage) {
+        window.dispatchEvent(new CustomEvent("admin-open-room", { detail: room }));
+        return;
+      }
+
       setMiniChatRooms((prev) => {
         const cleaned = prev.filter((r) => String(r?.RoomID) !== String(room.RoomID));
         const firstMinimizedIndex = cleaned.findIndex((r) => Boolean(r?.__isMinimized));
@@ -326,7 +352,7 @@ const Header = ({ chatBadgeCount = 0, chatRooms = [], onOpenMiniChatRoom }) => {
 
     window.addEventListener("admin-auto-open-room", handleAutoOpenRoom);
     return () => window.removeEventListener("admin-auto-open-room", handleAutoOpenRoom);
-  }, []);
+  }, [isAdminChatPage]);
 
   const closeMiniChatRoom = (roomId) => {
     setMiniChatRooms((prev) => prev.filter((r) => String(r?.RoomID) !== String(roomId)));
@@ -692,7 +718,7 @@ const Header = ({ chatBadgeCount = 0, chatRooms = [], onOpenMiniChatRoom }) => {
           </div>
         )}
 
-        {popupMiniChatRooms.map((r, idx) => (
+        {!isAdminChatPage && popupMiniChatRooms.map((r, idx) => (
           <AdminMiniChatPopup
             key={r.RoomID}
             room={r}
@@ -703,7 +729,7 @@ const Header = ({ chatBadgeCount = 0, chatRooms = [], onOpenMiniChatRoom }) => {
           />
         ))}
 
-        {avatarMiniChatRooms.map((r, idx) => (
+        {!isAdminChatPage && avatarMiniChatRooms.map((r, idx) => (
           <AdminMiniChatPopup
             key={r.RoomID}
             room={r}

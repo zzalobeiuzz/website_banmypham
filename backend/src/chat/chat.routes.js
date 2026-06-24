@@ -4,6 +4,7 @@ const router = express.Router();
 const authMiddleware = require("../user/middlewares/auth.middleware");
 const chatController = require("./chat.controller");
 
+
 // lây thông tin phòng chat hỗ trợ của người dùng hiện tại (dành cho người dùng)
 router.get("/me/room", authMiddleware.verifyToken, chatController.getMySupportRoom);
 // Lấy tin nhắn của một phòng chat cụ thể (dành cho người dùng và admin đã có quyền truy cập)

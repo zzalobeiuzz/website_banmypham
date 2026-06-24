@@ -5,7 +5,6 @@ import { API_BASE, UPLOAD_BASE } from "../../../constants";
 import useHttp from "../../../hooks/useHttp";
 import "./AllProductsPage.scss";
 import BrandProductFilter from "../homePage/components/ProductFilter";
-import TitleBanner from "../homePage/components/TitleBanner";
 import ProductCard from "../homePage/components/ProductCard";
 import { ROUTERS } from "../../../utils/router";
 import noProductAnimation from "../../../animation/no_product.json";
@@ -186,25 +185,6 @@ export default function AllProductsPage() {
       ? (v / 1000000).toFixed(1) + "tr"
       : v.toLocaleString("vi-VN") + "đ";
 
-  // URL cho cấp category: breadcrumb sẽ quay về trang danh mục cha.
-  const buildCategoryPageUrl = (categoryName) => {
-    const normalizedCategory = String(categoryName || "").trim();
-    if (!normalizedCategory || normalizedCategory === "all") return "/";
-    return `/${"all-products"}/${encodeURIComponent(normalizedCategory)}`;
-  };
-
-  // URL cho cấp subcategory: giữ cả category + subCategory để trang lọc đúng 2 tầng.
-  const buildSubCategoryPageUrl = (categoryName, subCategoryName) => {
-    const normalizedCategory = String(categoryName || "").trim();
-    const normalizedSubCategory = String(subCategoryName || "").trim();
-    if (!normalizedCategory || normalizedCategory === "all") return "/";
-
-    const basePath = `/${"all-products"}/${encodeURIComponent(normalizedCategory)}`;
-    if (!normalizedSubCategory || normalizedSubCategory === "all") return basePath;
-
-    return `${basePath}?category=${encodeURIComponent(normalizedCategory)}&subCategory=${encodeURIComponent(normalizedSubCategory)}`;
-  };
-
   // Nếu là category động: dùng API loadAllProducts rồi filter phía client theo selectedCategory.
   const config =
     TITLE_MAP[type] ||
@@ -214,49 +194,6 @@ export default function AllProductsPage() {
           api: `${API_BASE}/api/user/products/loadAllProducts`,
         }
       : TITLE_MAP["flash-sale"]);
-
-  const bannerBreadcrumbItems = React.useMemo(() => {
-    const items = [{ title: "Trang chủ", url: "/" }];
-    const categoryTitle = String(selectedCategory || "").trim();
-    const subCategoryTitle = String(selectedSubCategory || "").trim();
-    // Nếu có từ khóa tìm kiếm (searchText) thì ưu tiên hiển thị breadcrumb của tìm kiếm
-    const rawPageTitle = String(config?.title || "").trim();
-    const pageTitle = searchText ? `Tìm kiếm: ${searchText}` : rawPageTitle;
-    const shouldUseCategoryPathBreadcrumb = isCategoryType || categoryTitle !== "all" || subCategoryTitle !== "all";
-
-    if (isEventPage) {
-      items.push({ title: "Sự kiện", url: `/${ROUTERS.USER.PROMOTIONS}` });
-      items.push({ title: eventDetail?.title || "Sự kiện", url: null });
-      return items;
-    }
-
-    // Với route động theo category/subcategory thì chỉ giữ chuỗi: Trang chủ > Category > Subcategory.
-    // Nếu có từ khóa tìm kiếm -> hiển thị Trang chủ > Tìm kiếm: <từ khóa> và dừng.
-    if (searchText) {
-      items.push({ title: pageTitle, url: null });
-      return items;
-    }
-
-    if (pageTitle && !shouldUseCategoryPathBreadcrumb) {
-      items.push({ title: pageTitle, url: null });
-    }
-
-    if (categoryTitle && categoryTitle !== "all") {
-      items.push({
-        title: categoryTitle,
-        url: buildCategoryPageUrl(categoryTitle),
-      });
-    }
-
-    if (subCategoryTitle && subCategoryTitle !== "all") {
-      items.push({
-        title: subCategoryTitle,
-        url: buildSubCategoryPageUrl(categoryTitle, subCategoryTitle),
-      });
-    }
-
-    return items;
-  }, [config?.title, selectedCategory, selectedSubCategory, isCategoryType, searchText, isEventPage, eventDetail?.title]);
 
   useEffect(() => {
     let mounted = true;
@@ -386,10 +323,6 @@ export default function AllProductsPage() {
 
   return (
     <section className="all-products-page-2col container">
-      <TitleBanner
-        option={isEventPage ? (eventDetail?.title || "Sự kiện") : config.title}
-        breadcrumbItems={bannerBreadcrumbItems}
-      />
       {isEventPage && eventDetail ? (
         <div
           className="event-products-hero"

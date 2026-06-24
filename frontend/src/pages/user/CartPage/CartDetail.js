@@ -9,7 +9,6 @@ import { useLocation } from "react-router-dom";
 import lottie from "lottie-web";
 import "./cart.scss";
 import useHttp from "../../../hooks/useHttp";
-import TitleBanner from "../homePage/components/TitleBanner";
 import { API_BASE, UPLOAD_BASE } from "../../../constants";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
@@ -838,8 +837,6 @@ const Cart = () => {
 
   return (
     <>
-      <TitleBanner option={"Giỏ hàng"} />
-
       <div className="cart-detail-page">
         {isPaymentPending && (
           <div className="payment-lock-overlay">

@@ -97,11 +97,6 @@ const SupportPage = () => {
     <main className="contact-page support-page">
       <section className="support-hero">
         <div className="support-hero__content">
-          <div className="contact-breadcrumb">
-            <Link to="/">Trang chủ</Link>
-            <span>/</span>
-            <strong>Hỗ trợ khách hàng</strong>
-          </div>
           <span className="contact-eyebrow">Trung tâm hỗ trợ</span>
           <h1>Bạn cần hỗ trợ vấn đề gì?</h1>
           <p>

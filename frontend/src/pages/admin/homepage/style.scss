@@ -461,7 +461,6 @@
   border-radius: 0 ;
   background: transparent ;
   color: #000 ;
-  gap: 40px ;
   font-size: 18px ;
   font-weight: 400 ;
   text-align: left ;
@@ -662,4 +661,37 @@
 
 .homepage .menu-panel.collapsed .app-sidebar .vertical-nav-menu .menu-section .list-child .child button {
   justify-content: center;
+}
+
+/* Sidebar submenu text: keep icon + label inside the card without clipping. */
+.homepage .menu-panel:not(.collapsed) .app-sidebar .vertical-nav-menu .menu-section .list-child {
+  padding: 0 8px 0 36px ;
+  overflow: visible ;
+}
+
+.homepage .menu-panel:not(.collapsed) .app-sidebar .vertical-nav-menu .menu-section .list-child .child button {
+  display: grid ;
+  grid-template-columns: 40px minmax(0, 1fr) ;
+  gap: 18px ;
+  width: 100% ;
+  min-width: 0 ;
+  padding: 0 6px 0 0 ;
+  box-sizing: border-box ;
+  overflow: hidden ;
+}
+
+.homepage .menu-panel:not(.collapsed) .app-sidebar .vertical-nav-menu .menu-section .list-child .child button img {
+  justify-self: center ;
+  flex: 0 0 auto ;
+}
+
+.homepage .menu-panel:not(.collapsed) .app-sidebar .vertical-nav-menu .menu-section .list-child .child button span {
+  justify-self: start ;
+  min-width: 0 ;
+  max-width: 100% ;
+  overflow: hidden ;
+  text-overflow: ellipsis ;
+  white-space: nowrap ;
+  text-align: left ;
+  line-height: 1.25 ;
 }

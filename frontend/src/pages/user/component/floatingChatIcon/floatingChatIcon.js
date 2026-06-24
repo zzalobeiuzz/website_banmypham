@@ -28,6 +28,23 @@ const resolveChatUserId = (value) => {
     .toLowerCase();
 };
 
+const decodeJwtPayload = (token) => {
+  try {
+    const payload = String(token || "").split(".")[1];
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const json = decodeURIComponent(
+      atob(normalized)
+        .split("")
+        .map((char) => `%${`00${char.charCodeAt(0).toString(16)}`.slice(-2)}`)
+        .join(""),
+    );
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+};
+
 /**
  * =========================================================
  * HIỂN THỊ LỖI THÂN THIỆN
@@ -171,13 +188,24 @@ const FloatingChatIcon = ({
    * USER ID HIỆN TẠI
    * =========================================================
    */
-  const currentUserId = resolveChatUserId(user?.id || user?.UserID);
+  const accessToken = localStorage.getItem("accessToken");
+  const tokenUser = decodeJwtPayload(accessToken);
+  const currentUserId = resolveChatUserId(
+    user?.id ||
+      user?.UserID ||
+      user?.email ||
+      user?.Email ||
+      tokenUser?.id ||
+      tokenUser?.UserID ||
+      tokenUser?.email ||
+      tokenUser?.Email,
+  );
 
   /**
    * Kiểm tra đăng nhập
    */
   const isAuthenticated = Boolean(
-    currentUserId && localStorage.getItem("accessToken"),
+    accessToken && (currentUserId || tokenUser),
   );
 
   /**
@@ -401,6 +429,7 @@ const FloatingChatIcon = ({
     socket.on("connect", () => {
       if (!mounted) return;
       setConnectionStatus("Đã kết nối");
+      setIsConnecting(false);
     });
 
     // Handlers lifecycle: log và cập nhật trạng thái khi socket tự reconnect
@@ -459,6 +488,7 @@ const FloatingChatIcon = ({
       }
 
       setConnectionStatus(err?.message || "Lỗi kết nối");
+      setIsConnecting(false);
     });
 
     socket.on("connect_timeout", () => {
@@ -469,6 +499,7 @@ const FloatingChatIcon = ({
     socket.on("disconnect", () => {
       if (!mounted) return;
       setConnectionStatus("Mất kết nối");
+      setIsConnecting(false);
     });
 
     // === SẲN SÀNG CHAT ===
@@ -691,7 +722,7 @@ const FloatingChatIcon = ({
 
   // Khi user logout (user từ context trở về null), xóa toàn bộ tin nhắn lưu trong state và đóng socket
   useEffect(() => {
-    if (!user) {
+    if (!user && !localStorage.getItem("accessToken")) {
       try {
         setMessages([]);
         setRoom(null);
@@ -715,7 +746,7 @@ const FloatingChatIcon = ({
     const handleUserUpdated = () => {
       try {
         const stored = localStorage.getItem("user");
-        if (!stored) {
+        if (!stored && !localStorage.getItem("accessToken")) {
           setMessages([]);
           setRoom(null);
           setSelectedMessageId(null);
@@ -863,11 +894,13 @@ const FloatingChatIcon = ({
       return;
     }
 
-    // If not authenticated, open login popup immediately and don't open chat panel
     if (!isAuthenticated) {
+      setShowSupportMenu(false);
+      setConnectionStatus("Vui lòng đăng nhập để chat với nhân viên.");
       try { window.dispatchEvent(new Event("open-login")); } catch (e) {}
       return;
     }
+
 
     setShowSupportMenu(false);
 
@@ -992,7 +1025,7 @@ const FloatingChatIcon = ({
    * GỬI TIN NHẮN
    * =========================================================
    */
-  const sendMessage = () => {
+  const sendMessage = async () => {
     /**
      * Trim message
      */
@@ -1001,7 +1034,19 @@ const FloatingChatIcon = ({
     /**
      * Validate
      */
-    if (!text || !room?.RoomID || !socketRef.current) {
+    if (!text) {
+      return;
+    }
+
+
+    if (!isAuthenticated) {
+      setConnectionStatus("Vui lòng đăng nhập để gửi tin nhắn cho shop.");
+      try { window.dispatchEvent(new Event("open-login")); } catch (e) {}
+      return;
+    }
+
+    if (!room?.RoomID || !socketRef.current) {
+      setConnectionStatus("Chat đang kết nối, vui lòng chờ vài giây rồi gửi lại.");
       return;
     }
 

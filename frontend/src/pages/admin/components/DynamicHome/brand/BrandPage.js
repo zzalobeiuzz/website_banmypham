@@ -182,12 +182,6 @@ const BrandPage = () => {
     setDetailBrand(brand || null);
   };
 
-  const goToBrandProducts = (brand) => {
-    const id = encodeURIComponent(brand?.idBrand || "");
-    if (!id) return;
-    navigate(`/admin/brand/${id}/products`);
-  };
-
   const closeBrandDetail = () => {
     setDetailBrand(null);
   };
@@ -456,7 +450,7 @@ const BrandPage = () => {
                   <th>Brand</th>
                   <th>Số sản phẩm</th>
                   <th>Status</th>
-                  <th>Thao tác</th>
+                  <th>Xóa</th>
                 </tr>
               </thead>
               <tbody>
@@ -470,7 +464,19 @@ const BrandPage = () => {
                     String(brand.status).toLowerCase() === "true";
 
                   return (
-                    <tr key={brand.idBrand}>
+                    <tr
+                      key={brand.idBrand}
+                      className="brand-table__row-clickable"
+                      onClick={() => openBrandDetail(brand)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          openBrandDetail(brand);
+                        }
+                      }}
+                      tabIndex={0}
+                      title="Bấm để xem chi tiết và sản phẩm của thương hiệu"
+                    >
                       <td>{brand.idBrand ?? "N/A"}</td>
                       <td>
                         {logoUrl ? (
@@ -499,24 +505,14 @@ const BrandPage = () => {
                         <div className="brand-table__actions">
                           <button
                             type="button"
-                            className="brand-btn-detail"
-                            onClick={() => openBrandDetail(brand)}
-                          >
-                            Xem chi tiết
-                          </button>
-                          <button
-                            type="button"
-                            className="brand-btn-products"
-                            onClick={() => goToBrandProducts(brand)}
-                            aria-label="Xem sản phẩm"
-                            title="Xem sản phẩm"
-                          >
-                            +
-                          </button>
-                          <button
-                            type="button"
                             className="brand-btn-delete"
-                            onClick={() => handleDeleteBrand(brand)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleDeleteBrand(brand);
+                            }}
+                            onKeyDown={(event) => {
+                              event.stopPropagation();
+                            }}
                             aria-label="Xóa thương hiệu"
                             title="Xóa thương hiệu"
                           >

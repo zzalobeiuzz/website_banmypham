@@ -60,7 +60,8 @@ const BrandDetailPopup = ({
   const [loadingProducts, setLoadingProducts] = useState(false);
   const showLoadingProducts = useMinimumLoading(loadingProducts, 500);
   // Trạng thái popup đang ở chế độ chỉnh sửa hay chỉ xem.
-  const [isEditing, setIsEditing] = useState(false);
+  const [activeTab, setActiveTab] = useState("info");
+  const [editingTab, setEditingTab] = useState("");
   // Trạng thái kéo-thả logo để đổi style vùng upload.
   const [isDraggingLogo, setIsDraggingLogo] = useState(false);
   // File logo mới người dùng chọn từ máy.
@@ -80,7 +81,8 @@ const BrandDetailPopup = ({
   useEffect(() => {
     if (!brand) return;
 
-    setIsEditing(false);
+    setActiveTab("info");
+    setEditingTab("");
     setIsDraggingLogo(false);
     setLogoFile(null);
 
@@ -199,6 +201,8 @@ const BrandDetailPopup = ({
 
   const logoUrl = logoPreview || resolveBrandLogoUrl(form.logo_url);
   const active = isBrandActive(form.status);
+  const isInfoEditing = editingTab === "info";
+  const isProductsEditing = editingTab === "products";
 
   // Cập nhật từng field trong form chỉnh sửa.
   const handleChange = (key, value) => {
@@ -241,7 +245,7 @@ const BrandDetailPopup = ({
 
   // Hủy chỉnh sửa: đưa form và vùng gợi ý về trạng thái ban đầu theo brand hiện tại.
   const handleCancelEdit = () => {
-    setIsEditing(false);
+    setEditingTab("");
     setIsDraggingLogo(false);
     setLogoFile(null);
     const normalizedStatus = isBrandActive(brand.status) ? "1" : "0";
@@ -262,6 +266,14 @@ const BrandDetailPopup = ({
   };
 
   // Chọn/bỏ chọn sản phẩm trong danh sách gợi ý.
+  const handleChangeTab = (nextTab) => {
+    if (nextTab === activeTab) return;
+    if (editingTab) {
+      handleCancelEdit();
+    }
+    setActiveTab(nextTab);
+  };
+
   const toggleSuggestProduct = (productId) => {
     const normalized = String(productId || "").trim();
     if (!normalized) return;
@@ -313,7 +325,7 @@ const BrandDetailPopup = ({
     });
 
     if (ok) {
-      setIsEditing(false);
+      setEditingTab("");
       setLogoFile(null);
       setSelectedSuggestProductIds([]);
       setShowSuggestPicker(false);
@@ -346,11 +358,11 @@ const BrandDetailPopup = ({
         <div className="brand-detail-modal__header">
           <h3>Chi tiết thương hiệu</h3>
           <div className="brand-detail-modal__header-actions">
-            {!isEditing && (
+            {!editingTab && (
               <button
                 type="button"
                 className="brand-btn-detail-edit"
-                onClick={() => setIsEditing(true)}
+                onClick={() => setEditingTab(activeTab)}
                 aria-label="Chỉnh sửa"
                 title="Chỉnh sửa"
               >
@@ -377,6 +389,29 @@ const BrandDetailPopup = ({
 
         <div ref={detailModalBodyRef} className="brand-detail-modal__body">
           <div className="brand-detail-form">
+            <div className="brand-detail-tabs" role="tablist" aria-label="Nội dung chi tiết thương hiệu">
+              <button
+                type="button"
+                className={`brand-detail-tab ${activeTab === "info" ? "active" : ""}`}
+                onClick={() => handleChangeTab("info")}
+                role="tab"
+                aria-selected={activeTab === "info"}
+              >
+                Thông tin thương hiệu
+              </button>
+              <button
+                type="button"
+                className={`brand-detail-tab ${activeTab === "products" ? "active" : ""}`}
+                onClick={() => handleChangeTab("products")}
+                role="tab"
+                aria-selected={activeTab === "products"}
+              >
+                Sản phẩm thuộc thương hiệu
+              </button>
+            </div>
+
+            {activeTab === "info" && (
+              <>
             <div className="brand-detail-top">
               <div className="brand-detail-logo-wrap">
                 <div className="brand-detail-logo-box">
@@ -387,7 +422,7 @@ const BrandDetailPopup = ({
                   )}
                 </div>
 
-                {isEditing && (
+                {isInfoEditing && (
                   <div
                     className={`brand-detail-logo-upload ${isDraggingLogo ? "dragging" : ""}`}
                     onDragOver={(e) => {
@@ -430,13 +465,13 @@ const BrandDetailPopup = ({
                     type="text"
                     value={form.Brand}
                     onChange={(e) => handleChange("Brand", e.target.value)}
-                    disabled={!isEditing}
+                    disabled={!isInfoEditing}
                   />
                 </div>
 
                 <div className="brand-detail-info-item">
                   <label>Trạng thái</label>
-                  {isEditing ? (
+                  {isInfoEditing ? (
                     <select
                       className="brand-detail-input"
                       value={form.status}
@@ -459,7 +494,7 @@ const BrandDetailPopup = ({
             <div className="brand-detail-bottom">
               <label>Mô tả</label>
               <div className="brand-detail-modal__description">
-                {isEditing ? (
+                {isInfoEditing ? (
                   <ReactQuill
                     theme="snow"
                     modules={quillModules}
@@ -477,7 +512,11 @@ const BrandDetailPopup = ({
                 )}
               </div>
             </div>
+              </>
+            )}
 
+            {activeTab === "products" && (
+              <>
             <div className="brand-detail-bottom">
               <label>Sản phẩm thuộc thương hiệu</label>
               <div className="brand-related-products">
@@ -529,7 +568,7 @@ const BrandDetailPopup = ({
               </div>
             </div>
 
-            {isEditing && (
+            {isProductsEditing && (
               <div className="brand-detail-bottom">
                 <label>Gợi ý thêm sản phẩm vào thương hiệu</label>
                 <div className="brand-suggest-products">
@@ -601,9 +640,11 @@ const BrandDetailPopup = ({
                 </div>
               </div>
             )}
+              </>
+            )}
 
             <div className="brand-detail-modal__actions">
-              {isEditing && (
+              {editingTab && (
                 <>
                   <button type="button" className="brand-btn-detail-cancel" onClick={handleCancelEdit}>
                     Hủy
@@ -614,7 +655,11 @@ const BrandDetailPopup = ({
                     onClick={handleSave}
                     disabled={saving}
                   >
-                    {saving ? "Đang lưu..." : "Lưu thay đổi"}
+                    {saving
+                      ? "Đang lưu..."
+                      : editingTab === "products"
+                      ? "Lưu sản phẩm"
+                      : "Lưu thông tin"}
                   </button>
                 </>
               )}

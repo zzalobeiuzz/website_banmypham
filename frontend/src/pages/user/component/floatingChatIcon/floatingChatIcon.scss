@@ -185,6 +185,7 @@
 
   &__messages {
     flex: 1;
+    min-height: 0;
     padding: 14px;
     overflow-y: auto;
     background: #f8fafc;
@@ -368,12 +369,16 @@
   }
 
   &__composer {
+    position: relative;
+    z-index: 6;
+    flex: 0 0 auto;
     padding: 12px;
     border-top: 1px solid #e2e8f0;
     background: #fff;
     display: flex;
     gap: 8px;
     align-items: flex-end;
+    pointer-events: auto;
   }
 
   &__draft-preview,
@@ -506,6 +511,8 @@
 
   &__input {
     flex: 1;
+    position: relative;
+    z-index: 7;
     resize: none;
     border: 1px solid #cbd5e1;
     border-radius: 12px;
@@ -513,9 +520,18 @@
     font-size: 13px;
     outline: none;
     min-height: 46px;
+    pointer-events: auto;
+    background: #fff;
+
+    &:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+    }
   }
 
   &__send {
+    position: relative;
+    z-index: 7;
     border: none;
     background: #2563eb;
     color: #fff;

@@ -1,8 +1,11 @@
 // 📦 Import các thư viện cần thiết
+import { jwtDecode } from "jwt-decode";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_BASE, UPLOAD_BASE } from "../../constants";
 import useHttp from "../../hooks/useHttp";
+import FacebookLoginButton from "../login/social/FacebookLoginButton";
+import GoogleLoginButton from "../login/social/GoogleLoginButton";
 import "./wizardForm.scss";
 
 const WizardForm = () => {
@@ -11,11 +14,14 @@ const WizardForm = () => {
   const [step, setStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
-  const [sentCode, setSentCode] = useState("");
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [emailError, setEmailError] = useState(null);
   const [verificationError, setVerificationError] = useState("");
+  const [socialError, setSocialError] = useState("");
+  const [socialLoading, setSocialLoading] = useState("");
+  const googleClientId = String(process.env.REACT_APP_GOOGLE_CLIENT_ID || "").trim();
+  const facebookAppId = String(process.env.REACT_APP_FACEBOOK_APP_ID || "").trim();
 
   const labelMap = {
     email: "Email",
@@ -91,12 +97,12 @@ const WizardForm = () => {
   const handleSubmitEmail = async () => {
     const payload = { email: formData.account.email, use: "register" };
     setEmailError(null);
-    setSentCode("");
+    setVerificationCode("");
+    setVerificationError("");
     try {
       const response = await request("POST", `${API_BASE}/api/user/auth/sendVerificationCode`, payload);
-      const { success, message, code } = response;
+      const { success, message } = response;
       if (success) {
-        setSentCode(code);
         setStep(4);
         setResendCooldown(120);
       } else {
@@ -114,6 +120,7 @@ const WizardForm = () => {
     const payload = {
       ...formData.account,
       ...formData.personal,
+      verificationCode: String(verificationCode || "").trim(),
       role: 0,
     };
     try {
@@ -125,12 +132,70 @@ const WizardForm = () => {
       }
     } catch (err) {
       console.error("Lỗi gửi đăng ký:", err);
-      alert("Đã xảy ra lỗi khi gửi dữ liệu đăng ký.");
+      alert(err?.message || "Đã xảy ra lỗi khi gửi dữ liệu đăng ký.");
     }
   };
 
   const handleResendCode = async () => {
     await handleSubmitEmail();
+  };
+
+  const finishSocialAuth = (accessToken, refreshToken, fallbackProfile = null) => {
+    localStorage.setItem("accessToken", accessToken);
+    localStorage.setItem("refreshToken", refreshToken);
+    localStorage.setItem("authRemember", "true");
+    sessionStorage.setItem("authSessionActive", "true");
+
+    const decoded = jwtDecode(accessToken);
+    const mergedUser = {
+      ...decoded,
+      email:
+        decoded?.email ||
+        String(fallbackProfile?.email || "").trim().toLowerCase() ||
+        "",
+      avatar:
+        decoded?.avatar ||
+        String(fallbackProfile?.picture?.data?.url || "").trim() ||
+        null,
+    };
+
+    localStorage.setItem("user", JSON.stringify(mergedUser));
+    window.location.href = Number(mergedUser.role) === 1 ? "/admin" : "/";
+  };
+
+  const handleGoogleRegister = async (code) => {
+    try {
+      setSocialError("");
+      setSocialLoading("google");
+      const res = await request("POST", `${API_BASE}/api/user/auth/google-login`, { code });
+      if (!res?.accessToken || !res?.refreshToken) {
+        throw new Error("Google khong tra ve token hop le.");
+      }
+      finishSocialAuth(res.accessToken, res.refreshToken);
+    } catch (error) {
+      setSocialError(error?.message || "Dang ky bang Google that bai.");
+    } finally {
+      setSocialLoading("");
+    }
+  };
+
+  const handleFacebookRegister = async (accessToken, facebookProfile = null) => {
+    try {
+      setSocialError("");
+      setSocialLoading("facebook");
+      const res = await request("POST", `${API_BASE}/api/user/auth/facebook-login`, {
+        accessToken,
+        facebookProfile,
+      });
+      if (!res?.accessToken || !res?.refreshToken) {
+        throw new Error("Facebook khong tra ve token hop le.");
+      }
+      finishSocialAuth(res.accessToken, res.refreshToken, facebookProfile);
+    } catch (error) {
+      setSocialError(error?.message || "Dang ky bang Facebook that bai.");
+    } finally {
+      setSocialLoading("");
+    }
   };
 
   useEffect(() => {
@@ -205,16 +270,20 @@ const WizardForm = () => {
             <div className="sign-up-social">
               <span>Đăng ký với</span>
               <div className="social-buttons">
-                {["google", "facebook"].map((name) => (
-                  <button key={name} className={`social ${name}`} type="button">
-                    <img
-                      src={`${UPLOAD_BASE}/icons/icons8-${name}-24.png`}
-                      alt={name}
-                      loading="lazy"
-                    />
-                  </button>
-                ))}
+                <GoogleLoginButton
+                  googleClientId={googleClientId}
+                  onGoogleCode={handleGoogleRegister}
+                  label={socialLoading === "google" ? "Đang xử lý..." : "Google"}
+                  compact
+                />
+                <FacebookLoginButton
+                  facebookAppId={facebookAppId}
+                  onFacebookAccessToken={handleFacebookRegister}
+                  label={socialLoading === "facebook" ? "Đang xử lý..." : "Facebook"}
+                  compact
+                />
               </div>
+              {socialError ? <p className="social-error">{socialError}</p> : null}
               <span className="return-login">
                 Bạn đã có tài khoản?{" "}
                 <button
@@ -298,11 +367,12 @@ const WizardForm = () => {
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  if (verificationCode === sentCode) {
-                    handleSubmit(e);
-                  } else {
-                    setVerificationError("Mã xác thực không đúng. Vui lòng kiểm tra lại email.");
+                  const cleanCode = String(verificationCode || "").trim();
+                  if (!/^\d{6}$/.test(cleanCode)) {
+                    setVerificationError("Mã xác thực phải gồm đúng 6 chữ số.");
+                    return;
                   }
+                  handleSubmit(e);
                 }}
               >
                 <h3>Xác thực Email</h3>

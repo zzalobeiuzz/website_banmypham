@@ -59,8 +59,62 @@ exports.facebookLoginHandler = async (req, res) => {
 //================= Xử lý đăng ký =================
 exports.registerHandler = async (req, res) => {
   try {
-    const result = await register(req.body);
-    res.status(200).json(result);
+    const cleanEmail = String(req.body?.email || "").trim().toLowerCase();
+    const cleanCode = String(req.body?.verificationCode || "").trim();
+
+    if (!cleanEmail || !cleanCode) {
+      return res.status(400).json({
+        success: false,
+        message: "Thiếu email hoặc mã xác thực.",
+      });
+    }
+
+    // Khi đăng ký, mã xác thực cũng được lưu trong session giống luồng quên mật khẩu.
+    // Backend lấy mã trong session ra để so, frontend không được tự giữ mã server trả về.
+    const verifications = req.session.verifications || {};
+    const sessionData = verifications[cleanEmail];
+
+    if (!sessionData) {
+      return res.status(400).json({
+        success: false,
+        message: "Không tìm thấy mã xác thực cho email này.",
+      });
+    }
+
+    if (String(sessionData.code || "").trim() !== cleanCode) {
+      return res.status(400).json({
+        success: false,
+        message: "Mã xác thực không đúng.",
+      });
+    }
+
+    if (sessionData.expireAt && sessionData.expireAt < Date.now()) {
+      return res.status(400).json({
+        success: false,
+        message: "Mã xác thực đã hết hạn.",
+      });
+    }
+
+    const result = await register({
+      ...req.body,
+      email: cleanEmail,
+    });
+
+    if (!result?.success) {
+      return res.status(400).json(result);
+    }
+
+    // Đăng ký thành công thì xoá mã khỏi session để mã không thể dùng lại.
+    delete req.session.verifications[cleanEmail];
+
+    req.session.save((err) => {
+      if (err) {
+        console.error("❌ Lỗi khi lưu session sau đăng ký:", err);
+        return res.status(500).json({ success: false, message: "Lỗi khi lưu session." });
+      }
+
+      res.status(200).json(result);
+    });
     console.log("✅ Đăng ký thành công");
   } catch (err) {
     console.error("❌ Lỗi khi đăng ký:", err.message);
@@ -71,9 +125,10 @@ exports.registerHandler = async (req, res) => {
 //================= Xử lý gửi mã xác thực =================
 exports.sendVerificationCode = async (req, res) => {
   const { email, use } = req.body;
+  const cleanEmail = String(email || "").trim().toLowerCase();
 
   // Check thiếu field
-  if (!email || !use) {
+  if (!cleanEmail || !use) {
     return res.status(400).json({
       success: false,
       message: "Thiếu email hoặc mục đích (use).",
@@ -82,7 +137,7 @@ exports.sendVerificationCode = async (req, res) => {
 
   try {
     // Gọi service (service đã gửi email luôn)
-    const result = await generateAndSendVerificationCode(email, use);
+    const result = await generateAndSendVerificationCode(cleanEmail, use);
 
     if (!result.success) {
       return res.status(400).json({
@@ -93,29 +148,33 @@ exports.sendVerificationCode = async (req, res) => {
 
     const code = result.code;
 
-    // 🔑 Nếu chưa có object verifications, khởi tạo
+    // Tạo vùng lưu mã xác thực trong session nếu phiên hiện tại chưa có.
+    // Dữ liệu này nằm trong req.session và sẽ được store session ghi xuống SQL Server.
     if (!req.session.verifications) {
       req.session.verifications = {};
     }
 
-    // 💾 Lưu code và thời hạn vào session (key = email)
-    req.session.verifications[email] = {
+    // Lưu mã xác thực theo email để lát nữa so với mã người dùng nhập.
+    // Vì session đang cấu hình MSSQLStore, khi gọi req.session.save()
+    // dữ liệu này sẽ được lưu vào bảng "sessions" trong database, không lưu vào bảng OTP riêng.
+    req.session.verifications[cleanEmail] = {
       code,
-      expireAt: Date.now() + 15 * 60 * 1000, // 15 phút
+      expireAt: Date.now() + 15 * 60 * 1000, // Mã chỉ có hiệu lực trong 15 phút.
     };
 
-    // Save session
+    // Ghi session xuống store. Với cấu hình hiện tại, store là SQL Server bảng "sessions".
     req.session.save((err) => {
       if (err) {
         console.error("❌ Lỗi lưu session:", err);
         return res.status(500).json({ success: false, message: "Lỗi lưu session." });
       }
 
-      res.status(200).json({
+      const responsePayload = {
         success: true,
         message: result.message,
-        code: code
-      });
+      };
+
+      res.status(200).json(responsePayload);
     });
   } catch (err) {
     console.error("❌ Lỗi xử lý sendVerificationCode:", err.message);
@@ -136,12 +195,12 @@ exports.resetPasswordHandler = async (req, res) => {
       return res.status(400).json({ success: false, message: "Thiếu thông tin cần thiết." });
     }
     const cleanEmail = email.trim().toLowerCase();
-    // Lấy verifications từ session
+    const cleanCode = String(code || "").trim();
+    // Lấy mã đã lưu trong session theo email người dùng.
+    // Nếu không có dữ liệu này thì có thể session đã hết hạn, email chưa gửi mã,
+    // hoặc request reset không dùng cùng session/cookie với request gửi mã.
     const verifications = req.session.verifications || {};
     const sessionData = verifications[cleanEmail];
-    console.log(cleanEmail)
-    console.log(verifications[cleanEmail].code);
-    console.log(sessionData);
     if (!sessionData) {
       return res.status(400).json({
         success: false,
@@ -149,18 +208,18 @@ exports.resetPasswordHandler = async (req, res) => {
       });
     }
 
-    // Gọi service (kiểm tra code, hạn, update DB)
+    // Gọi service để kiểm tra mã, kiểm tra hạn dùng, sau đó mới hash và cập nhật mật khẩu trong DB.
     await resetPassword({
-      email,
-      code,
+      email: cleanEmail,
+      code: cleanCode,
       newPassword,
       sessionData,
     });
 
-    // Xoá session key
-    delete req.session.verifications[email];
+    // Đổi mật khẩu xong thì xoá mã khỏi session để mã không thể dùng lại lần nữa.
+    delete req.session.verifications[cleanEmail];
 
-    // Save lại session
+    // Lưu lại session sau khi đã xoá mã xác thực.
     req.session.save((err) => {
       if (err) {
         console.error("❌ Lỗi khi lưu session sau xóa:", err);

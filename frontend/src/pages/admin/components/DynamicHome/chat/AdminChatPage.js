@@ -126,6 +126,21 @@ const AdminChatPage = () => {
   const [showSoundMenu, setShowSoundMenu] = useState(false);
   const adminSettingsRef = useRef(null);
 
+  useEffect(() => {
+    try {
+      window.__isAdminChatPageActive = true;
+      document.body.classList.add("admin-chat-page-active");
+      window.dispatchEvent(new Event("admin-chat-page-active"));
+    } catch (e) {}
+
+    return () => {
+      try {
+        window.__isAdminChatPageActive = false;
+        document.body.classList.remove("admin-chat-page-active");
+      } catch (e) {}
+    };
+  }, []);
+
   const initAdminAudio = useCallback(() => {
     // skip admin audio entirely when admin sounds are disabled
     if (window.__disableAdminSounds__) return;
@@ -513,6 +528,24 @@ const AdminChatPage = () => {
 
         mergeRoomFromMessage(roomId, payload, roomId === Number(selectedRoomIdRef.current || 0));
 
+        const matchedRoom = roomsRef.current.find((room) => Number(room?.RoomID || 0) === roomId);
+        const roomToOpen = {
+          ...(payload?.room || matchedRoom || {}),
+          RoomID: roomId,
+          LastMessageText: payload?.MessageText || payload?.text || matchedRoom?.LastMessageText || "",
+          LastMessageAt: payload?.CreatedAt || payload?.createdAt || new Date().toISOString(),
+          __forceReload: true,
+          __latestMessage: payload,
+        };
+
+        if (!isSelectedRoom) {
+          setTimeout(() => {
+            try {
+              selectRoomRef.current?.(roomToOpen);
+            } catch (e) {}
+          }, 0);
+        }
+
         // Increase unread count even when the room is open so the badge is visible for testing
         // and the notification button can be verified.
         const msgKey = String(payload?.MessageID || payload?.id || payload?.MessageGUID || `${roomId}_${payload?.CreatedAt || payload?.createdAt || Date.now()}`);
@@ -659,18 +692,29 @@ const AdminChatPage = () => {
   // Chọn phòng chat: reset unread cục bộ và join room qua socket
   const selectRoom = async (room) => {
     const nextRoomId = Number(room.RoomID || 0);
-    const nextRooms = rooms.map((currentRoom) =>
-      Number(currentRoom.RoomID) === nextRoomId ? { ...currentRoom, UnreadCount: 0 } : currentRoom,
-    );
+    if (!nextRoomId) return;
+
+    const currentRooms = Array.isArray(roomsRef.current) ? roomsRef.current : [];
+    const roomExists = currentRooms.some((currentRoom) => Number(currentRoom.RoomID) === nextRoomId);
+    const nextRooms = roomExists
+      ? currentRooms.map((currentRoom) =>
+          Number(currentRoom.RoomID) === nextRoomId
+            ? { ...currentRoom, ...room, UnreadCount: 0 }
+            : currentRoom,
+        )
+      : [{ ...room, RoomID: nextRoomId, UnreadCount: 0 }, ...currentRooms];
     const nextUnreadCounts = {
       ...unreadCounts,
       [String(nextRoomId)]: 0,
     };
 
-    setSelectedRoom(room);
+    const nextSelectedRoom = nextRooms.find((currentRoom) => Number(currentRoom.RoomID) === nextRoomId) || room;
+
+    setSelectedRoom(nextSelectedRoom);
     setSelectedMessageId(null);
     setUnreadCounts(nextUnreadCounts);
     setRooms(nextRooms);
+    roomsRef.current = nextRooms;
     window.__adminSelectedRoomId = nextRoomId;
 
     // ensure ref used by fetchRooms is up-to-date so server response

@@ -17,6 +17,6 @@ const io = new Server(server, {
 
 attachChatSocket(io);
 
-server.listen(PORT, () => {
-  console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
+server.listen(PORT,"0.0.0.0", () => {
+  console.log(`🚀 Server đang chạy tại http://0.0.0.0:${PORT}`);
 });

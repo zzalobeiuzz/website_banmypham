@@ -1,9 +1,18 @@
 import React from 'react';
 
 // Khu vực soạn tin nhắn của chat nổi.
-// Toàn bộ trạng thái nhập liệu vẫn nằm ở file cha để dễ kiểm soát.
 export default function FloatingChatComposer(props) {
-  const { draftMessage, setDraftMessage, sendMessage, isAuthenticated, isConnecting } = props;
+  const {
+    draftMessage,
+    setDraftMessage,
+    sendMessage,
+    isAuthenticated,
+    isConnecting,
+  } = props;
+
+  const placeholder = isAuthenticated
+    ? (isConnecting ? 'Đang kết nối, bạn vẫn có thể nhập...' : 'Nhập nội dung...')
+    : 'Đăng nhập để chat với nhân viên';
 
   return (
     <div className="floating-chat-panel__composer">
@@ -17,14 +26,14 @@ export default function FloatingChatComposer(props) {
             sendMessage();
           }
         }}
-        placeholder={isAuthenticated ? 'Nhập nội dung...' : 'Vui lòng đăng nhập để chat'}
-        disabled={!isAuthenticated || isConnecting}
+        placeholder={placeholder}
+        disabled={false}
         className="floating-chat-panel__input"
       />
       <button
         type="button"
         onClick={sendMessage}
-        disabled={!isAuthenticated || isConnecting}
+        disabled={!isAuthenticated}
         className="floating-chat-panel__send"
       >
         Gửi

@@ -106,6 +106,17 @@ const AdminMiniChatPopup = ({ room, onClose = () => {}, onActivate = () => {}, o
   const settingsRef = useRef(null);
   const [previewCache, setPreviewCache] = useState({});
   const loadingTimeoutRef = useRef(null);
+  const isAdminChatPage =
+    typeof window !== "undefined" &&
+    (String(window.location?.pathname || "").startsWith("/admin/chat") ||
+      Boolean(window.__isAdminChatPageActive));
+
+  useEffect(() => {
+    if (!isAdminChatPage) return;
+    try {
+      onClose();
+    } catch (e) {}
+  }, [isAdminChatPage, onClose]);
 
   const currentUserId = useMemo(() => {
     try {
@@ -510,6 +521,8 @@ const AdminMiniChatPopup = ({ room, onClose = () => {}, onActivate = () => {}, o
   };
 
   const popupClassName = ["admin-mini-chat-popup", "floating-chat-panel", offsetClass, isAnimatingCollapse ? "is-collapsing" : "", isAnimatingExpand ? "is-expanding" : ""].filter(Boolean).join(" ");
+
+  if (isAdminChatPage) return null;
 
   const popupContent = (
     isMinimized && !isAnimatingExpand ? (

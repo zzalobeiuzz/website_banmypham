@@ -64,6 +64,11 @@ const AdminMasterLayout = () => {
   const adminAudioRef = useRef(null);
   const adminSoundWarmRef = useRef(false);
   const adminSoundKeyRef = useRef("");
+  const adminPathnameRef = useRef(location.pathname);
+
+  useEffect(() => {
+    adminPathnameRef.current = location.pathname;
+  }, [location.pathname]);
 
   const getAdminSoundMuted = useCallback(() => {
     try {
@@ -245,14 +250,17 @@ const AdminMasterLayout = () => {
         // play an alert sound for incoming user messages (admin-wide)
         try { if (typeof window.__adminPlaySound__ === 'function') window.__adminPlaySound__(payload); } catch (e) {}
 
+        const nextRoomPayload = {
+          ...sourceRoom,
+          RoomID: roomId,
+          __forceReload: true,
+          __latestMessage: payload,
+        };
+
+        const isAdminChatPage = String(adminPathnameRef.current || "").startsWith("/admin/chat");
         window.dispatchEvent(
-          new CustomEvent("admin-auto-open-room", {
-            detail: {
-              ...sourceRoom,
-              RoomID: roomId,
-              __forceReload: true,
-              __latestMessage: payload,
-            },
+          new CustomEvent(isAdminChatPage ? "admin-open-room" : "admin-auto-open-room", {
+            detail: nextRoomPayload,
           }),
         );
       }

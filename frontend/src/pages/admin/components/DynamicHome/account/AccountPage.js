@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import useHttp from "../../../../../hooks/useHttp";
 import { API_BASE, UPLOAD_BASE } from "../../../../../constants";
 import ToolBar from "../../ToolBar";
@@ -43,7 +44,7 @@ const COLUMN_LABEL_MAP = {
 };
 
 const DEFAULT_COLUMN_WIDTH = 180;
-const ACTION_COLUMN_WIDTH = 250;
+const ACTION_COLUMN_WIDTH = 330;
 
 const normalizeValue = (value, column = "") => {
   if (String(column).toLowerCase() === "role") {
@@ -109,6 +110,7 @@ const getColumnLabel = (column) => {
 
 const isAvatarColumn = (column) => String(column || "").toLowerCase().includes("avatar");
 const isRoleColumn = (column) => String(column || "").toLowerCase().includes("role");
+const isDateColumn = (column) => /date|time|at/i.test(String(column || ""));
 
 const resolveAvatarSrc = (avatarValue) => {
   const value = String(avatarValue || "").trim();
@@ -119,8 +121,29 @@ const resolveAvatarSrc = (avatarValue) => {
   return `${UPLOAD_BASE}/${normalized}`;
 };
 
+const formatDetailValue = (value, column = "") => {
+  if (isDateColumn(column) && value) {
+    const date = new Date(value);
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleString("vi-VN");
+    }
+  }
+
+  return normalizeValue(value, column) || "-";
+};
+
+const getCurrentUserEmail = () => {
+  try {
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+    return String(user?.email || user?.Email || user?.id || "").trim().toLowerCase();
+  } catch (error) {
+    return "";
+  }
+};
+
 const AccountPage = () => {
   const { request } = useHttp();
+  const navigate = useNavigate();
   const [accounts, setAccounts] = useState([]);
   const [searchKeyword, setSearchKeyword] = useState("");
   const [roleFilter, setRoleFilter] = useState(ROLE_FILTERS.ALL);
@@ -128,15 +151,47 @@ const AccountPage = () => {
   const [deletingEmail, setDeletingEmail] = useState("");
   const [creatingAccount, setCreatingAccount] = useState(false);
   const [showCreatePopup, setShowCreatePopup] = useState(false);
+  const [savingEditAccount, setSavingEditAccount] = useState(false);
+  const [showEditPopup, setShowEditPopup] = useState(false);
+  const [detailAccount, setDetailAccount] = useState(null);
   const [createAccountForm, setCreateAccountForm] = useState({
     email: "",
     displayName: "",
     password: "",
     role: 0,
+    avatarFile: null,
+    avatarUrl: "",
+  });
+  const [editAccountForm, setEditAccountForm] = useState({
+    email: "",
+    displayName: "",
+    avatar: "",
+    avatarFile: null,
+    avatarUrl: "",
+    role: 0,
+    isActive: 1,
   });
   const [loading, setLoading] = useState(false);
   const showLoading = useMinimumLoading(loading, 500);
   const [notify, setNotify] = useState({ open: false, status: "info", message: "" });
+  const editAvatarPreviewUrl = useMemo(() => {
+    if (editAccountForm.avatarFile) {
+      return URL.createObjectURL(editAccountForm.avatarFile);
+    }
+
+    const webAvatar = String(editAccountForm.avatarUrl || "").trim();
+    if (webAvatar) return webAvatar;
+
+    return resolveAvatarSrc(editAccountForm.avatar);
+  }, [editAccountForm.avatar, editAccountForm.avatarFile, editAccountForm.avatarUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (editAvatarPreviewUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(editAvatarPreviewUrl);
+      }
+    };
+  }, [editAvatarPreviewUrl]);
 
   const showPopup = ({ status, message }) => {
     setNotify({
@@ -152,6 +207,63 @@ const AccountPage = () => {
 
   const handleSearchChange = (keyword) => {
     setSearchKeyword(keyword);
+  };
+
+  const closeDetailPopup = () => {
+    setDetailAccount(null);
+  };
+
+  const openEditPopup = (row) => {
+    setEditAccountForm({
+      email: getAccountEmail(row),
+      displayName: String(row?.DisplayName || row?.displayName || "").trim(),
+      avatar: String(row?.Avatar || row?.avatar || "").trim(),
+      avatarFile: null,
+      avatarUrl: "",
+      role: Number(row?.Role) === 1 ? 1 : 0,
+      isActive: Number(row?.IsActive) === 0 ? 0 : 1,
+    });
+    setShowEditPopup(true);
+  };
+
+  const closeEditPopup = () => {
+    if (savingEditAccount) return;
+    setShowEditPopup(false);
+  };
+
+  const handleChangeEditField = (field, value) => {
+    setEditAccountForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleEditAvatarFile = (file) => {
+    if (!file) return;
+    if (!String(file.type || "").startsWith("image/")) {
+      showPopup({ status: "warning", message: "Vui long chon dung file anh avatar." });
+      return;
+    }
+
+    setEditAccountForm((prev) => ({
+      ...prev,
+      avatarFile: file,
+      avatarUrl: "",
+    }));
+  };
+
+  const handleEditAvatarDrop = (event) => {
+    event.preventDefault();
+    handleEditAvatarFile(event.dataTransfer.files?.[0]);
+  };
+
+  const handleEditAvatarDragOver = (event) => {
+    event.preventDefault();
+  };
+
+  const logoutDeletedCurrentAccount = () => {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("user");
+    localStorage.removeItem("cart");
+    navigate("/", { replace: true });
   };
 
   const getAuthHeaders = (token) => ({ Authorization: `Bearer ${token}` });
@@ -333,6 +445,8 @@ const AccountPage = () => {
       displayName: "",
       password: "",
       role: 0,
+      avatarFile: null,
+      avatarUrl: "",
     });
   };
 
@@ -373,13 +487,22 @@ const AccountPage = () => {
     try {
       setCreatingAccount(true);
       let token = localStorage.getItem("accessToken");
+      const payload = new FormData();
+      payload.append("email", email);
+      payload.append("displayName", displayName);
+      payload.append("password", password);
+      payload.append("role", String(role));
+      payload.append("avatarUrl", String(createAccountForm.avatarUrl || "").trim());
+      if (createAccountForm.avatarFile) {
+        payload.append("avatarFile", createAccountForm.avatarFile);
+      }
 
       let res;
       try {
         res = await request(
           "POST",
           `${API_BASE}/api/admin/accounts`,
-          { email, displayName, password, role },
+          payload,
           getAuthHeaders(token),
         );
       } catch (error) {
@@ -388,7 +511,7 @@ const AccountPage = () => {
         res = await request(
           "POST",
           `${API_BASE}/api/admin/accounts`,
-          { email, displayName, password, role },
+          payload,
           getAuthHeaders(token),
         );
       }
@@ -412,11 +535,11 @@ const AccountPage = () => {
   const handleDeleteAccount = async (row) => {
     const email = getAccountEmail(row);
     if (!email) {
-      showPopup({ status: "warning", message: "Không tìm thấy email tài khoản để xóa." });
+      showPopup({ status: "warning", message: "Khong tim thay email tai khoan de xoa." });
       return;
     }
 
-    const confirmed = window.confirm(`Bạn có chắc muốn xóa tài khoản ${email}?`);
+    const confirmed = window.confirm(`Ban co chac muon xoa tai khoan ${email}?`);
     if (!confirmed) return;
 
     try {
@@ -443,19 +566,116 @@ const AccountPage = () => {
       }
 
       if (!res?.success) {
-        showPopup({ status: "error", message: res?.message || "Xóa tài khoản thất bại." });
+        showPopup({ status: "error", message: res?.message || "Xoa tai khoan that bai." });
         return;
       }
 
-      showPopup({ status: "success", message: res?.message || "Xóa tài khoản thành công." });
+      const deletedCurrentAccount = email.toLowerCase() === getCurrentUserEmail();
+      if (deletedCurrentAccount) {
+        showPopup({
+          status: "success",
+          message: "Tai khoan dang dang nhap da bi xoa. He thong se dang xuat.",
+        });
+        window.setTimeout(logoutDeletedCurrentAccount, 500);
+        return;
+      }
+
+      showPopup({ status: "success", message: res?.message || "Xoa tai khoan thanh cong." });
       await fetchAccounts();
     } catch (error) {
-      showPopup({ status: "error", message: error?.message || "Xóa tài khoản thất bại." });
+      showPopup({ status: "error", message: error?.message || "Xoa tai khoan that bai." });
     } finally {
       setDeletingEmail("");
     }
   };
 
+  const handleUpdateAccount = async () => {
+    const email = String(editAccountForm.email || "").trim().toLowerCase();
+    const displayName = String(editAccountForm.displayName || "").trim();
+    const avatar = String(editAccountForm.avatar || "").trim();
+    const role = Number(editAccountForm.role);
+    const isActive = Number(editAccountForm.isActive);
+
+    if (!email) {
+      showPopup({ status: "warning", message: "Khong tim thay email tai khoan de cap nhat." });
+      return;
+    }
+
+    if (!displayName) {
+      showPopup({ status: "warning", message: "Ten hien thi khong duoc de trong." });
+      return;
+    }
+
+    if (role !== 0 && role !== 1) {
+      showPopup({ status: "warning", message: "Vai tro khong hop le." });
+      return;
+    }
+
+    if (isActive !== 0 && isActive !== 1) {
+      showPopup({ status: "warning", message: "Trang thai khong hop le." });
+      return;
+    }
+
+    try {
+      setSavingEditAccount(true);
+      let token = localStorage.getItem("accessToken");
+      const payload = new FormData();
+      payload.append("displayName", displayName);
+      payload.append("avatar", avatar);
+      payload.append("avatarUrl", String(editAccountForm.avatarUrl || "").trim());
+      payload.append("role", String(role));
+      payload.append("isActive", String(isActive));
+      if (editAccountForm.avatarFile) {
+        payload.append("avatarFile", editAccountForm.avatarFile);
+      }
+
+      let res;
+      try {
+        res = await request(
+          "PUT",
+          `${API_BASE}/api/admin/accounts/${encodeURIComponent(email)}`,
+          payload,
+          getAuthHeaders(token),
+        );
+      } catch (error) {
+        if (error?.status !== 401) throw error;
+        token = await refreshAccessToken();
+        res = await request(
+          "PUT",
+          `${API_BASE}/api/admin/accounts/${encodeURIComponent(email)}`,
+          payload,
+          getAuthHeaders(token),
+        );
+      }
+
+      if (!res?.success) {
+        showPopup({ status: "error", message: res?.message || "Cap nhat tai khoan that bai." });
+        return;
+      }
+
+      if (email === getCurrentUserEmail()) {
+        try {
+          const currentUser = JSON.parse(localStorage.getItem("user") || "null");
+          const savedAvatar = res?.avatar || avatar;
+          localStorage.setItem("user", JSON.stringify({
+            ...currentUser,
+            name: displayName,
+            displayName,
+            avatar: savedAvatar,
+            role,
+          }));
+        } catch (error) {}
+      }
+
+      showPopup({ status: "success", message: res?.message || "Cap nhat tai khoan thanh cong." });
+      setShowEditPopup(false);
+      await fetchAccounts();
+    } catch (error) {
+      showPopup({ status: "error", message: error?.message || "Cap nhat tai khoan that bai." });
+    } finally {
+      setSavingEditAccount(false);
+    }
+  };
   return (
     <div className="account-page">
       <div className="account-bg-orb orb-one" />
@@ -576,6 +796,21 @@ const AccountPage = () => {
                       <div className="action-buttons">
                         <button
                           type="button"
+                          className="btn-account-detail"
+                          onClick={() => setDetailAccount(row)}
+                        >
+                          Chi tiết
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-edit-account"
+                          onClick={() => openEditPopup(row)}
+                          disabled={savingEditAccount || deletingEmail === getAccountEmail(row)}
+                        >
+                          Sửa
+                        </button>
+                        <button
+                          type="button"
                           className="btn-reset-password"
                           onClick={() => handleResetPassword(row)}
                           disabled={resettingEmail === getAccountEmail(row) || deletingEmail === getAccountEmail(row)}
@@ -610,6 +845,176 @@ const AccountPage = () => {
         onChangeField={handleChangeCreateField}
         onSubmit={handleCreateAccount}
       />
+
+      {showEditPopup ? (
+        <div className="account-create-popup-overlay" role="dialog" aria-modal="true">
+          <div className="account-create-popup account-edit-popup">
+            <div className="account-create-popup-head">
+              <div>
+                <h3 className="account-create-popup-title">Sửa tài khoản</h3>
+                <p className="account-create-popup-subtitle">
+                  Cập nhật thông tin đăng nhập và trạng thái tài khoản.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="account-create-popup-close"
+                onClick={closeEditPopup}
+                disabled={savingEditAccount}
+                aria-label="Đóng form sửa tài khoản"
+              >
+                x
+              </button>
+            </div>
+
+            <div className="account-create-form">
+              <div className="account-create-field account-create-field-full">
+                <label>Email</label>
+                <input value={editAccountForm.email} disabled />
+              </div>
+
+              <div className="account-create-field">
+                <label>Tên hiển thị</label>
+                <input
+                  value={editAccountForm.displayName}
+                  onChange={(event) => handleChangeEditField("displayName", event.target.value)}
+                  placeholder="Nhập tên hiển thị"
+                  disabled={savingEditAccount}
+                />
+              </div>
+
+              <div className="account-create-field">
+                <label>Vai trò</label>
+                <select
+                  value={editAccountForm.role}
+                  onChange={(event) => handleChangeEditField("role", Number(event.target.value))}
+                  disabled={savingEditAccount}
+                >
+                  <option value={0}>Khách hàng</option>
+                  <option value={1}>Admin</option>
+                </select>
+              </div>
+
+              <div className="account-create-field">
+                <label>Trạng thái</label>
+                <select
+                  value={editAccountForm.isActive}
+                  onChange={(event) => handleChangeEditField("isActive", Number(event.target.value))}
+                  disabled={savingEditAccount}
+                >
+                  <option value={1}>Hoạt động</option>
+                  <option value={0}>Tạm dừng</option>
+                </select>
+              </div>
+
+              <div className="account-edit-avatar account-create-field-full">
+                <label
+                  className="account-edit-avatar__picker"
+                  onDrop={handleEditAvatarDrop}
+                  onDragOver={handleEditAvatarDragOver}
+                >
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => handleEditAvatarFile(event.target.files?.[0])}
+                    disabled={savingEditAccount}
+                  />
+                  <span className="account-edit-avatar__preview">
+                    {editAvatarPreviewUrl ? (
+                      <img src={editAvatarPreviewUrl} alt={editAccountForm.displayName || editAccountForm.email || "avatar"} />
+                    ) : (
+                      <span>{String(editAccountForm.displayName || editAccountForm.email || "?").charAt(0).toUpperCase()}</span>
+                    )}
+                  </span>
+                  <span className="account-edit-avatar__caption">
+                    {editAccountForm.avatarFile ? `Đã chọn: ${editAccountForm.avatarFile.name}` : "Bấm hoặc kéo ảnh mới vào đây để thay đổi"}
+                  </span>
+                </label>
+              </div>
+              <div className="account-create-hint">
+                Email không chỉnh trực tiếp để tránh lệch dữ liệu đăng nhập.
+              </div>
+
+              <div className="account-create-actions account-create-field-full">
+                <button type="button" className="btn-cancel" onClick={closeEditPopup} disabled={savingEditAccount}>
+                  Hủy
+                </button>
+                <button type="button" className="btn-confirm" onClick={handleUpdateAccount} disabled={savingEditAccount}>
+                  {savingEditAccount ? "Đang lưu..." : "Lưu thay đổi"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {detailAccount ? (
+        <div className="account-detail-overlay" role="dialog" aria-modal="true">
+          <div className="account-detail-popup">
+            <button
+              type="button"
+              className="account-detail-close"
+              onClick={closeDetailPopup}
+              aria-label="Đóng chi tiết tài khoản"
+            >
+              x
+            </button>
+
+            <div className="account-detail-hero">
+              <div className="account-detail-avatar">
+                {resolveAvatarSrc(detailAccount.Avatar || detailAccount.avatar) ? (
+                  <img
+                    src={resolveAvatarSrc(detailAccount.Avatar || detailAccount.avatar)}
+                    alt={detailAccount.DisplayName || detailAccount.Email || "avatar"}
+                  />
+                ) : (
+                  <span>{String(detailAccount.DisplayName || detailAccount.Email || "?").charAt(0).toUpperCase()}</span>
+                )}
+              </div>
+              <h2>{detailAccount.DisplayName || detailAccount.Email || "Tài khoản"}</h2>
+            </div>
+
+            <div className="account-detail-grid">
+              {columns
+                .filter((column) => !/password/i.test(column))
+                .map((column) => (
+                  <div
+                    key={`detail-${column}`}
+                    className={`account-detail-item ${isAvatarColumn(column) ? "account-detail-item--avatar" : ""}`}
+                  >
+                    <span>{getColumnLabel(column)}</span>
+                    {isAvatarColumn(column) ? (
+                      resolveAvatarSrc(detailAccount[column]) ? (
+                        <img src={resolveAvatarSrc(detailAccount[column])} alt="avatar" />
+                      ) : (
+                        <strong>-</strong>
+                      )
+                    ) : String(column).toLowerCase() === "role" ? (
+                      <strong>{getRoleMeta(detailAccount[column]).label}</strong>
+                    ) : String(column).toLowerCase() === "isactive" ? (
+                      <strong>{getActiveMeta(detailAccount[column]).label}</strong>
+                    ) : (
+                      <strong>{formatDetailValue(detailAccount[column], column)}</strong>
+                    )}
+                  </div>
+                ))}
+            </div>
+
+            <div className="account-detail-actions">
+              <button type="button" className="btn-detail-secondary" onClick={closeDetailPopup}>
+                Đóng
+              </button>
+              <button
+                type="button"
+                className="btn-detail-primary"
+                onClick={() => handleResetPassword(detailAccount)}
+                disabled={resettingEmail === getAccountEmail(detailAccount)}
+              >
+                {resettingEmail === getAccountEmail(detailAccount) ? "Đang reset..." : "Reset mật khẩu"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

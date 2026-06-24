@@ -15,11 +15,6 @@ const ContactPage = () => {
     <main className="contact-page contact-page--store contact-page--static">
       <section className="contact-hero store-hero">
         <div className="contact-hero__content">
-          <div className="contact-breadcrumb">
-            <span>Trang chủ</span>
-            <span>/</span>
-            <strong>Liên hệ</strong>
-          </div>
           <span className="contact-eyebrow">Thông tin shop</span>
           <h1>{STORE.name}</h1>
           <p>

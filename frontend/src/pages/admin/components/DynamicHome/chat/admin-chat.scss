@@ -725,6 +725,15 @@
 }
 
 /* Visual refresh for the full admin chat page. Kept at the end to override older nested rules safely. */
+body.admin-chat-page-active .admin-mini-chat-popup,
+body.admin-chat-page-active .admin-mini-chat-popup__collapsed,
+body.admin-chat-page-active .floating-chat-panel.admin-mini-chat-popup,
+body.admin-chat-page-active .floating-chat-panel__collapsed.admin-mini-chat-popup__collapsed {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 .admin-chat-page {
   min-height: calc(100vh - 92px);
   max-height: calc(100vh - 92px);

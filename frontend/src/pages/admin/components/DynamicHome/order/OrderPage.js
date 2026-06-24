@@ -281,6 +281,150 @@ const OrderPage = () => {
   const totalItems = selectedOrder
     ? selectedOrder.details.reduce((sum, it) => sum + (it.qty || 0), 0)
     : 0;
+
+  const escapeHtml = (value) =>
+    String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
+  const buildOrderInvoiceHtml = (order) => {
+    const detailTotal = order.details.reduce(
+      (sum, item) => sum + parsePrice(item.price) * (item.qty || 0),
+      0
+    );
+    const invoiceTotal = parsePrice(order.total) || detailTotal;
+    const invoiceItems = order.details
+      .map((item, index) => {
+        const unitPrice = parsePrice(item.price);
+        const quantity = Number(item.qty || 0) || 0;
+        const lineTotal = unitPrice * quantity;
+
+        return `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${escapeHtml(item.name)}</td>
+            <td class="text-center">${quantity}</td>
+            <td class="text-right">${formatPrice(unitPrice)}</td>
+            <td class="text-right">${formatPrice(lineTotal)}</td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    return `
+      <!doctype html>
+      <html lang="vi">
+        <head>
+          <meta charset="utf-8" />
+          <title>Hoa don ${escapeHtml(order.id)}</title>
+          <style>
+            @page { size: A4; margin: 16mm; }
+            * { box-sizing: border-box; }
+            body { margin: 0; color: #0f172a; font-family: Arial, sans-serif; font-size: 13px; line-height: 1.45; }
+            .header { display: flex; justify-content: space-between; gap: 24px; padding-bottom: 18px; border-bottom: 2px solid #0f766e; }
+            .shop-name { margin: 0 0 6px; color: #0f766e; font-size: 26px; font-weight: 800; }
+            .shop-subtitle { margin: 0; color: #475569; }
+            .invoice-title { margin: 0 0 6px; text-align: right; font-size: 24px; font-weight: 800; text-transform: uppercase; }
+            .invoice-code { text-align: right; color: #475569; font-weight: 700; }
+            .info-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 28px; margin: 22px 0; padding: 14px; border: 1px solid #dbe4ef; border-radius: 10px; background: #f8fafc; }
+            .info-item strong { display: inline-block; min-width: 92px; color: #334155; }
+            table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+            th { background: #0f766e; color: #fff; font-weight: 800; text-align: left; }
+            th, td { border: 1px solid #dbe4ef; padding: 10px 9px; vertical-align: top; }
+            tbody tr:nth-child(even) { background: #f8fafc; }
+            .text-center { text-align: center; }
+            .text-right { text-align: right; }
+            .summary { width: 320px; margin: 18px 0 0 auto; border: 1px solid #dbe4ef; border-radius: 10px; overflow: hidden; }
+            .summary-row { display: flex; justify-content: space-between; gap: 12px; padding: 10px 12px; border-bottom: 1px solid #e5ebf2; }
+            .summary-row:last-child { border-bottom: 0; background: #ecfdf5; color: #b91c1c; font-size: 16px; font-weight: 800; }
+            .footer { margin-top: 34px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; text-align: center; color: #334155; }
+            .signature { min-height: 90px; padding-top: 8px; border-top: 1px dashed #cbd5e1; font-weight: 800; }
+            @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+          </style>
+        </head>
+        <body>
+          <main>
+            <section class="header">
+              <div>
+                <h1 class="shop-name">Tiny Shop</h1>
+                <p class="shop-subtitle">Cosmetics & Beauty</p>
+              </div>
+              <div>
+                <h2 class="invoice-title">Hóa đơn bán hàng</h2>
+                <div class="invoice-code">Mã đơn: ${escapeHtml(order.id)}</div>
+              </div>
+            </section>
+            <section class="info-grid">
+              <div class="info-item"><strong>Khách hàng:</strong> ${escapeHtml(order.customer)}</div>
+              <div class="info-item"><strong>Ngày đặt:</strong> ${escapeHtml(order.date)}</div>
+              <div class="info-item"><strong>SĐT:</strong> ${escapeHtml(order.phone || "-")}</div>
+              <div class="info-item"><strong>Trạng thái:</strong> ${escapeHtml(order.status)}</div>
+              <div class="info-item" style="grid-column: 1 / -1;"><strong>Địa chỉ:</strong> ${escapeHtml(order.address || "-")}</div>
+            </section>
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 48px;">STT</th>
+                  <th>Sản phẩm</th>
+                  <th class="text-center" style="width: 90px;">SL</th>
+                  <th class="text-right" style="width: 130px;">Đơn giá</th>
+                  <th class="text-right" style="width: 140px;">Thành tiền</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${invoiceItems || '<tr><td colspan="5" class="text-center">Không có sản phẩm</td></tr>'}
+              </tbody>
+            </table>
+            <section class="summary">
+              <div class="summary-row"><span>Tổng số món</span><strong>${totalItems}</strong></div>
+              <div class="summary-row"><span>Tổng tiền</span><strong>${formatPrice(invoiceTotal)}</strong></div>
+            </section>
+            <section class="footer">
+              <div class="signature">Người lập hóa đơn</div>
+              <div class="signature">Khách hàng</div>
+            </section>
+          </main>
+        </body>
+      </html>
+    `;
+  };
+
+  const handlePrintOrder = () => {
+    if (!selectedOrder) return;
+
+    const frame = document.createElement("iframe");
+    frame.style.position = "fixed";
+    frame.style.right = "0";
+    frame.style.bottom = "0";
+    frame.style.width = "0";
+    frame.style.height = "0";
+    frame.style.border = "0";
+    frame.setAttribute("title", `print-order-${selectedOrder.id}`);
+    document.body.appendChild(frame);
+
+    const frameWindow = frame.contentWindow;
+    const frameDocument = frameWindow?.document;
+    if (!frameWindow || !frameDocument) {
+      frame.remove();
+      window.print();
+      return;
+    }
+
+    frameDocument.open();
+    frameDocument.write(buildOrderInvoiceHtml(selectedOrder));
+    frameDocument.close();
+
+    window.setTimeout(() => {
+      frameWindow.focus();
+      frameWindow.print();
+      window.setTimeout(() => {
+        if (frame.parentNode) frame.parentNode.removeChild(frame);
+      }, 300);
+    }, 250);
+  };
   const totalPrice = selectedOrder
     ? selectedOrder.details.reduce(
         (s, it) => s + parsePrice(it.price) * (it.qty || 0),
@@ -551,21 +695,20 @@ const OrderPage = () => {
               <div className="order-products-table-wrapper">
                 <table className="order-products-table">
                   <colgroup>
-                    <col style={{ width: "60%" }} />
+                    <col style={{ width: "58%" }} />
                     <col style={{ width: "12%" }} />
-                    <col style={{ width: "28%" }} />
+                    <col style={{ width: "30%" }} />
                   </colgroup>
                   <thead>
                     <tr>
                       <th>Tên Sản phẩm</th>
-                      <th style={{ textAlign: "center" }}>Số lượng</th>
+                      <th style={{ textAlign: "center" }}>SL</th>
                       <th style={{ textAlign: "right" }}>Thành tiền</th>
                     </tr>
                   </thead>
                   <tbody>
                     {selectedOrder.details.map((item, i) => {
                       const itemPrice = parsePrice(item.price);
-                      console.log("itemPrice", itemPrice, "item.price", item);
                       const itemTotal = itemPrice * (item.qty || 0);
                       return (
                         <tr key={i}>
@@ -596,9 +739,7 @@ const OrderPage = () => {
                   type="button"
                   className="btn-print"
                   data-order-id={selectedOrder.id}
-                  onClick={() => {
-                    /* placeholder: in hóa đơn sẽ xử lý ở nơi khác */
-                  }}
+                  onClick={handlePrintOrder}
                 >
                   🖨 In
                 </button>
