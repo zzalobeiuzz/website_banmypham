@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
+import ExcelJS from "exceljs";
 import {
   FaBoxOpen,
   FaChartLine,
   FaClipboardList,
+  FaFileExcel,
   FaStore,
   FaTags,
   FaTicketAlt,
@@ -17,6 +19,7 @@ import "./overview.scss";
 
 const formatNumber = (value) => new Intl.NumberFormat("vi-VN").format(Number(value || 0));
 const formatVND = (value) => `${formatNumber(value)} đ`;
+const currentYear = new Date().getFullYear();
 
 const emptyOverview = {
   counts: {},
@@ -140,10 +143,88 @@ const normalizeTopCustomers = (items = []) => {
     .sort((a, b) => Number(b.OrderCount || 0) - Number(a.OrderCount || 0) || Number(b.Revenue || 0) - Number(a.Revenue || 0));
 };
 
+const getCellValue = (row, key) => {
+  if (typeof key === "function") return key(row);
+  return row?.[key] ?? "";
+};
+
+const normalizeSheetRows = (rows = []) => (Array.isArray(rows) ? rows : []);
+
+const addReportSheet = (workbook, sheetName, rows, columns) => {
+  const safeName = String(sheetName || "Sheet").slice(0, 31);
+  const worksheet = workbook.addWorksheet(safeName);
+  const normalizedRows = normalizeSheetRows(rows);
+
+  const titleRow = worksheet.addRow([sheetName]);
+  titleRow.font = { bold: true, size: 18, color: { argb: "FF0F172A" } };
+  titleRow.alignment = { horizontal: "center", vertical: "middle" };
+  worksheet.mergeCells(1, 1, 1, Math.max(columns.length, 1));
+  worksheet.getRow(1).height = 28;
+
+  const metaRow = worksheet.addRow([`Ngày xuất: ${new Date().toLocaleString("vi-VN")}`]);
+  metaRow.font = { size: 11, color: { argb: "FF64748B" } };
+  worksheet.mergeCells(2, 1, 2, Math.max(columns.length, 1));
+  worksheet.addRow([]);
+
+  const headerRow = worksheet.addRow(columns.map((column) => column.header));
+  headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
+  headerRow.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF0F766E" },
+  };
+  headerRow.alignment = { horizontal: "center", vertical: "middle" };
+
+  if (!normalizedRows.length) {
+    worksheet.addRow(["Không có dữ liệu"]);
+    worksheet.mergeCells(5, 1, 5, Math.max(columns.length, 1));
+  } else {
+    normalizedRows.forEach((row, rowIndex) => {
+      const dataRow = worksheet.addRow(columns.map((column) => getCellValue(row, column.key)));
+      const bgColor = rowIndex % 2 === 0 ? "FFFFFFFF" : "FFF8FAFC";
+      dataRow.eachCell((cell) => {
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: bgColor } };
+        cell.alignment = { vertical: "middle", wrapText: true };
+      });
+    });
+  }
+
+  worksheet.eachRow((row) => {
+    row.eachCell((cell) => {
+      cell.border = {
+        top: { style: "thin", color: { argb: "FFE2E8F0" } },
+        left: { style: "thin", color: { argb: "FFE2E8F0" } },
+        bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
+        right: { style: "thin", color: { argb: "FFE2E8F0" } },
+      };
+    });
+  });
+
+  columns.forEach((column, index) => {
+    worksheet.getColumn(index + 1).width = column.width || 18;
+  });
+};
+
+const downloadWorkbook = async (workbook, fileName) => {
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
 const AdminOverviewPage = () => {
   const navigate = useNavigate();
   const { request, loading } = useHttp();
   const [overview, setOverview] = useState(emptyOverview);
+  const [exportingReport, setExportingReport] = useState("");
 
   const openPath = (path) => {
     navigate(path);
@@ -190,6 +271,233 @@ const AdminOverviewPage = () => {
     ? Number(overview.summary.PaidRevenue || 0) / Number(overview.summary.PaidOrders || 1)
     : 0;
 
+  const getManagementRows = () => managementStats.map((item, index) => ({
+    STT: index + 1,
+    Item: item.title,
+    Note: item.note,
+    Value: Number(item.value || 0),
+  }));
+
+  const addOverviewSheets = (workbook) => {
+    addReportSheet(workbook, "Tổng quan", getManagementRows(), [
+      { header: "STT", key: "STT", width: 8 },
+      { header: "Mục quản lý", key: "Item", width: 26 },
+      { header: "Ghi chú", key: "Note", width: 28 },
+      { header: "Số lượng", key: "Value", width: 16 },
+    ]);
+
+    addReportSheet(workbook, "Top sản phẩm", overview.topProducts.map((item, index) => ({
+      STT: index + 1,
+      ProductID: item.ProductID,
+      ProductName: item.ProductName,
+      Quantity: Number(item.Quantity || 0),
+      Revenue: formatVND(item.Revenue),
+    })), [
+      { header: "STT", key: "STT", width: 8 },
+      { header: "Mã sản phẩm", key: "ProductID", width: 18 },
+      { header: "Tên sản phẩm", key: "ProductName", width: 42 },
+      { header: "Số lượng bán", key: "Quantity", width: 18 },
+      { header: "Doanh thu", key: "Revenue", width: 18 },
+    ]);
+
+    addReportSheet(workbook, "Top khách hàng", overview.topCustomers.map((item, index) => ({
+      STT: index + 1,
+      CustomerID: item.CustomerID,
+      CustomerName: item.CustomerName,
+      OrderCount: Number(item.OrderCount || 0),
+      Revenue: formatVND(item.Revenue),
+    })), [
+      { header: "STT", key: "STT", width: 8 },
+      { header: "Mã khách hàng", key: "CustomerID", width: 22 },
+      { header: "Tên khách hàng", key: "CustomerName", width: 30 },
+      { header: "Số đơn", key: "OrderCount", width: 14 },
+      { header: "Doanh thu", key: "Revenue", width: 18 },
+    ]);
+
+    addReportSheet(workbook, "Trạng thái đơn", overview.orderStatus.map((item, index) => ({
+      STT: index + 1,
+      Status: item.Status,
+      Total: Number(item.Total || 0),
+    })), [
+      { header: "STT", key: "STT", width: 8 },
+      { header: "Trạng thái", key: "Status", width: 28 },
+      { header: "Số đơn", key: "Total", width: 14 },
+    ]);
+  };
+
+  const addRevenueSheets = (workbook, statsPayload = {}) => {
+    addReportSheet(workbook, "Doanh thu năm", (statsPayload.yearlyRevenue || []).map((item, index) => ({
+      STT: index + 1,
+      YearLabel: item.YearLabel,
+      Revenue: formatVND(item.Revenue),
+    })), [
+      { header: "STT", key: "STT", width: 8 },
+      { header: "Năm", key: "YearLabel", width: 14 },
+      { header: "Doanh thu", key: "Revenue", width: 20 },
+    ]);
+
+    addReportSheet(workbook, "Doanh thu tháng", (statsPayload.monthlyRevenue || []).map((item, index) => ({
+      STT: index + 1,
+      MonthLabel: item.MonthLabel,
+      Revenue: formatVND(item.Revenue),
+    })), [
+      { header: "STT", key: "STT", width: 8 },
+      { header: "Tháng", key: "MonthLabel", width: 16 },
+      { header: "Doanh thu", key: "Revenue", width: 20 },
+    ]);
+
+    addReportSheet(workbook, "Doanh thu danh mục", (statsPayload.categoryRevenue || []).map((item, index) => ({
+      STT: index + 1,
+      CategoryName: item.CategoryName || item.CategoryID,
+      Revenue: formatVND(item.Revenue),
+    })), [
+      { header: "STT", key: "STT", width: 8 },
+      { header: "Danh mục", key: "CategoryName", width: 30 },
+      { header: "Doanh thu", key: "Revenue", width: 20 },
+    ]);
+
+    addReportSheet(workbook, "Chi tiết doanh thu", (statsPayload.productSalesReport || []).map((item, index) => ({
+      STT: index + 1,
+      ProductID: item.ProductID,
+      ProductName: item.ProductName,
+      CategoryName: item.CategoryName,
+      Quantity: Number(item.Quantity || 0),
+      Revenue: formatVND(item.Revenue),
+    })), [
+      { header: "STT", key: "STT", width: 8 },
+      { header: "Mã sản phẩm", key: "ProductID", width: 18 },
+      { header: "Tên sản phẩm", key: "ProductName", width: 42 },
+      { header: "Danh mục", key: "CategoryName", width: 26 },
+      { header: "Số lượng", key: "Quantity", width: 14 },
+      { header: "Doanh thu", key: "Revenue", width: 20 },
+    ]);
+  };
+
+  const addProductsSheet = (workbook, products = []) => {
+    addReportSheet(workbook, "Sản phẩm", products.map((item, index) => ({
+      STT: index + 1,
+      ProductID: item.ProductID,
+      ProductName: item.ProductName,
+      CategoryName: item.CategoryName,
+      SubCategoryName: item.SubCategoryName,
+      Price: formatVND(item.Price),
+      SalePrice: Number(item.sale_price || 0) > 0 ? formatVND(item.sale_price) : "",
+      StockQuantity: Number(item.StockQuantity || 0),
+    })), [
+      { header: "STT", key: "STT", width: 8 },
+      { header: "Mã sản phẩm", key: "ProductID", width: 18 },
+      { header: "Tên sản phẩm", key: "ProductName", width: 42 },
+      { header: "Danh mục", key: "CategoryName", width: 24 },
+      { header: "Danh mục con", key: "SubCategoryName", width: 24 },
+      { header: "Giá", key: "Price", width: 18 },
+      { header: "Giá sale", key: "SalePrice", width: 18 },
+      { header: "Tồn kho", key: "StockQuantity", width: 14 },
+    ]);
+  };
+
+  const addCustomersSheet = (workbook, customers = []) => {
+    addReportSheet(workbook, "Khách hàng", customers.map((item, index) => ({
+      STT: index + 1,
+      CustomerID: item.CustomerID,
+      FullName: item.FullName || item.CustomerName,
+      Email: item.Email,
+      PhoneNumber: item.PhoneNumber,
+      Address: item.Address,
+      IsActive: [false, 0, "0"].includes(item.isActive ?? item.IsActive) ? "Không" : "Có",
+    })), [
+      { header: "STT", key: "STT", width: 8 },
+      { header: "Mã khách hàng", key: "CustomerID", width: 18 },
+      { header: "Tên khách hàng", key: "FullName", width: 28 },
+      { header: "Email", key: "Email", width: 32 },
+      { header: "Số điện thoại", key: "PhoneNumber", width: 18 },
+      { header: "Địa chỉ", key: "Address", width: 42 },
+      { header: "Hoạt động", key: "IsActive", width: 14 },
+    ]);
+  };
+
+  const addOrdersSheet = (workbook, orders = []) => {
+    addReportSheet(workbook, "Đơn hàng", orders.map((item, index) => ({
+      STT: index + 1,
+      OrderID: item.OrderID || item.id,
+      CustomerName: item.CustomerName || item.customerName,
+      CreatedAt: item.CreatedAt || item.createdAt,
+      Status: item.Status || item.status,
+      PaymentMethod: item.PaymentMethod || item.paymentMethod,
+      Total: formatVND(item.TotalRaw ?? item.Total ?? item.total),
+    })), [
+      { header: "STT", key: "STT", width: 8 },
+      { header: "Mã đơn", key: "OrderID", width: 24 },
+      { header: "Khách hàng", key: "CustomerName", width: 28 },
+      { header: "Ngày đặt", key: "CreatedAt", width: 24 },
+      { header: "Trạng thái", key: "Status", width: 24 },
+      { header: "Thanh toán", key: "PaymentMethod", width: 18 },
+      { header: "Tổng tiền", key: "Total", width: 18 },
+    ]);
+  };
+
+  const loadExportData = async (type) => {
+    const statsPromise = (type === "all" || type === "revenue")
+      ? request("GET", `${API_BASE}/api/admin/stats?year=${currentYear}&_=${Date.now()}`).then((res) => res.data || res)
+      : Promise.resolve(null);
+
+    const productsPromise = (type === "all" || type === "products")
+      ? request("GET", `${API_BASE}/api/user/products/loadAllProducts`).then((res) => res.data || [])
+      : Promise.resolve(null);
+
+    const customersPromise = (type === "all" || type === "customers")
+      ? request("GET", `${API_BASE}/api/admin/customers`).then((res) => res.data || [])
+      : Promise.resolve(null);
+
+    const ordersPromise = (type === "all" || type === "orders")
+      ? request("GET", `${API_BASE}/api/admin/orders`).then((res) => res.data || [])
+      : Promise.resolve(null);
+
+    const [stats, products, customers, orders] = await Promise.all([
+      statsPromise,
+      productsPromise,
+      customersPromise,
+      ordersPromise,
+    ]);
+
+    return { stats, products, customers, orders };
+  };
+
+  const handleExportReport = async (type) => {
+    if (exportingReport) return;
+
+    setExportingReport(type);
+
+    try {
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = "Tiny Shop Admin";
+      workbook.created = new Date();
+
+      if (type === "all") addOverviewSheets(workbook);
+
+      const { stats, products, customers, orders } = await loadExportData(type);
+
+      if (type === "all" || type === "revenue") addRevenueSheets(workbook, stats || {});
+      if (type === "all" || type === "products") addProductsSheet(workbook, products || []);
+      if (type === "all" || type === "customers") addCustomersSheet(workbook, customers || []);
+      if (type === "all" || type === "orders") addOrdersSheet(workbook, orders || []);
+
+      const reportNames = {
+        all: "bao-cao-quan-tri",
+        revenue: "bao-cao-doanh-thu",
+        products: "danh-sach-san-pham",
+        customers: "danh-sach-khach-hang",
+        orders: "danh-sach-don-hang",
+      };
+      const today = new Date().toISOString().slice(0, 10);
+      await downloadWorkbook(workbook, `${reportNames[type] || "bao-cao"}-${today}.xlsx`);
+    } catch (error) {
+      console.error("Export overview report failed:", error);
+      window.alert(error?.message || "Không thể xuất file Excel.");
+    } finally {
+      setExportingReport("");
+    }
+  };
+
   if (loading && !overview.counts.Products) {
     return <div className="admin-overview-page">Đang tải tổng quan...</div>;
   }
@@ -202,6 +510,29 @@ const AdminOverviewPage = () => {
             <span className="overview-eyebrow">Dashboard</span>
             <h4>Tổng quan quản trị</h4>
             <p>Theo dõi nhanh quy mô dữ liệu, nhóm bán chạy và khách hàng nổi bật.</p>
+            <div className="overview-export-actions">
+              <button
+                type="button"
+                className="overview-export-main"
+                onClick={() => handleExportReport("all")}
+                disabled={Boolean(exportingReport)}
+              >
+                <FaFileExcel />
+                {exportingReport === "all" ? "Đang xuất..." : "Xuất tất cả"}
+              </button>
+              <button type="button" onClick={() => handleExportReport("revenue")} disabled={Boolean(exportingReport)}>
+                Doanh thu
+              </button>
+              <button type="button" onClick={() => handleExportReport("customers")} disabled={Boolean(exportingReport)}>
+                Khách hàng
+              </button>
+              <button type="button" onClick={() => handleExportReport("products")} disabled={Boolean(exportingReport)}>
+                Sản phẩm
+              </button>
+              <button type="button" onClick={() => handleExportReport("orders")} disabled={Boolean(exportingReport)}>
+                Đơn hàng
+              </button>
+            </div>
           </div>
           <div className="overview-brand-logo" aria-label="Logo cửa hàng">
             <img src={`${UPLOAD_BASE}/images/logo-removebg.png`} alt="Tiny Store" loading="lazy" />

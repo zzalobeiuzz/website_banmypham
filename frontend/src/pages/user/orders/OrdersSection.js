@@ -130,6 +130,25 @@ const OrdersSection = () => {
     return next;
   }, [orders, orderSearchKeyword, amountSortOrder, dateSortOrder, statusFilter]);
 
+  const purchasedSummary = useMemo(() => {
+    const source = Array.isArray(orders) ? orders : [];
+
+    return source.reduce(
+      (summary, order) => {
+        const total = Number(order?.total || order?.Total || 0) || 0;
+
+        return {
+          orderCount: summary.orderCount + 1,
+          totalAmount: summary.totalAmount + total,
+        };
+      },
+      {
+        orderCount: 0,
+        totalAmount: 0,
+      },
+    );
+  }, [orders]);
+
   const openOrderDetail = async (orderId) => {
     const token = localStorage.getItem("accessToken");
     if (!token) return;
@@ -200,6 +219,17 @@ const OrdersSection = () => {
             ))}
           </select>
         </div>
+      </div>
+
+      <div className="orders-purchased-summary">
+        <div>
+          <span>Tổng tiền đã tiêu dùng</span>
+          <strong>{purchasedSummary.totalAmount.toLocaleString("vi-VN")} đ</strong>
+        </div>
+        <p>
+          Tổng số đơn hàng:{" "}
+          <strong>{purchasedSummary.orderCount.toLocaleString("vi-VN")}</strong>
+        </p>
       </div>
 
       {ordersLoading && <p>Đang tải...</p>}
