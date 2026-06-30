@@ -1,4 +1,13 @@
-import { UPLOAD_BASE } from "../../../constants";
+import {
+  FaCheckCircle,
+  FaClock,
+  FaDirections,
+  FaEnvelope,
+  FaMapMarkerAlt,
+  FaPhoneAlt,
+  FaStore,
+  FaTags,
+} from "react-icons/fa";
 import "./store_system.scss";
 
 const store = {
@@ -10,84 +19,42 @@ const store = {
 };
 
 const mapSrc = `https://www.google.com/maps?q=${encodeURIComponent(store.address)}&output=embed`;
+const directionUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(store.address)}`;
+
+const serviceItems = [
+  {
+    icon: <FaCheckCircle />,
+    title: "Tư vấn trực tiếp",
+    text: "Hỗ trợ chọn sản phẩm phù hợp với nhu cầu chăm sóc da và làm đẹp.",
+  },
+  {
+    icon: <FaStore />,
+    title: "Kiểm tra sản phẩm",
+    text: "Khách có thể xem mã sản phẩm, giá và tình trạng còn hàng tại cửa hàng.",
+  },
+  {
+    icon: <FaTags />,
+    title: "Nhận ưu đãi",
+    text: "Các chương trình khuyến mãi được cập nhật thường xuyên theo từng đợt.",
+  },
+];
 
 const StoreSystemPage = () => {
   return (
-    <main className="store-system-page">
-      <section className="store-system-hero">
-        <div className="store-system-hero__content">
-          <span>Hệ thống cửa hàng</span>
-          <h1>Ghé Tiny Cosmetics tại Sa Thầy</h1>
-          <p>
-            Hiện tại cửa hàng có 1 cơ sở phục vụ khách mua mỹ phẩm, chăm sóc da,
-            trang điểm và các sản phẩm làm đẹp hằng ngày.
-          </p>
+    <main className="store-system-page store-locator">
+      <section className="store-locator__intro">
+        <div>
+          <h1>Điểm bán Tiny Cosmetics</h1>
+          <p>Tra cứu vị trí, giờ mở cửa và thông tin liên hệ của cửa hàng đang hoạt động.</p>
         </div>
-
-        <div className="store-system-hero__logo" aria-label="Tiny Cosmetics">
-          <img src={`${UPLOAD_BASE}/images/logo-removebg.png`} alt="Tiny Cosmetics" loading="lazy" />
-        </div>
+        <a href={directionUrl} target="_blank" rel="noreferrer">
+          <FaDirections />
+          Chỉ đường
+        </a>
       </section>
 
-      <section className="store-system-overview">
-        <article className="store-system-card store-system-card--main">
-          <div className="store-system-card__top">
-            <span>Cơ sở 01</span>
-            <strong>Đang hoạt động</strong>
-          </div>
-          <h2>{store.name}</h2>
-          <p>{store.address}</p>
-
-          <div className="store-system-info-grid">
-            <div>
-              <span>Giờ mở cửa</span>
-              <strong>{store.hours}</strong>
-            </div>
-            <div>
-              <span>Điện thoại</span>
-              <a href={`tel:${store.phone}`}>{store.phone}</a>
-            </div>
-            <div>
-              <span>Email</span>
-              <a href={`mailto:${store.email}`}>{store.email}</a>
-            </div>
-          </div>
-
-          <div className="store-system-actions">
-            <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(store.address)}`} target="_blank" rel="noreferrer">
-              Chỉ đường
-            </a>
-            <a href={`tel:${store.phone}`}>Gọi cửa hàng</a>
-          </div>
-        </article>
-
-        <div className="store-system-services">
-          <article>
-            <span>01</span>
-            <h3>Tư vấn trực tiếp</h3>
-            <p>Hỗ trợ chọn sản phẩm phù hợp với nhu cầu chăm sóc da và làm đẹp.</p>
-          </article>
-          <article>
-            <span>02</span>
-            <h3>Kiểm tra sản phẩm</h3>
-            <p>Khách có thể xem hình ảnh, mã sản phẩm, giá và tình trạng còn hàng.</p>
-          </article>
-          <article>
-            <span>03</span>
-            <h3>Nhận ưu đãi</h3>
-            <p>Các chương trình khuyến mãi đang diễn ra được cập nhật thường xuyên.</p>
-          </article>
-        </div>
-      </section>
-
-      <section className="store-system-map-section">
-        <div className="store-system-section-title">
-          <span>Bản đồ</span>
-          <h2>Địa chỉ cửa hàng</h2>
-          <p>{store.address}</p>
-        </div>
-
-        <div className="store-system-map">
+      <section className="store-locator__workspace">
+        <div className="store-locator__map">
           <iframe
             title="Bản đồ Tiny Cosmetics Sa Thầy"
             src={mapSrc}
@@ -96,6 +63,62 @@ const StoreSystemPage = () => {
             referrerPolicy="no-referrer-when-downgrade"
           />
         </div>
+
+        <aside className="store-locator__panel">
+          <div className="store-locator__status">
+            <span>Đang hoạt động</span>
+            <strong>Cơ sở 01</strong>
+          </div>
+
+          <div className="store-locator__store">
+            <div className="store-locator__store-icon">
+              <FaStore />
+            </div>
+            <div>
+              <h2>{store.name}</h2>
+              <p>{store.address}</p>
+            </div>
+          </div>
+
+          <div className="store-locator__facts">
+            <div>
+              <FaClock />
+              <span>Giờ mở cửa</span>
+              <strong>{store.hours}</strong>
+            </div>
+            <a href={`tel:${store.phone}`}>
+              <FaPhoneAlt />
+              <span>Điện thoại</span>
+              <strong>{store.phone}</strong>
+            </a>
+            <a href={`mailto:${store.email}`}>
+              <FaEnvelope />
+              <span>Email</span>
+              <strong>{store.email}</strong>
+            </a>
+          </div>
+
+          <div className="store-locator__actions">
+            <a href={directionUrl} target="_blank" rel="noreferrer">
+              <FaMapMarkerAlt />
+              Mở bản đồ
+            </a>
+            <a href={`tel:${store.phone}`}>
+              <FaPhoneAlt />
+              Gọi cửa hàng
+            </a>
+          </div>
+        </aside>
+      </section>
+
+      <section className="store-locator__services" aria-label="Dịch vụ tại cửa hàng">
+        {serviceItems.map((item) => (
+          <article key={item.title}>
+            <span>{item.icon}</span>
+            <h3>{item.title}</h3>
+            <p>{item.text}</p>
+          </article>
+        ))}
       </section>
     </main>
   );

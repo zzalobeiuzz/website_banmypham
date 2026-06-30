@@ -165,7 +165,7 @@ exports.findNewArrivalProducts = async () => {
         MAX(BD.CreatedAt) AS LatestBatchDetailCreatedAt
       FROM BATCH_DETAIL BD
       INNER JOIN LatestBatches LB
-        ON CAST(LB.ID AS NVARCHAR(100)) = CAST(BD.BatchID AS NVARCHAR(100))
+        ON CAST(LB.ID AS NVARCHAR(100)) = CAST(BD.BatchId AS NVARCHAR(100))
       WHERE ISNULL(BD.IsActive, 1) = 1
         AND ISNULL(TRY_CAST(BD.Quantity AS INT), 0) > 0
       GROUP BY BD.ProductID
@@ -199,7 +199,7 @@ exports.findNewArrivalProducts = async () => {
         BD.Barcode
       FROM BATCH_DETAIL BD
       INNER JOIN LatestBatches LB
-        ON CAST(LB.ID AS NVARCHAR(100)) = CAST(BD.BatchID AS NVARCHAR(100))
+        ON CAST(LB.ID AS NVARCHAR(100)) = CAST(BD.BatchId AS NVARCHAR(100))
       WHERE CAST(BD.ProductID AS NVARCHAR(100)) = CAST(P.ProductID AS NVARCHAR(100))
         AND ISNULL(BD.IsActive, 1) = 1
         AND ISNULL(BD.Barcode, '') <> ''
@@ -295,7 +295,7 @@ exports.findBeautyTrendProducts = async () => {
       SELECT TOP 1
         BD.Barcode
       FROM BATCH_DETAIL BD
-      LEFT JOIN BATCHES B ON B.ID = BD.BatchID
+      LEFT JOIN BATCHES B ON B.ID = BD.BatchId
       WHERE CAST(BD.ProductID AS NVARCHAR(100)) = CAST(P.ProductID AS NVARCHAR(100))
         AND ISNULL(BD.IsActive, 1) = 1
         AND (B.IsActive = 1 OR B.IsActive IS NULL)
@@ -410,7 +410,7 @@ exports.findAllProducts = async () => {
         SELECT TOP 1
           BD.Barcode
         FROM BATCH_DETAIL BD
-        LEFT JOIN BATCHES B ON B.ID = BD.BatchID
+        LEFT JOIN BATCHES B ON B.ID = BD.BatchId
         WHERE BD.ProductID = P.ProductID
           AND ISNULL(BD.IsActive, 1) = 1
           AND (B.IsActive = 1 OR B.IsActive IS NULL)
@@ -489,7 +489,7 @@ exports.findProductDetailById = async (productIds) => {
               SUM(CAST(Quantity AS INT)) AS StockQuantity
           FROM BATCH_DETAIL BD
           LEFT JOIN BATCHES B 
-              ON B.ID = BD.BatchID
+              ON B.ID = BD.BatchId
           WHERE ISNULL(BD.IsActive, 1) = 1
             AND (B.IsActive = 1 OR B.IsActive IS NULL)
           GROUP BY ProductID
@@ -552,7 +552,7 @@ exports.findBatchDetailsByProductId = async (input) => {
         B.CreatedAt AS BatchCreatedAt,
         B.Note AS BatchNote
       FROM BATCH_DETAIL BD
-      LEFT JOIN BATCHES B ON B.ID = BD.BatchID
+      LEFT JOIN BATCHES B ON B.ID = BD.BatchId
       WHERE BD.ProductID IN (${idParams.join(",")})
         AND ISNULL(BD.IsActive, 1) = 1
         AND (B.IsActive = 1 OR B.IsActive IS NULL)
@@ -649,6 +649,375 @@ exports.findBrandDetailWithProducts = async (idBrand) => {
         AND (SC.IsHidden = 0 OR SC.IsHidden IS NULL)
       ORDER BY P.ProductID DESC
     `);
+
+  return {
+    brand: brandResult.recordset?.[0] || null,
+    products: productResult.recordset || [],
+  };
+};
+
+const activeBarcodeStockJoin = `
+  LEFT JOIN (
+    SELECT BC.ProductID, SUM(TRY_CAST(BD.Quantity AS INT)) AS StockQuantity
+    FROM BATCH_DETAIL BD
+    INNER JOIN BARCODE BC ON BC.id_batch_detail = BD.Id
+    LEFT JOIN BATCHES B ON B.ID = BD.BatchId
+    WHERE ISNULL(BC.IsActive, 1) = 1
+      AND (B.IsActive = 1 OR B.IsActive IS NULL)
+    GROUP BY BC.ProductID
+  ) BDQ ON CAST(BDQ.ProductID AS NVARCHAR(100)) = CAST(P.ProductID AS NVARCHAR(100))
+`;
+
+const latestBarcodeApply = `
+  OUTER APPLY (
+    SELECT TOP 1 BC.Barcode
+    FROM BARCODE BC
+    INNER JOIN BATCH_DETAIL BD ON BD.Id = BC.id_batch_detail
+    LEFT JOIN BATCHES B ON B.ID = BD.BatchId
+    WHERE CAST(BC.ProductID AS NVARCHAR(100)) = CAST(P.ProductID AS NVARCHAR(100))
+      AND ISNULL(BC.IsActive, 1) = 1
+      AND (B.IsActive = 1 OR B.IsActive IS NULL)
+      AND ISNULL(BC.Barcode, '') <> ''
+    ORDER BY B.CreatedAt DESC, BC.CreatedAt DESC, BD.Id DESC
+  ) LOT
+`;
+
+const baseVisibleProductWhere = `
+  WHERE (P.IsHidden = 0 OR P.IsHidden IS NULL)
+    AND (C.IsHidden = 0 OR C.IsHidden IS NULL)
+    AND (SC.IsHidden = 0 OR SC.IsHidden IS NULL)
+`;
+
+const selectVisibleProductsSql = (extraWhere = "", orderBy = "ORDER BY P.ProductID DESC") => `
+  SELECT
+    P.ProductID,
+    P.ProductName,
+    LOT.Barcode,
+    P.Type,
+    P.SupplierID,
+    P.Price,
+    P.Image,
+    P.isHot,
+    ISNULL(BDQ.StockQuantity, 0) AS StockQuantity,
+    P.CategoryID,
+    P.SubCategoryID,
+    P.IsHidden,
+    C.CategoryName,
+    SC.SubCategoryName,
+    PS.sale_price,
+    PS.start_date,
+    PS.end_date
+  FROM PRODUCT P
+  OUTER APPLY (
+    SELECT TOP 1 *
+    FROM PRODUCT_SALE PS
+    WHERE CAST(PS.product_id AS NVARCHAR(100)) = CAST(P.ProductID AS NVARCHAR(100))
+      AND ISNULL(PS.status, 1) = 1
+      AND (PS.start_date IS NULL OR PS.start_date <= GETDATE())
+      AND (PS.end_date IS NULL OR PS.end_date >= GETDATE())
+    ORDER BY PS.created_at DESC, PS.id DESC
+  ) PS
+  LEFT JOIN CATEGORY C ON P.CategoryID = C.CategoryID
+  LEFT JOIN SUB_CATEGORY SC ON P.SubCategoryID = SC.SubCategoryID
+  ${latestBarcodeApply}
+  ${activeBarcodeStockJoin}
+  ${baseVisibleProductWhere}
+  ${extraWhere}
+  ${orderBy}
+`;
+
+exports.syncExpiredBatchDetailsStatus = async () => {
+  try {
+    const pool = await connectDB();
+    const result = await pool.request().query(`
+      UPDATE BC
+      SET BC.IsActive = 0
+      FROM BARCODE BC
+      WHERE ISNULL(BC.IsActive, 1) = 1
+        AND BC.ExpiryDate IS NOT NULL
+        AND CAST(BC.ExpiryDate AS DATE) < CAST(GETDATE() AS DATE);
+
+      SELECT @@ROWCOUNT AS UpdatedRows;
+    `);
+
+    return Number(result.recordset?.[0]?.UpdatedRows || 0);
+  } catch (error) {
+    console.error("Loi dong bo lo het han phia user:", error.message);
+    return 0;
+  }
+};
+
+exports.findAllProducts = async () => {
+  const pool = await connectDB();
+  const result = await pool.request().query(selectVisibleProductsSql("", "ORDER BY P.ProductID DESC"));
+  return result.recordset || [];
+};
+
+exports.findHotProducts = async () => {
+  const pool = await connectDB();
+  const result = await pool.request().query(selectVisibleProductsSql("AND P.isHot = 1", "ORDER BY P.ProductID DESC"));
+  return result.recordset || [];
+};
+
+exports.findSaleProducts = async () => {
+  const pool = await connectDB();
+  const result = await pool.request().query(selectVisibleProductsSql("AND PS.id IS NOT NULL", "ORDER BY PS.created_at DESC, PS.id DESC"));
+  return result.recordset || [];
+};
+
+exports.findProductDetailById = async (productIds) => {
+  const pool = await connectDB();
+  const ids = Array.isArray(productIds) ? productIds : [productIds];
+  const request = pool.request();
+  const idParams = ids.map((id, index) => {
+    const paramName = `id${index}`;
+    request.input(paramName, id);
+    return `@${paramName}`;
+  });
+
+  if (!idParams.length) return [];
+
+  const result = await request.query(`
+    SELECT
+      P.*,
+      ISNULL(BDQ.StockQuantity, 0) AS StockQuantity,
+      C.CategoryName,
+      SC.SubCategoryName,
+      D.Usage,
+      D.Ingredient,
+      D.ProductDescription,
+      D.HowToUse,
+      PS.sale_price,
+      PS.start_date,
+      PS.end_date,
+      PS.status AS sale_status
+    FROM PRODUCT P
+    LEFT JOIN CATEGORY C ON P.CategoryID = C.CategoryID
+    LEFT JOIN SUB_CATEGORY SC ON P.SubCategoryID = SC.SubCategoryID
+    ${activeBarcodeStockJoin}
+    LEFT JOIN Product_Detail D ON P.DetailID = D.IDDetail
+    OUTER APPLY (
+      SELECT TOP 1 *
+      FROM PRODUCT_SALE PS
+      WHERE CAST(PS.product_id AS NVARCHAR(100)) = CAST(P.ProductID AS NVARCHAR(100))
+        AND PS.status = 1
+        AND (PS.start_date IS NULL OR PS.start_date <= GETDATE())
+        AND (PS.end_date IS NULL OR PS.end_date >= GETDATE())
+      ORDER BY PS.created_at DESC, PS.id DESC
+    ) PS
+    WHERE P.ProductID IN (${idParams.join(",")})
+      AND (P.IsHidden = 0 OR P.IsHidden IS NULL)
+      AND (C.IsHidden = 0 OR C.IsHidden IS NULL)
+      AND (SC.IsHidden = 0 OR SC.IsHidden IS NULL)
+  `);
+
+  return result.recordset || [];
+};
+
+exports.findBatchDetailsByProductId = async (input) => {
+  try {
+    const pool = await connectDB();
+    const ids = Array.isArray(input) ? input : [input];
+    if (!ids.length) return {};
+
+    const request = pool.request();
+    const idParams = ids.map((id, index) => {
+      const key = `id${index}`;
+      request.input(key, id);
+      return `@${key}`;
+    });
+
+    const result = await request.query(`
+      SELECT
+        BD.Id,
+        BD.BatchId,
+        BD.Quantity,
+        BC.ProductID,
+        BC.Barcode,
+        BC.CreatedAt,
+        BC.ExpiryDate,
+        B.CreatedAt AS BatchCreatedAt,
+        B.Note AS BatchNote
+      FROM BARCODE BC
+      INNER JOIN BATCH_DETAIL BD ON BD.Id = BC.id_batch_detail
+      LEFT JOIN BATCHES B ON B.ID = BD.BatchId
+      WHERE BC.ProductID IN (${idParams.join(",")})
+        AND ISNULL(BC.IsActive, 1) = 1
+        AND (B.IsActive = 1 OR B.IsActive IS NULL)
+      ORDER BY B.CreatedAt DESC, BC.CreatedAt DESC, BD.Id DESC
+    `);
+
+    const grouped = {};
+    (result.recordset || []).forEach((row, index) => {
+      const productId = row.ProductID;
+      if (!grouped[productId]) grouped[productId] = [];
+
+      grouped[productId].push({
+        batchId: row.BatchId || `ROW_${index + 1}`,
+        barcode: row.Barcode || "",
+        quantity: Number(row.Quantity || 0),
+        createdAt: row.BatchCreatedAt || row.CreatedAt || null,
+        expiryDate: row.ExpiryDate || null,
+        note: row.BatchNote || "",
+      });
+    });
+
+    return grouped;
+  } catch (error) {
+    console.error("Loi findBatchDetailsByProductId:", error.message);
+    return {};
+  }
+};
+
+exports.findNewArrivalProducts = async () => {
+  const pool = await connectDB();
+  const result = await pool.request().query(`
+    WITH LatestBatches AS (
+      SELECT TOP 3 ID, CreatedAt
+      FROM BATCHES
+      WHERE IsActive = 1 OR IsActive IS NULL
+      ORDER BY CreatedAt DESC, ID DESC
+    ),
+    ProductInLatestBatches AS (
+      SELECT
+        BC.ProductID,
+        MAX(LB.CreatedAt) AS LatestBatchCreatedAt
+      FROM BATCH_DETAIL BD
+      INNER JOIN BARCODE BC ON BC.id_batch_detail = BD.Id
+      INNER JOIN LatestBatches LB ON CAST(LB.ID AS NVARCHAR(100)) = CAST(BD.BatchId AS NVARCHAR(100))
+      WHERE ISNULL(BC.IsActive, 1) = 1
+        AND ISNULL(TRY_CAST(BD.Quantity AS INT), 0) > 0
+      GROUP BY BC.ProductID
+    )
+    SELECT
+      P.ProductID,
+      P.ProductName,
+      LOT.Barcode,
+      P.Type,
+      P.SupplierID,
+      P.Price,
+      P.Image,
+      P.isHot,
+      ISNULL(BDQ.StockQuantity, 0) AS StockQuantity,
+      P.CategoryID,
+      P.SubCategoryID,
+      P.IsHidden,
+      C.CategoryName,
+      SC.SubCategoryName,
+      PS.sale_price,
+      PS.start_date,
+      PS.end_date,
+      NBP.LatestBatchCreatedAt
+    FROM ProductInLatestBatches NBP
+    INNER JOIN PRODUCT P ON CAST(P.ProductID AS NVARCHAR(100)) = CAST(NBP.ProductID AS NVARCHAR(100))
+    LEFT JOIN CATEGORY C ON P.CategoryID = C.CategoryID
+    LEFT JOIN SUB_CATEGORY SC ON P.SubCategoryID = SC.SubCategoryID
+    ${latestBarcodeApply}
+    ${activeBarcodeStockJoin}
+    OUTER APPLY (
+      SELECT TOP 1 PS.sale_price, PS.start_date, PS.end_date
+      FROM PRODUCT_SALE PS
+      WHERE CAST(PS.product_id AS NVARCHAR(100)) = CAST(P.ProductID AS NVARCHAR(100))
+        AND PS.status = 1
+        AND (PS.start_date IS NULL OR PS.start_date <= GETDATE())
+        AND (PS.end_date IS NULL OR PS.end_date >= GETDATE())
+      ORDER BY PS.created_at DESC, PS.id DESC
+    ) PS
+    ${baseVisibleProductWhere}
+    ORDER BY NBP.LatestBatchCreatedAt DESC, P.ProductID DESC
+  `);
+
+  return result.recordset || [];
+};
+
+exports.findBeautyTrendProducts = async () => {
+  const pool = await connectDB();
+  const result = await pool.request().query(`
+    WITH SoldProducts AS (
+      SELECT
+        CAST(D.ProductID AS NVARCHAR(100)) AS ProductID,
+        SUM(ISNULL(TRY_CAST(D.Quantity AS INT), 0)) AS SoldQuantity,
+        COUNT(DISTINCT CAST(D.OrderID AS NVARCHAR(100))) AS OrderCount,
+        SUM(ISNULL(TRY_CAST(D.LineTotal AS DECIMAL(18,2)), 0)) AS Revenue
+      FROM ORDER_DETAILS D
+      LEFT JOIN ORDERS O ON CAST(O.OrderID AS NVARCHAR(100)) = CAST(D.OrderID AS NVARCHAR(100))
+      WHERE ISNULL(NULLIF(LTRIM(RTRIM(CAST(D.ProductID AS NVARCHAR(100)))), ''), '') <> ''
+        AND ISNULL(TRY_CAST(D.Quantity AS INT), 0) > 0
+        AND (
+          O.Status IS NULL
+          OR (
+            LOWER(CAST(O.Status AS NVARCHAR(255))) NOT LIKE N'%huy%'
+            AND LOWER(CAST(O.Status AS NVARCHAR(255))) NOT LIKE N'%tra%'
+            AND LOWER(CAST(O.Status AS NVARCHAR(255))) NOT LIKE N'%cho thanh toan%'
+          )
+        )
+      GROUP BY CAST(D.ProductID AS NVARCHAR(100))
+    ),
+    RankedProducts AS (
+      SELECT ROW_NUMBER() OVER (ORDER BY S.SoldQuantity DESC, S.OrderCount DESC, S.Revenue DESC) AS TrendRank, S.*
+      FROM SoldProducts S
+    )
+    SELECT TOP 20
+      R.TrendRank,
+      R.SoldQuantity,
+      R.OrderCount,
+      R.Revenue,
+      P.ProductID,
+      P.ProductName,
+      LOT.Barcode,
+      P.Type,
+      P.SupplierID,
+      P.Price,
+      P.Image,
+      P.isHot,
+      ISNULL(BDQ.StockQuantity, 0) AS StockQuantity,
+      P.CategoryID,
+      P.SubCategoryID,
+      P.IsHidden,
+      C.CategoryName,
+      SC.SubCategoryName,
+      PS.sale_price,
+      PS.start_date,
+      PS.end_date
+    FROM RankedProducts R
+    INNER JOIN PRODUCT P ON CAST(P.ProductID AS NVARCHAR(100)) = CAST(R.ProductID AS NVARCHAR(100))
+    LEFT JOIN CATEGORY C ON P.CategoryID = C.CategoryID
+    LEFT JOIN SUB_CATEGORY SC ON P.SubCategoryID = SC.SubCategoryID
+    ${latestBarcodeApply}
+    ${activeBarcodeStockJoin}
+    OUTER APPLY (
+      SELECT TOP 1 PS.sale_price, PS.start_date, PS.end_date
+      FROM PRODUCT_SALE PS
+      WHERE CAST(PS.product_id AS NVARCHAR(100)) = CAST(P.ProductID AS NVARCHAR(100))
+        AND PS.status = 1
+        AND (PS.start_date IS NULL OR PS.start_date <= GETDATE())
+        AND (PS.end_date IS NULL OR PS.end_date >= GETDATE())
+      ORDER BY PS.created_at DESC, PS.id DESC
+    ) PS
+    ${baseVisibleProductWhere}
+    ORDER BY R.TrendRank ASC
+  `);
+
+  return result.recordset || [];
+};
+
+exports.findBrandDetailWithProducts = async (idBrand) => {
+  const pool = await connectDB();
+  const brandId = String(idBrand || "").trim();
+
+  if (!brandId) {
+    return { brand: null, products: [] };
+  }
+
+  const brandResult = await pool.request().input("idBrand", brandId).query(`
+    SELECT TOP 1 idBrand, Brand, description, status, logo_url
+    FROM BRAND
+    WHERE idBrand = @idBrand
+  `);
+
+  const productResult = await pool.request().input("idBrand", brandId).query(`
+    ${selectVisibleProductsSql("AND P.SupplierID = @idBrand", "ORDER BY P.ProductID DESC")}
+  `);
 
   return {
     brand: brandResult.recordset?.[0] || null,

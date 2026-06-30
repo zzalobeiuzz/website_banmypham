@@ -23,6 +23,12 @@ const normalizeExt = (inputExt, fallback = ".jpg") => {
 
 const safeEmailName = (email) => String(email || "").replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
 
+const createClientError = (message) => {
+  const error = new Error(message);
+  error.statusCode = 400;
+  return error;
+};
+
 const saveAvatarFromFile = async ({ email, file }) => {
   if (!file?.buffer || !email) return "";
 
@@ -61,8 +67,27 @@ const saveAvatarFromUrl = async ({ email, url }) => {
     return raw.replace(/^\/uploads\/assets\//i, "");
   }
 
-  const response = await axios.get(raw, { responseType: "arraybuffer", timeout: 15000 });
+  let response;
+  try {
+    response = await axios.get(raw, {
+      responseType: "arraybuffer",
+      timeout: 15000,
+      headers: {
+        Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+      },
+      maxRedirects: 5,
+    });
+  } catch (error) {
+    throw createClientError("Khong tai duoc anh tu URL nay. Vui long dung link anh truc tiep hoac chon file tu may.");
+  }
+
   const contentType = String(response.headers?.["content-type"] || "").toLowerCase();
+  if (contentType && !contentType.startsWith("image/")) {
+    throw createClientError("URL nay khong phai la file anh. Vui long dung link anh truc tiep.");
+  }
+
   let ext = ".jpg";
   if (contentType.includes("png")) ext = ".png";
   else if (contentType.includes("webp")) ext = ".webp";
@@ -158,7 +183,7 @@ async function handleCreateAccount(req, res) {
     return res.status(201).json({ success: true, avatar, message: "Tạo tài khoản thành công." });
   } catch (error) {
     console.error("❌ Lỗi handleCreateAccount:", error);
-    return res.status(500).json({ success: false, message: error.message || "Tạo tài khoản thất bại." });
+    return res.status(error.statusCode || 500).json({ success: false, message: error.message || "Tạo tài khoản thất bại." });
   }
 }
 
@@ -169,8 +194,8 @@ async function handleUpdateAccount(req, res) {
     const role = Number(req.body?.role);
     const isActive = Number(req.body?.isActive);
 
-    if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
-      return res.status(400).json({ success: false, message: "Email tai khoan khong hop le." });
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Khong tim thay email tai khoan de cap nhat." });
     }
 
     if (!displayName) {
@@ -206,7 +231,7 @@ async function handleUpdateAccount(req, res) {
     return res.json({ success: true, avatar, message: "Cap nhat tai khoan thanh cong." });
   } catch (error) {
     console.error("❌ Lỗi handleUpdateAccount:", error);
-    return res.status(500).json({ success: false, message: error.message || "Cap nhat tai khoan that bai." });
+    return res.status(error.statusCode || 500).json({ success: false, message: error.message || "Cap nhat tai khoan that bai." });
   }
 }
 

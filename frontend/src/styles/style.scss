@@ -1,6 +1,96 @@
 @use "./pages/all" as *;
 @use "./pages/responsive" as *;
 
+.app-bootstrap {
+	min-height: 100vh;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+	background:
+		linear-gradient(135deg, rgba(20, 184, 166, 0.12), rgba(244, 114, 182, 0.1)),
+		#f8fafc;
+	color: #0f172a;
+}
+
+.app-bootstrap__card {
+	width: min(92vw, 430px);
+	padding: 30px 28px;
+	border: 1px solid rgba(203, 213, 225, 0.92);
+	border-radius: 18px;
+	background: rgba(255, 255, 255, 0.92);
+	box-shadow: 0 24px 70px rgba(15, 23, 42, 0.14);
+	text-align: center;
+}
+
+.app-bootstrap__mark {
+	width: 66px;
+	height: 66px;
+	margin: 0 auto 16px;
+	border-radius: 18px;
+	display: grid;
+	place-items: center;
+	background: linear-gradient(135deg, #0f766e, #2563eb);
+	box-shadow: 0 14px 32px rgba(15, 118, 110, 0.25);
+
+	span {
+		width: 30px;
+		height: 30px;
+		border: 3px solid rgba(255, 255, 255, 0.38);
+		border-top-color: #ffffff;
+		border-radius: 50%;
+		animation: appBootstrapSpin 0.85s linear infinite;
+	}
+}
+
+.app-bootstrap__eyebrow {
+	margin: 0 0 8px;
+	color: #0f766e;
+	font-size: 13px;
+	font-weight: 900;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+}
+
+.app-bootstrap h1 {
+	margin: 0;
+	font-size: 30px;
+	line-height: 1.15;
+	font-weight: 900;
+	letter-spacing: 0;
+}
+
+.app-bootstrap__message {
+	min-height: 24px;
+	margin: 12px 0 22px;
+	color: #475569;
+	font-size: 15px;
+	font-weight: 700;
+	line-height: 1.5;
+}
+
+.app-bootstrap__retry {
+	border: 0;
+	border-radius: 999px;
+	padding: 11px 20px;
+	background: #0f766e;
+	color: #ffffff;
+	font-size: 14px;
+	font-weight: 900;
+	cursor: pointer;
+	box-shadow: 0 12px 28px rgba(15, 118, 110, 0.22);
+
+	&:hover {
+		background: #115e59;
+	}
+}
+
+@keyframes appBootstrapSpin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
 .global-alert-overlay {
 	position: fixed;
 	inset: 0;

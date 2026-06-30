@@ -150,6 +150,130 @@ const getCellValue = (row, key) => {
 
 const normalizeSheetRows = (rows = []) => (Array.isArray(rows) ? rows : []);
 
+const toNumber = (value) => {
+  const normalized = String(value ?? "").replace(/[^0-9.-]/g, "");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const isPaidOrder = (status) => {
+  const normalized = String(status || "").trim().toLowerCase();
+  return (
+    normalized.startsWith("đã thanh toán") ||
+    normalized.includes("thanh toán cod") ||
+    normalized === "thanh toán cod"
+  );
+};
+
+const getOrderId = (order) => order?.OrderID || order?.OrderId || order?.id || "";
+const getOrderDate = (order) => order?.CreatedAt || order?.createdAt || order?.date || order?.OrderDate || "";
+const getOrderCustomer = (order) => order?.CustomerName || order?.customerName || order?.customer || "";
+const getOrderPhone = (order) => order?.CustomerPhone || order?.phone || order?.PhoneNumber || "";
+const getOrderAddress = (order) => order?.CustomerAddress || order?.address || order?.Address || "";
+const getOrderStatus = (order) => order?.Status || order?.status || "";
+const getOrderTotal = (order) => toNumber(order?.TotalRaw ?? order?.Total ?? order?.total);
+
+const getDateKey = (value, length = 10) => {
+  const normalized = String(value || "").trim();
+  return normalized ? normalized.slice(0, length) : "Không rõ";
+};
+
+const groupRevenueBy = (orders = [], keyGetter) => {
+  const map = new Map();
+  orders.filter((order) => isPaidOrder(getOrderStatus(order))).forEach((order) => {
+    const key = keyGetter(order);
+    if (!map.has(key)) {
+      map.set(key, {
+        TimeLabel: key,
+        OrderCount: 0,
+        RevenueRaw: 0,
+      });
+    }
+    const row = map.get(key);
+    row.OrderCount += 1;
+    row.RevenueRaw += getOrderTotal(order);
+  });
+
+  return Array.from(map.values())
+    .sort((a, b) => String(a.TimeLabel).localeCompare(String(b.TimeLabel)))
+    .map((row, index) => ({
+      STT: index + 1,
+      TimeLabel: row.TimeLabel,
+      OrderCount: row.OrderCount,
+      RevenueRaw: row.RevenueRaw,
+      Revenue: formatVND(row.RevenueRaw),
+    }));
+};
+
+const getRevenueOverviewRows = (orders = []) => {
+  const paidOrders = orders.filter((order) => isPaidOrder(getOrderStatus(order)));
+  const paidRevenue = paidOrders.reduce((sum, order) => sum + getOrderTotal(order), 0);
+  const allRevenue = orders.reduce((sum, order) => sum + getOrderTotal(order), 0);
+
+  return [
+    { Label: "Tổng đơn hàng", Value: orders.length },
+    { Label: "Đơn đã tính doanh thu", Value: paidOrders.length },
+    { Label: "Doanh thu đã thanh toán", Value: formatVND(paidRevenue) },
+    { Label: "Giá trị trung bình/đơn", Value: formatVND(paidOrders.length ? paidRevenue / paidOrders.length : 0) },
+    { Label: "Tổng giá trị tất cả đơn", Value: formatVND(allRevenue) },
+  ];
+};
+
+const getRevenueOrderRows = (orders = []) =>
+  orders.filter((order) => isPaidOrder(getOrderStatus(order))).map((order, index) => ({
+    STT: index + 1,
+    OrderID: getOrderId(order),
+    CustomerName: getOrderCustomer(order),
+    Phone: getOrderPhone(order),
+    Address: getOrderAddress(order),
+    CreatedAt: getOrderDate(order),
+    Status: getOrderStatus(order),
+    ProductCount: Array.isArray(order.details) ? order.details.length : 0,
+    Total: formatVND(getOrderTotal(order)),
+  }));
+
+const getRevenueOrderDetailRows = (orders = []) => {
+  const rows = [];
+
+  orders.filter((order) => isPaidOrder(getOrderStatus(order))).forEach((order) => {
+    const details = Array.isArray(order.details) ? order.details : [];
+    if (!details.length) {
+      rows.push({
+        OrderID: getOrderId(order),
+        CustomerName: getOrderCustomer(order),
+        Phone: getOrderPhone(order),
+        Address: getOrderAddress(order),
+        CreatedAt: getOrderDate(order),
+        Status: getOrderStatus(order),
+        ProductName: "",
+        Quantity: "",
+        UnitPrice: "",
+        LineTotal: "",
+      });
+      return;
+    }
+
+    details.forEach((detail) => {
+      const quantity = Number(detail.qty || detail.Quantity || 0) || 0;
+      const unitPrice = toNumber(detail.price || detail.UnitPrice || detail.UnitPriceRaw);
+      rows.push({
+        OrderID: getOrderId(order),
+        CustomerName: getOrderCustomer(order),
+        Phone: getOrderPhone(order),
+        Address: getOrderAddress(order),
+        CreatedAt: getOrderDate(order),
+        Status: getOrderStatus(order),
+        ProductName: detail.name || detail.ProductName || "",
+        Quantity: quantity,
+        UnitPrice: formatVND(unitPrice),
+        LineTotal: formatVND(toNumber(detail.lineTotal || detail.LineTotalRaw) || unitPrice * quantity),
+      });
+    });
+  });
+
+  return rows.map((row, index) => ({ STT: index + 1, ...row }));
+};
+
 const addReportSheet = (workbook, sheetName, rows, columns) => {
   const safeName = String(sheetName || "Sheet").slice(0, 31);
   const worksheet = workbook.addWorksheet(safeName);
@@ -325,52 +449,154 @@ const AdminOverviewPage = () => {
     ]);
   };
 
-  const addRevenueSheets = (workbook, statsPayload = {}) => {
-    addReportSheet(workbook, "Doanh thu năm", (statsPayload.yearlyRevenue || []).map((item, index) => ({
-      STT: index + 1,
-      YearLabel: item.YearLabel,
-      Revenue: formatVND(item.Revenue),
-    })), [
-      { header: "STT", key: "STT", width: 8 },
-      { header: "Năm", key: "YearLabel", width: 14 },
-      { header: "Doanh thu", key: "Revenue", width: 20 },
-    ]);
+  const addRevenueSheets = (workbook, _statsPayload = {}, orders = [], mode = "interactive") => {
+    if (mode === "detail") {
+      addReportSheet(workbook, "Chi tiết doanh thu", getRevenueOrderRows(orders), [
+        { header: "STT", key: "STT", width: 8 },
+        { header: "Mã đơn", key: "OrderID", width: 26 },
+        { header: "Khách hàng", key: "CustomerName", width: 28 },
+        { header: "Số điện thoại", key: "Phone", width: 18 },
+        { header: "Địa chỉ", key: "Address", width: 42 },
+        { header: "Ngày đặt", key: "CreatedAt", width: 18 },
+        { header: "Trạng thái", key: "Status", width: 22 },
+        { header: "Số dòng SP", key: "ProductCount", width: 14 },
+        { header: "Tổng tiền", key: "Total", width: 18 },
+      ]);
 
-    addReportSheet(workbook, "Doanh thu tháng", (statsPayload.monthlyRevenue || []).map((item, index) => ({
-      STT: index + 1,
-      MonthLabel: item.MonthLabel,
-      Revenue: formatVND(item.Revenue),
-    })), [
-      { header: "STT", key: "STT", width: 8 },
-      { header: "Tháng", key: "MonthLabel", width: 16 },
-      { header: "Doanh thu", key: "Revenue", width: 20 },
-    ]);
+      addReportSheet(workbook, "Sản phẩm trong đơn", getRevenueOrderDetailRows(orders), [
+        { header: "STT", key: "STT", width: 8 },
+        { header: "Mã đơn", key: "OrderID", width: 26 },
+        { header: "Khách hàng", key: "CustomerName", width: 28 },
+        { header: "Số điện thoại", key: "Phone", width: 18 },
+        { header: "Địa chỉ", key: "Address", width: 42 },
+        { header: "Ngày đặt", key: "CreatedAt", width: 18 },
+        { header: "Trạng thái", key: "Status", width: 22 },
+        { header: "Sản phẩm", key: "ProductName", width: 42 },
+        { header: "SL", key: "Quantity", width: 10 },
+        { header: "Đơn giá", key: "UnitPrice", width: 18 },
+        { header: "Thành tiền", key: "LineTotal", width: 18 },
+      ]);
+      return;
+    }
 
-    addReportSheet(workbook, "Doanh thu danh mục", (statsPayload.categoryRevenue || []).map((item, index) => ({
-      STT: index + 1,
-      CategoryName: item.CategoryName || item.CategoryID,
-      Revenue: formatVND(item.Revenue),
-    })), [
-      { header: "STT", key: "STT", width: 8 },
-      { header: "Danh mục", key: "CategoryName", width: 30 },
-      { header: "Doanh thu", key: "Revenue", width: 20 },
-    ]);
+    const worksheet = workbook.addWorksheet("Doanh thu");
+    const dayRows = groupRevenueBy(orders, (order) => getDateKey(getOrderDate(order), 10));
+    const monthRows = groupRevenueBy(orders, (order) => getDateKey(getOrderDate(order), 7));
+    const yearRows = groupRevenueBy(orders, (order) => getDateKey(getOrderDate(order), 4));
+    const detailRows = getRevenueOrderRows(orders);
+    const maxSummaryRows = Math.max(dayRows.length, monthRows.length, yearRows.length, 1);
+    const detailStartRow = maxSummaryRows + 10;
 
-    addReportSheet(workbook, "Chi tiết doanh thu", (statsPayload.productSalesReport || []).map((item, index) => ({
-      STT: index + 1,
-      ProductID: item.ProductID,
-      ProductName: item.ProductName,
-      CategoryName: item.CategoryName,
-      Quantity: Number(item.Quantity || 0),
-      Revenue: formatVND(item.Revenue),
-    })), [
-      { header: "STT", key: "STT", width: 8 },
-      { header: "Mã sản phẩm", key: "ProductID", width: 18 },
-      { header: "Tên sản phẩm", key: "ProductName", width: 42 },
-      { header: "Danh mục", key: "CategoryName", width: 26 },
-      { header: "Số lượng", key: "Quantity", width: 14 },
-      { header: "Doanh thu", key: "Revenue", width: 20 },
-    ]);
+    worksheet.mergeCells("A1:D1");
+    worksheet.getCell("A1").value = "Báo cáo doanh thu";
+    worksheet.getCell("A1").font = { bold: true, size: 18, color: { argb: "FF0F172A" } };
+    worksheet.getCell("A1").alignment = { horizontal: "center" };
+    worksheet.getCell("A2").value = `Ngày xuất: ${new Date().toLocaleString("vi-VN")}`;
+    worksheet.getCell("A2").font = { color: { argb: "FF64748B" } };
+
+    worksheet.getCell("A3").value = "Chọn cách tính";
+    worksheet.getCell("A3").font = { bold: true };
+    worksheet.getCell("B3").value = "Ngày";
+    worksheet.getCell("B3").dataValidation = {
+      type: "list",
+      allowBlank: false,
+      formulae: ['"Ngày,Tháng,Năm"'],
+    };
+    worksheet.getCell("C3").value = "Đổi lựa chọn ở ô B3 để bảng bên dưới tự cập nhật.";
+    worksheet.getCell("C3").font = { italic: true, color: { argb: "FF64748B" } };
+
+    const overviewRows = getRevenueOverviewRows(orders);
+    overviewRows.forEach((row, index) => {
+      const currentRow = worksheet.getRow(3 + index);
+      currentRow.getCell(5).value = row.Label;
+      currentRow.getCell(6).value = row.Value;
+      currentRow.getCell(5).font = { bold: true };
+    });
+
+    const visibleHeader = worksheet.getRow(5);
+    ["STT", "Mốc thời gian", "Số đơn", "Doanh thu"].forEach((header, index) => {
+      const cell = visibleHeader.getCell(index + 1);
+      cell.value = header;
+      cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F766E" } };
+      cell.alignment = { horizontal: "center" };
+    });
+
+    const writeHelperTable = (startColumn, rows) => {
+      const headers = ["STT", "Mốc thời gian", "Số đơn", "Doanh thu"];
+      headers.forEach((header, index) => {
+        worksheet.getRow(5).getCell(startColumn + index).value = header;
+      });
+      rows.forEach((row, index) => {
+        const currentRow = worksheet.getRow(6 + index);
+        currentRow.getCell(startColumn).value = row.STT;
+        currentRow.getCell(startColumn + 1).value = row.TimeLabel;
+        currentRow.getCell(startColumn + 2).value = row.OrderCount;
+        currentRow.getCell(startColumn + 3).value = row.RevenueRaw;
+      });
+    };
+
+    writeHelperTable(20, dayRows);
+    writeHelperTable(24, monthRows);
+    writeHelperTable(28, yearRows);
+
+    for (let index = 0; index < maxSummaryRows; index += 1) {
+      const rowNumber = 6 + index;
+      const row = worksheet.getRow(rowNumber);
+      row.getCell(1).value = { formula: `IF($B$3="Ngày",IF($T${rowNumber}="","",$T${rowNumber}),IF($B$3="Tháng",IF($X${rowNumber}="","",$X${rowNumber}),IF($AB${rowNumber}="","",$AB${rowNumber})))` };
+      row.getCell(2).value = { formula: `IF($B$3="Ngày",IF($U${rowNumber}="","",$U${rowNumber}),IF($B$3="Tháng",IF($Y${rowNumber}="","",$Y${rowNumber}),IF($AC${rowNumber}="","",$AC${rowNumber})))` };
+      row.getCell(3).value = { formula: `IF($B$3="Ngày",IF($V${rowNumber}="","",$V${rowNumber}),IF($B$3="Tháng",IF($Z${rowNumber}="","",$Z${rowNumber}),IF($AD${rowNumber}="","",$AD${rowNumber})))` };
+      row.getCell(4).value = { formula: `IF($B$3="Ngày",IF($W${rowNumber}="","",$W${rowNumber}),IF($B$3="Tháng",IF($AA${rowNumber}="","",$AA${rowNumber}),IF($AE${rowNumber}="","",$AE${rowNumber})))` };
+      row.getCell(4).numFmt = '#,##0 "đ"';
+    }
+
+    const detailTitleRow = worksheet.getRow(detailStartRow);
+    detailTitleRow.getCell(1).value = "Chi tiết đơn hàng tính doanh thu";
+    detailTitleRow.getCell(1).font = { bold: true, size: 14, color: { argb: "FF0F172A" } };
+    worksheet.mergeCells(detailStartRow, 1, detailStartRow, 9);
+
+    const detailHeaderRow = worksheet.getRow(detailStartRow + 2);
+    ["STT", "Mã đơn", "Khách hàng", "Số điện thoại", "Địa chỉ", "Ngày đặt", "Trạng thái", "Số dòng SP", "Tổng tiền"].forEach((header, index) => {
+      const cell = detailHeaderRow.getCell(index + 1);
+      cell.value = header;
+      cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF164E63" } };
+      cell.alignment = { horizontal: "center" };
+    });
+
+    detailRows.forEach((detail, index) => {
+      const row = worksheet.getRow(detailStartRow + 3 + index);
+      row.values = [
+        detail.STT,
+        detail.OrderID,
+        detail.CustomerName,
+        detail.Phone,
+        detail.Address,
+        detail.CreatedAt,
+        detail.Status,
+        detail.ProductCount,
+        detail.Total,
+      ];
+    });
+
+    [1, 2, 3, 4, 5, 6, 7, 8, 9].forEach((column) => {
+      worksheet.getColumn(column).width = [8, 24, 28, 18, 42, 18, 22, 14, 18][column - 1];
+    });
+    [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31].forEach((column) => {
+      worksheet.getColumn(column).hidden = true;
+    });
+
+    worksheet.eachRow((row) => {
+      row.eachCell((cell) => {
+        cell.alignment = { ...cell.alignment, vertical: "middle", wrapText: true };
+        cell.border = {
+          top: { style: "thin", color: { argb: "FFE2E8F0" } },
+          left: { style: "thin", color: { argb: "FFE2E8F0" } },
+          bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
+          right: { style: "thin", color: { argb: "FFE2E8F0" } },
+        };
+      });
+    });
   };
 
   const addProductsSheet = (workbook, products = []) => {
@@ -418,25 +644,31 @@ const AdminOverviewPage = () => {
   const addOrdersSheet = (workbook, orders = []) => {
     addReportSheet(workbook, "Đơn hàng", orders.map((item, index) => ({
       STT: index + 1,
-      OrderID: item.OrderID || item.id,
-      CustomerName: item.CustomerName || item.customerName,
-      CreatedAt: item.CreatedAt || item.createdAt,
-      Status: item.Status || item.status,
-      PaymentMethod: item.PaymentMethod || item.paymentMethod,
-      Total: formatVND(item.TotalRaw ?? item.Total ?? item.total),
+      OrderID: getOrderId(item),
+      CustomerName: getOrderCustomer(item),
+      Phone: getOrderPhone(item),
+      Address: getOrderAddress(item),
+      CreatedAt: getOrderDate(item),
+      Status: getOrderStatus(item),
+      ProductCount: Array.isArray(item.details) ? item.details.length : 0,
+      Total: formatVND(getOrderTotal(item)),
     })), [
       { header: "STT", key: "STT", width: 8 },
       { header: "Mã đơn", key: "OrderID", width: 24 },
       { header: "Khách hàng", key: "CustomerName", width: 28 },
+      { header: "Số điện thoại", key: "Phone", width: 18 },
+      { header: "Địa chỉ", key: "Address", width: 42 },
       { header: "Ngày đặt", key: "CreatedAt", width: 24 },
       { header: "Trạng thái", key: "Status", width: 24 },
-      { header: "Thanh toán", key: "PaymentMethod", width: 18 },
+      { header: "Số dòng SP", key: "ProductCount", width: 14 },
       { header: "Tổng tiền", key: "Total", width: 18 },
     ]);
   };
 
   const loadExportData = async (type) => {
-    const statsPromise = (type === "all" || type === "revenue")
+    const revenueTypes = ["revenue", "revenue-detail"];
+
+    const statsPromise = type === "all"
       ? request("GET", `${API_BASE}/api/admin/stats?year=${currentYear}&_=${Date.now()}`).then((res) => res.data || res)
       : Promise.resolve(null);
 
@@ -448,7 +680,7 @@ const AdminOverviewPage = () => {
       ? request("GET", `${API_BASE}/api/admin/customers`).then((res) => res.data || [])
       : Promise.resolve(null);
 
-    const ordersPromise = (type === "all" || type === "orders")
+    const ordersPromise = (type === "all" || type === "orders" || revenueTypes.includes(type))
       ? request("GET", `${API_BASE}/api/admin/orders`).then((res) => res.data || [])
       : Promise.resolve(null);
 
@@ -476,7 +708,14 @@ const AdminOverviewPage = () => {
 
       const { stats, products, customers, orders } = await loadExportData(type);
 
-      if (type === "all" || type === "revenue") addRevenueSheets(workbook, stats || {});
+      const revenueModes = {
+        revenue: "interactive",
+        "revenue-detail": "detail",
+      };
+
+      if (type === "all" || revenueModes[type]) {
+        addRevenueSheets(workbook, stats || {}, orders || [], type === "all" ? "interactive" : revenueModes[type]);
+      }
       if (type === "all" || type === "products") addProductsSheet(workbook, products || []);
       if (type === "all" || type === "customers") addCustomersSheet(workbook, customers || []);
       if (type === "all" || type === "orders") addOrdersSheet(workbook, orders || []);
@@ -484,6 +723,7 @@ const AdminOverviewPage = () => {
       const reportNames = {
         all: "bao-cao-quan-tri",
         revenue: "bao-cao-doanh-thu",
+        "revenue-detail": "chi-tiet-doanh-thu",
         products: "danh-sach-san-pham",
         customers: "danh-sach-khach-hang",
         orders: "danh-sach-don-hang",
@@ -507,7 +747,6 @@ const AdminOverviewPage = () => {
       <div className="overview-header">
         <div className="overview-title-block">
           <div className="overview-title-content">
-            <span className="overview-eyebrow">Dashboard</span>
             <h4>Tổng quan quản trị</h4>
             <p>Theo dõi nhanh quy mô dữ liệu, nhóm bán chạy và khách hàng nổi bật.</p>
             <div className="overview-export-actions">
@@ -522,6 +761,9 @@ const AdminOverviewPage = () => {
               </button>
               <button type="button" onClick={() => handleExportReport("revenue")} disabled={Boolean(exportingReport)}>
                 Doanh thu
+              </button>
+              <button type="button" onClick={() => handleExportReport("revenue-detail")} disabled={Boolean(exportingReport)}>
+                Chi tiết doanh thu
               </button>
               <button type="button" onClick={() => handleExportReport("customers")} disabled={Boolean(exportingReport)}>
                 Khách hàng

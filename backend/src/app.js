@@ -5,6 +5,7 @@ const path = require("path");
 const cron = require("node-cron");
 // const cleanUploads = require("./cleanUploads");
 const { cleanupExpiredPendingOrders } = require("./user/models/order.model");
+const { connectDB } = require("./config/connect");
 
 const app = express();
 
@@ -38,6 +39,26 @@ app.get("/", (req, res) => {
 });
 
 // 🔒 Cron job concurrency guards
+app.get("/api/health/database", async (req, res) => {
+  try {
+    const pool = await connectDB();
+    await pool.request().query("SELECT 1 AS ok");
+
+    res.json({
+      success: true,
+      status: "connected",
+      message: "Database connected",
+    });
+  } catch (err) {
+    res.status(503).json({
+      success: false,
+      status: "disconnected",
+      message: "Database is not ready",
+      error: err.message,
+    });
+  }
+});
+
 let isCleanupRunning = false;
 const CLEANUP_TIMEOUT_MS = 55000; // 55 seconds (safer than 60s interval)
 

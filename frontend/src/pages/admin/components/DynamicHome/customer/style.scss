@@ -89,9 +89,16 @@
           text-align: center;
           border-bottom: 1px solid #f0f0f0;
           transition: background-color 0.2s ease;
+          cursor: pointer;
 
           &:hover {
             background-color: #f9f9f9;
+          }
+
+          &:focus-visible {
+            outline: 3px solid rgba(74, 123, 208, 0.28);
+            outline-offset: -3px;
+            background-color: #f3f7ff;
           }
 
           td {

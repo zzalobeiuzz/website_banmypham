@@ -17,7 +17,7 @@ const navItems = [
 ];
 
 const adminSearchItems = [
-  { icon: "icons-analytics.png", title: "Tổng quan", description: "Dashboard quản trị", path: "/admin", keywords: ["dashboard", "tong quan", "thong ke chung"] },
+  { icon: "icons-analytics.png", title: "Tổng quan", description: "Thống kê quản trị", path: "/admin", keywords: ["dashboard", "tong quan", "thong ke chung"] },
   { icon: "icons-product-management.png", title: "Sản phẩm", description: "Quản lý danh sách sản phẩm", path: "/admin/product", keywords: ["san pham", "product", "hang hoa"] },
   { icon: "icons-product-management.png", title: "Thêm sản phẩm", description: "Tạo sản phẩm mới", path: "/admin/product/add", keywords: ["them san pham", "tao san pham", "add product"] },
   { icon: "icons-product-category.png", title: "Danh mục", description: "Quản lý danh mục sản phẩm", path: "/admin/product/categories", keywords: ["danh muc", "category", "nhom san pham"] },

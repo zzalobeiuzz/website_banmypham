@@ -85,7 +85,7 @@
         justify-content: space-between;
         align-items: center;
         gap: 12px;
-        margin-bottom: 30px;
+        margin-bottom: 22px;
 
         h2 {
           margin: 0;
@@ -120,25 +120,25 @@
 
       /* Clear-all button (anchored inside .main-left) */
       .btn-clear-all {
-        position: absolute;
-        bottom: 20px;
-        right: 20px;
-        padding: 8px 14px;
-        background: transparent;
+        position: static;
+        flex: 0 0 auto;
+        gap: 8px;
+        padding: 9px 14px;
+        background: #fff7f7;
         color: #ef4444;
-        border: 1px solid rgba(239, 68, 68, 0.12);
+        border: 1px solid rgba(239, 68, 68, 0.22);
         border-radius: 999px;
         cursor: pointer;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+        box-shadow: 0 8px 18px rgba(239, 68, 68, 0.08);
         transition: transform 0.14s ease, box-shadow 0.14s ease, background 0.12s ease, color 0.12s ease;
         z-index: 6;
-        font-weight: 600;
+        font-weight: 700;
         font-size: 13.5px;
         letter-spacing: 0.2px;
-        min-width: 96px;
+        min-width: 116px;
         text-align: center;
       }
 
@@ -155,12 +155,16 @@
       }
 
       @media (max-width: 768px) {
+        .cart-header-wrapper {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
         .btn-clear-all {
-          bottom: 14px;
-          right: 14px;
+          align-self: flex-end;
           padding: 8px 12px;
           font-size: 13px;
-          min-width: 88px;
+          min-width: auto;
         }
       }
 
@@ -386,25 +390,25 @@
 
 /* Fallback explicit selectors to ensure styles apply regardless of nesting */
 .cart-detail-page .cart-detail-main .main-left .btn-clear-all {
-  position: absolute;
-  bottom: 20px;
-  right: 20px;
-  padding: 8px 14px;
-  background: transparent;
+  position: static;
+  flex: 0 0 auto;
+  gap: 8px;
+  padding: 9px 14px;
+  background: #fff7f7;
   color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.22);
   border-radius: 999px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 8px 18px rgba(239, 68, 68, 0.08);
   transition: transform 0.14s ease, box-shadow 0.14s ease, background 0.12s ease, color 0.12s ease;
   z-index: 6;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 13.5px;
   letter-spacing: 0.2px;
-  min-width: 96px;
+  min-width: 116px;
   text-align: center;
 }
 

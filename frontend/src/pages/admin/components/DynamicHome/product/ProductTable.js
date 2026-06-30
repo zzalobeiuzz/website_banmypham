@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import JsBarcode from "jsbarcode";
@@ -36,6 +36,40 @@ const productSections = [
     className: "product-instructions",
   },
 ];
+
+const createEditableBatch = () => {
+  const now = new Date();
+  return {
+    batchId: "",
+    barcode: "",
+    quantity: 0,
+    expiryDate: "",
+    createdAt: now.toISOString(),
+    isNew: true,
+  };
+};
+
+const toDateInputValue = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+};
+
+const getSaleFieldsFromProduct = (product = {}) => {
+  const salePrice = Number(product?.sale_price || 0);
+  const saleEventId = product?.SaleEventID ? String(product.SaleEventID) : "";
+  const hasSale = salePrice > 0;
+
+  return {
+    saleMode: hasSale ? (saleEventId ? "event" : "independent") : "none",
+    salePrice: hasSale ? String(Math.round(salePrice)) : "",
+    saleEventId,
+    saleStartDate: toDateInputValue(product?.sale_start_date || product?.start_date),
+    saleEndDate: toDateInputValue(product?.sale_end_date || product?.end_date),
+    saleProgramName: product?.ProgramName || product?.SaleEventTitle || "",
+  };
+};
 
 const LotBarcode = ({ value }) => {
   const barcodeRef = useRef(null);
@@ -92,6 +126,9 @@ const ProductDetail = () => {
   const [previewImage, setPreviewImage] = useState(null);
   const [selectedBatchId, setSelectedBatchId] = useState(null);
   const [editableBatches, setEditableBatches] = useState([]);
+  const [allBatches, setAllBatches] = useState([]);
+  const [saleEvents, setSaleEvents] = useState([]);
+  const [isBatchDropdownOpen, setIsBatchDropdownOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [notify, setNotify] = useState({ open: false, status: "info", message: "" });
 
@@ -106,6 +143,12 @@ const ProductDetail = () => {
     Lot: "",
     SupplierID: "",
     Image: null,
+    saleMode: "none",
+    salePrice: "",
+    saleEventId: "",
+    saleStartDate: "",
+    saleEndDate: "",
+    saleProgramName: "",
   });
 
   useEffect(() => {
@@ -117,6 +160,7 @@ const ProductDetail = () => {
           `${API_BASE}/api/admin/products/productDetail?code=${id}`
         );
         const productData = res?.data || null;
+        const saleFields = getSaleFieldsFromProduct(productData);
         setProduct(productData);
         setEditFields({
           ProductName: productData?.ProductName || "",
@@ -131,6 +175,7 @@ const ProductDetail = () => {
           Image: null,
           CategoryID: productData?.CategoryID || "",
           SubCategoryID: productData?.SubCategoryID || "",
+          ...saleFields,
         });
 
         const firstBatchId = productData?.batchDetails?.[0]?.batchId || null;
@@ -186,6 +231,34 @@ const ProductDetail = () => {
     fetchBrands();
   }, [request]);
 
+  useEffect(() => {
+    const fetchBatches = async () => {
+      try {
+        const res = await request("GET", `${API_BASE}/api/admin/batches`);
+        setAllBatches(Array.isArray(res?.data) ? res.data : []);
+      } catch (error) {
+        console.error("Khong lay duoc danh sach lo hang:", error.message);
+        setAllBatches([]);
+      }
+    };
+
+    fetchBatches();
+  }, [request]);
+
+  useEffect(() => {
+    const fetchSaleEvents = async () => {
+      try {
+        const res = await request("GET", `${API_BASE}/api/admin/sale-events`);
+        setSaleEvents(Array.isArray(res?.data) ? res.data : []);
+      } catch (error) {
+        console.error("Khong lay duoc danh sach su kien sale:", error.message);
+        setSaleEvents([]);
+      }
+    };
+
+    fetchSaleEvents();
+  }, [request]);
+
   const scrollToSection = (id) => {
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -204,6 +277,34 @@ const ProductDetail = () => {
   const handlePriceChange = (value) => {
     const digits = String(value ?? "").replace(/\D/g, "");
     handleInputChange("Price", digits);
+  };
+
+  const handleSalePriceChange = (value) => {
+    const digits = String(value ?? "").replace(/\D/g, "");
+    handleInputChange("salePrice", digits);
+  };
+
+  const handleSaleModeChange = (mode) => {
+    setEditFields((prev) => ({
+      ...prev,
+      saleMode: mode,
+      saleEventId: mode === "event" ? prev.saleEventId : "",
+      saleProgramName: mode === "event" ? prev.saleProgramName : "",
+      saleStartDate: mode === "none" ? "" : prev.saleStartDate,
+      saleEndDate: mode === "none" ? "" : prev.saleEndDate,
+      salePrice: mode === "none" ? "" : prev.salePrice,
+    }));
+  };
+
+  const handleSaleEventChange = (eventId) => {
+    const selectedEvent = saleEvents.find((item) => String(item.id || "") === String(eventId || ""));
+    setEditFields((prev) => ({
+      ...prev,
+      saleEventId: eventId,
+      saleProgramName: selectedEvent?.title || "",
+      saleStartDate: toDateInputValue(selectedEvent?.start_date),
+      saleEndDate: toDateInputValue(selectedEvent?.end_date),
+    }));
   };
 
   const showPopup = ({ status = "info", message = "" }) => {
@@ -304,6 +405,47 @@ const ProductDetail = () => {
       ? editableBatches[selectedEditableBatchIndex]
       : editableBatches[0] || null;
 
+  const selectedSaleEvent = useMemo(
+    () => saleEvents.find((event) => String(event.id || "") === String(editFields.saleEventId || "")),
+    [saleEvents, editFields.saleEventId]
+  );
+
+  const currentSaleMode = String(editFields.saleMode || "none");
+  const currentSalePrice = Number(product?.sale_price || 0);
+  const hasCurrentSale = currentSalePrice > 0;
+  const currentSaleLabel = product?.SaleEventTitle || product?.ProgramName || (product?.SaleEventID ? "Sale theo event" : "Sale độc lập");
+  const saleDateLabel = (() => {
+    const start = product?.sale_start_date || product?.start_date;
+    const end = product?.sale_end_date || product?.end_date;
+    if (!start && !end) return "Không giới hạn thời gian";
+    return `${formatDate(start)} - ${formatDate(end)}`;
+  })();
+
+  const allBatchOptions = useMemo(
+    () =>
+      (Array.isArray(allBatches) ? allBatches : [])
+        .map((batch) => {
+          const value = String(batch?.ID || "").trim();
+          return {
+            value,
+            createdAt: batch?.CreatedAt || null,
+            note: String(batch?.Note || "").trim(),
+          };
+        })
+        .filter((item) => item.value),
+    [allBatches],
+  );
+
+  const filteredBatchOptions = useMemo(() => {
+    const keyword = String(selectedEditableBatch?.batchId || "").trim().toLowerCase();
+    if (!keyword) return allBatchOptions;
+
+    return allBatchOptions.filter((item) =>
+      item.value.toLowerCase().includes(keyword) ||
+      item.note.toLowerCase().includes(keyword),
+    );
+  }, [allBatchOptions, selectedEditableBatch?.batchId]);
+
   const handleBatchFieldChange = (index, field, value) => {
     setEditableBatches((prev) =>
       prev.map((batch, idx) => {
@@ -314,6 +456,24 @@ const ProductDetail = () => {
         return { ...batch, [field]: value };
       })
     );
+
+    if (field === "batchId" && index === selectedEditableBatchIndex) {
+      setSelectedBatchId(value);
+    }
+  };
+
+  const handleAddEditableBatch = () => {
+    const nextBatch = createEditableBatch();
+    setEditableBatches((prev) => [...prev, nextBatch]);
+    setSelectedBatchId("");
+    setIsBatchDropdownOpen(true);
+  };
+
+  const handleSelectBatchOption = (batchId) => {
+    const targetIndex = selectedEditableBatchIndex >= 0 ? selectedEditableBatchIndex : 0;
+    handleBatchFieldChange(targetIndex, "batchId", batchId);
+    setSelectedBatchId(batchId);
+    setIsBatchDropdownOpen(false);
   };
 
   const handleCancelEdit = () => {
@@ -322,6 +482,7 @@ const ProductDetail = () => {
       return;
     }
 
+    const saleFields = getSaleFieldsFromProduct(product);
     setEditFields({
       ProductName: product.ProductName || "",
       Price: product.Price || "",
@@ -335,6 +496,7 @@ const ProductDetail = () => {
       Image: null,
       CategoryID: product.CategoryID || "",
       SubCategoryID: product.SubCategoryID || "",
+      ...saleFields,
     });
 
     const resetBatches = (product?.batchDetails || []).map((batch) => ({
@@ -359,6 +521,56 @@ const ProductDetail = () => {
 
     try {
       setIsSaving(true);
+      const normalizedBatches = editableBatches.map((batch) => ({
+        ...batch,
+        batchId: String(batch.batchId || "").trim(),
+        barcode: String(batch.barcode || "").trim(),
+        quantity: Number(batch.quantity || 0),
+        expiryDate: batch.expiryDate || null,
+      }));
+      const invalidBatch = normalizedBatches.find(
+        (batch) => !batch.batchId || !batch.barcode || Number(batch.quantity || 0) <= 0
+      );
+      if (invalidBatch) {
+        showPopup({ status: "error", message: "Vui lòng nhập đầy đủ mã lô, barcode và số lượng > 0 cho từng lô." });
+        return;
+      }
+
+      const duplicatedBarcode = normalizedBatches.find((batch, index) =>
+        normalizedBatches.findIndex((item) => item.barcode === batch.barcode) !== index
+      );
+      if (duplicatedBarcode) {
+        showPopup({ status: "error", message: `Barcode ${duplicatedBarcode.barcode} đang bị trùng trong danh sách lô.` });
+        return;
+      }
+
+      const saleMode = String(editFields.saleMode || "none");
+      const salePrice = Number(editFields.salePrice || 0);
+      const originalPrice = Number(editFields.Price || 0);
+
+      if (saleMode !== "none") {
+        if (!salePrice || salePrice <= 0) {
+          showPopup({ status: "error", message: "Vui lòng nhập giá sale lớn hơn 0." });
+          return;
+        }
+        if (originalPrice > 0 && salePrice >= originalPrice) {
+          showPopup({ status: "error", message: "Giá sale phải nhỏ hơn giá bán." });
+          return;
+        }
+        if (saleMode === "event" && !editFields.saleEventId) {
+          showPopup({ status: "error", message: "Vui lòng chọn sự kiện sale." });
+          return;
+        }
+        if (saleMode === "independent" && editFields.saleStartDate && editFields.saleEndDate) {
+          const startDate = new Date(editFields.saleStartDate);
+          const endDate = new Date(editFields.saleEndDate);
+          if (startDate > endDate) {
+            showPopup({ status: "error", message: "Ngày bắt đầu sale phải nhỏ hơn hoặc bằng ngày kết thúc." });
+            return;
+          }
+        }
+      }
+
       const payload = {
         ProductID: product.ProductID,
         DetailID: product.DetailID,
@@ -371,12 +583,16 @@ const ProductDetail = () => {
         Ingredient: editFields.Ingredient,
         Usage: editFields.Usage,
         HowToUse: editFields.HowToUse,
-        batchDetails: editableBatches.map((batch) => ({
-          batchId: batch.batchId,
-          barcode: String(batch.barcode || "").trim(),
-          quantity: Number(batch.quantity || 0),
-          expiryDate: batch.expiryDate || null,
-        })),
+        batchDetails: normalizedBatches,
+        sale: {
+          enabled: saleMode !== "none",
+          saleMode,
+          salePrice,
+          saleEventId: saleMode === "event" ? editFields.saleEventId || null : null,
+          programName: saleMode === "event" ? editFields.saleProgramName || selectedSaleEvent?.title || "" : "",
+          startDate: saleMode === "event" ? selectedSaleEvent?.start_date || editFields.saleStartDate || null : editFields.saleStartDate || null,
+          endDate: saleMode === "event" ? selectedSaleEvent?.end_date || editFields.saleEndDate || null : editFields.saleEndDate || null,
+        },
       };
 
       const res = await request(
@@ -401,11 +617,18 @@ const ProductDetail = () => {
         Ingredient: editFields.Ingredient,
         Usage: editFields.Usage,
         HowToUse: editFields.HowToUse,
-        StockQuantity: editableStock,
-        batchDetails: editableBatches,
+        StockQuantity: normalizedBatches.reduce((sum, batch) => sum + Number(batch.quantity || 0), 0),
+        batchDetails: normalizedBatches,
+        sale_price: saleMode === "none" ? null : salePrice,
+        sale_start_date: saleMode === "none" ? null : payload.sale.startDate,
+        sale_end_date: saleMode === "none" ? null : payload.sale.endDate,
+        SaleEventID: saleMode === "event" ? editFields.saleEventId || null : null,
+        ProgramName: saleMode === "event" ? payload.sale.programName : null,
+        SaleEventTitle: saleMode === "event" ? selectedSaleEvent?.title || payload.sale.programName : null,
       }));
 
-      setSelectedBatchId(editableBatches?.[0]?.batchId || null);
+      setEditableBatches(normalizedBatches);
+      setSelectedBatchId(normalizedBatches?.[0]?.batchId || null);
       setIsEdit(false);
       showPopup({ status: "success", message: "Cập nhật sản phẩm thành công" });
     } catch (error) {
@@ -708,11 +931,128 @@ const ProductDetail = () => {
                 )}
 
                 {isEdit ? (
+                  <div className="sale-edit-panel">
+                    <div className="sale-edit-panel__head">
+                      <div>
+                        <strong>Khuyến mãi</strong>
+                        <span>Thiết lập sale riêng cho sản phẩm này</span>
+                      </div>
+                    </div>
+
+                    <div className="sale-mode-tabs" role="group" aria-label="Chọn kiểu sale">
+                      <button
+                        type="button"
+                        className={currentSaleMode === "none" ? "is-active" : ""}
+                        onClick={() => handleSaleModeChange("none")}
+                      >
+                        Không sale
+                      </button>
+                      <button
+                        type="button"
+                        className={currentSaleMode === "independent" ? "is-active" : ""}
+                        onClick={() => handleSaleModeChange("independent")}
+                      >
+                        Sale độc lập
+                      </button>
+                      <button
+                        type="button"
+                        className={currentSaleMode === "event" ? "is-active" : ""}
+                        onClick={() => handleSaleModeChange("event")}
+                      >
+                        Theo event
+                      </button>
+                    </div>
+
+                    {currentSaleMode !== "none" && (
+                      <div className="sale-edit-grid">
+                        <label className="sale-edit-field">
+                          <span>Giá sale</span>
+                          <div className="sale-money-input">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={formatPriceWithDots(editFields.salePrice)}
+                              onChange={(e) => handleSalePriceChange(e.target.value)}
+                              placeholder="Nhập giá sale"
+                            />
+                            <em>đ</em>
+                          </div>
+                        </label>
+
+                        {currentSaleMode === "event" ? (
+                          <label className="sale-edit-field sale-edit-field--wide">
+                            <span>Sự kiện sale</span>
+                            <select
+                              value={editFields.saleEventId || ""}
+                              onChange={(e) => handleSaleEventChange(e.target.value)}
+                            >
+                              <option value="">-- Chọn sự kiện --</option>
+                              {saleEvents.map((event) => (
+                                <option key={event.id} value={event.id}>
+                                  {event.title || event.code || `Event ${event.id}`}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        ) : (
+                          <>
+                            <label className="sale-edit-field">
+                              <span>Ngày bắt đầu</span>
+                              <input
+                                type="date"
+                                value={editFields.saleStartDate || ""}
+                                onChange={(e) => handleInputChange("saleStartDate", e.target.value)}
+                              />
+                            </label>
+                            <label className="sale-edit-field">
+                              <span>Ngày kết thúc</span>
+                              <input
+                                type="date"
+                                value={editFields.saleEndDate || ""}
+                                onChange={(e) => handleInputChange("saleEndDate", e.target.value)}
+                              />
+                            </label>
+                          </>
+                        )}
+
+                        {currentSaleMode === "event" && selectedSaleEvent && (
+                          <div className="sale-event-preview">
+                            <span>{selectedSaleEvent.title}</span>
+                            <small>{formatDate(selectedSaleEvent.start_date)} - {formatDate(selectedSaleEvent.end_date)}</small>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className={`sale-view-panel ${hasCurrentSale ? "has-sale" : ""}`}>
+                    <strong>Khuyến mãi:</strong>
+                    {hasCurrentSale ? (
+                      <>
+                        <span>{Number(currentSalePrice).toLocaleString("vi-VN")} đ</span>
+                        <small>{currentSaleLabel} · {saleDateLabel}</small>
+                      </>
+                    ) : (
+                      <span>Chưa áp dụng sale</span>
+                    )}
+                  </div>
+                )}
+
+                {isEdit ? (
                   <>
                     <p className="stock">
                       <strong>Tồn kho:</strong> {editableStock}
                     </p>
                     <div className="lot-panel is-edit">
+                      <div className="lot-edit-toolbar">
+                        <button
+                          type="button"
+                          className="lot-edit-add"
+                          onClick={handleAddEditableBatch}
+                        >
+                          + Thêm lô
+                        </button>
+                      </div>
                       {editableBatches.length === 0 ? (
                         <p className="lot-empty">Không có dữ liệu lô hàng</p>
                       ) : (
@@ -746,6 +1086,42 @@ const ProductDetail = () => {
                               </div>
 
                               <div className="lot-edit-row-inline">
+                                <div className="lot-edit-field">
+                                  <span className="lot-edit-field__label">Mã lô</span>
+                                  <input
+                                    type="text"
+                                    value={selectedEditableBatch.batchId}
+                                    onFocus={() => setIsBatchDropdownOpen(true)}
+                                    onBlur={() => {
+                                      window.setTimeout(() => setIsBatchDropdownOpen(false), 120);
+                                    }}
+                                    onChange={(e) => {
+                                      handleBatchFieldChange(
+                                        selectedEditableBatchIndex >= 0 ? selectedEditableBatchIndex : 0,
+                                        "batchId",
+                                        e.target.value
+                                      );
+                                      setIsBatchDropdownOpen(true);
+                                    }}
+                                    placeholder="Nhập hoặc chọn mã lô"
+                                  />
+                                  {isBatchDropdownOpen && filteredBatchOptions.length > 0 && (
+                                    <div className="lot-edit-batch-dropdown">
+                                      {filteredBatchOptions.slice(0, 8).map((item) => (
+                                        <button
+                                          key={`edit_lot_picker_${item.value}`}
+                                          type="button"
+                                          className="lot-edit-batch-option"
+                                          onMouseDown={() => handleSelectBatchOption(item.value)}
+                                        >
+                                          <span>{item.value}</span>
+                                          {item.note && <small>{item.note}</small>}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+
                                 <div className="lot-edit-field">
                                   <span className="lot-edit-field__label">Barcode lô</span>
                                   <input

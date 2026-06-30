@@ -869,6 +869,17 @@ const Cart = () => {
           <div className="main-left">
             <div className="cart-header-wrapper">
               <h2>Giỏ hàng</h2>
+              {products.length > 0 && (
+                <button
+                  onClick={() => setShowClearModal(true)}
+                  className="btn-clear-all"
+                  title="Xóa tất cả sản phẩm"
+                  aria-haspopup="dialog"
+                  aria-expanded={showClearModal}
+                >
+                  <span>Xóa tất cả</span>
+                </button>
+              )}
             </div>
 
             {products.length === 0 ? (
@@ -949,17 +960,6 @@ const Cart = () => {
                   </div>
                 ))}
 
-                {products.length > 0 && (
-                  <button
-                    onClick={() => setShowClearModal(true)}
-                    className="btn-clear-all"
-                    title="Xóa tất cả sản phẩm"
-                    aria-haspopup="dialog"
-                    aria-expanded={showClearModal}
-                  >
-                    Xóa tất cả
-                  </button>
-                )}
               </>
             )}
           </div>
@@ -1034,10 +1034,6 @@ const Cart = () => {
           )}
         </div>
 
-        {/* 🚚 FOOTER */}
-        <div className="cart-detail-option">
-          <p>🚚 Miễn phí vận chuyển cho đơn từ 500k</p>
-        </div>
       </div>
 
       {/* 🔒 HIDDEN SEPAY FORM - AUTO-SUBMIT */}

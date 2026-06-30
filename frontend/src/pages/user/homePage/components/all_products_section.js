@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { API_BASE, UPLOAD_BASE } from "../../../../constants";
 import useHttp from "../../../../hooks/useHttp";
 import { ROUTERS } from "../../../../utils/router";
+import { useCart } from "../../context/CartContext";
+import { flyToCart } from "./FlyToCart";
 import "./componets.scss";
 
 const ITEM_WIDTH = 254;
@@ -10,6 +12,7 @@ const VISIBLE_COUNT = 5;
 
 export default function AllProductsSection({ onReady }) {
   const { request } = useHttp();
+  const { addToCart: addProductToCart } = useCart();
   const [products, setProducts] = useState([]);
   
   const [lastAddedId, setLastAddedId] = useState(null);
@@ -70,26 +73,36 @@ export default function AllProductsSection({ onReady }) {
     };
   }, [products]);
 
-  const addToCart = (product, e) => {
+  const handleAddToCart = (product, e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (e && e.stopPropagation) e.stopPropagation();
 
-    try {
-      const id = product.ProductID || product.id || product.ProductCode || String(product?.ProductID || "");
-      const raw = localStorage.getItem("cart") || "[]";
-      const cart = Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
-      const existing = cart.find((it) => String(it.id) === String(id));
-      if (existing) {
-        existing.qty = (existing.qty || 0) + 1;
-      } else {
-        cart.push({ id, qty: 1, product });
-      }
-      localStorage.setItem("cart", JSON.stringify(cart));
-      setLastAddedId(id);
-      setTimeout(() => setLastAddedId(null), 1400);
-    } catch (err) {
-      console.error("addToCart", err);
+    const productId = String(product?.ProductID || product?.id || "").trim();
+    const stockQuantity = Number(product?.StockQuantity ?? product?.stockQuantity ?? 0);
+
+    if (!productId) return;
+
+    if (stockQuantity <= 0) {
+      window.alert("Không thể thêm vào giỏ. Sản phẩm đã hết hàng.");
+      return;
     }
+
+    const added = addProductToCart(productId, 1, stockQuantity);
+    if (!added) {
+      window.alert(`Chỉ còn ${stockQuantity} sản phẩm trong kho.`);
+      return;
+    }
+
+    const productImage = e?.currentTarget
+      ?.closest(".product-template")
+      ?.querySelector("img");
+
+    if (productImage) {
+      flyToCart(productImage);
+    }
+
+    setLastAddedId(productId);
+    setTimeout(() => setLastAddedId(null), 1400);
   };
 
   return (
@@ -134,7 +147,7 @@ export default function AllProductsSection({ onReady }) {
                   >
                     <button
                       className="add-cart-plus-btn"
-                      onClick={(e) => addToCart(product, e)}
+                      onClick={(e) => handleAddToCart(product, e)}
                       aria-label="Thêm vào giỏ hàng"
                     >
                       {lastAddedId && String(lastAddedId) === String(product.ProductID || product.id) ? '✓' : '+'}
@@ -166,7 +179,13 @@ export default function AllProductsSection({ onReady }) {
                         )}
                       </div>
 
-                      <div className="product-stock">
+                      <div
+                        className={`product-stock ${
+                          Number(product?.StockQuantity ?? product?.stockQuantity ?? 0) === 0
+                            ? "is-out"
+                            : "is-available"
+                        }`}
+                      >
                         {(() => {
                           const stock = Number(product?.StockQuantity ?? product?.stockQuantity ?? 0);
                           return stock === 0 ? "Hết hàng" : `Tồn kho: ${stock}`;

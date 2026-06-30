@@ -450,6 +450,10 @@
               font-weight: 700;
               color: #0f766e;
               white-space: nowrap;
+
+              &.is-out {
+                color: #dc2626;
+              }
             }
 
             .product-brand {
@@ -493,6 +497,10 @@
               display: flex;
               align-items: center;
               justify-content: center;
+
+              &.is-out {
+                color: #dc2626;
+              }
             }
 
             .product-progress-sale {

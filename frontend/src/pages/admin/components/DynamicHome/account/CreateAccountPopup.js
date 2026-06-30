@@ -4,8 +4,14 @@ const CreateAccountPopup = ({
   open,
   isCreating,
   form,
+  avatarPreviewUrl,
   onClose,
   onChangeField,
+  onAvatarFile,
+  onAvatarDrop,
+  onAvatarDragOver,
+  onAvatarPreviewLoad,
+  onAvatarPreviewError,
   onSubmit,
 }) => {
   if (!open) return null;
@@ -92,18 +98,38 @@ const CreateAccountPopup = ({
             </select>
           </div>
 
-          <div className="account-create-field">
-            <label htmlFor="account-create-avatar-file">Ảnh từ máy</label>
-            <input
-              id="account-create-avatar-file"
-              type="file"
-              accept="image/*"
-              onChange={(event) => onChangeField("avatarFile", event.target.files?.[0] || null)}
-              disabled={isCreating}
-            />
+          <div className="account-edit-avatar account-create-field-full">
+            <label
+              className="account-edit-avatar__picker"
+              onDrop={onAvatarDrop}
+              onDragOver={onAvatarDragOver}
+            >
+              <input
+                id="account-create-avatar-file"
+                type="file"
+                accept="image/*"
+                onChange={(event) => onAvatarFile(event.target.files?.[0])}
+                disabled={isCreating}
+              />
+              <span className="account-edit-avatar__preview">
+                {avatarPreviewUrl ? (
+                  <img
+                    src={avatarPreviewUrl}
+                    alt={form.displayName || form.email || "avatar"}
+                    onLoad={onAvatarPreviewLoad}
+                    onError={onAvatarPreviewError}
+                  />
+                ) : (
+                  <span>{String(form.displayName || form.email || "?").charAt(0).toUpperCase()}</span>
+                )}
+              </span>
+              <span className="account-edit-avatar__caption">
+                {form.avatarFile ? `Đã chọn: ${form.avatarFile.name}` : "Bấm hoặc kéo ảnh vào đây"}
+              </span>
+            </label>
           </div>
 
-          <div className="account-create-field">
+          <div className="account-create-field account-create-field-full">
             <label htmlFor="account-create-avatar-url">Ảnh từ web</label>
             <input
               id="account-create-avatar-url"

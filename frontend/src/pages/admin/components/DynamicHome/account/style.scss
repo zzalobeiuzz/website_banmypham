@@ -10,65 +10,9 @@
   --shadow-soft: 0 12px 35px rgba(15, 23, 42, 0.11);
 
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   padding: 0;
-  background:
-    radial-gradient(
-      1400px 500px at -10% -20%,
-      rgba(100, 116, 139, 0.15),
-      transparent 60%
-    ),
-    radial-gradient(
-      900px 500px at 105% -5%,
-      rgba(59, 130, 246, 0.11),
-      transparent 55%
-    ),
-    linear-gradient(140deg, #f8fafc 0%, #f6f8fb 42%, #eef2f7 100%);
-
-  .account-bg-orb {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(2px);
-    pointer-events: none;
-    opacity: 0.35;
-  }
-
-  .orb-one {
-    width: 420px;
-    height: 420px;
-    left: -220px;
-    top: 120px;
-    background: radial-gradient(
-      circle at 35% 30%,
-      rgba(148, 163, 184, 0.45),
-      rgba(71, 85, 105, 0.16)
-    );
-    animation: driftOrbOne 12s ease-in-out infinite alternate;
-  }
-
-  .orb-two {
-    width: 360px;
-    height: 360px;
-    right: -140px;
-    top: -70px;
-    background: radial-gradient(
-      circle at 30% 30%,
-      rgba(59, 130, 246, 0.32),
-      rgba(30, 64, 175, 0.1)
-    );
-    animation: driftOrbTwo 14s ease-in-out infinite alternate;
-  }
-
-  .account-bg-grid {
-    position: absolute;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(255, 255, 255, 0.4) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.4) 1px, transparent 1px);
-    background-size: 26px 26px;
-    opacity: 0.26;
-    pointer-events: none;
-  }
+  background: #f8fafc;
 
   > * {
     position: relative;
@@ -361,14 +305,21 @@
           opacity: 0;
           transform: translateY(8px);
           animation: rowReveal 0.5s ease forwards;
+          cursor: pointer;
+          outline: none;
 
-          &:hover {
+          &:hover,
+          &:focus-visible {
             background: linear-gradient(
               90deg,
               rgba(241, 245, 249, 0.92),
               rgba(236, 242, 248, 0.92)
             );
             transition: background-position 0.35s ease;
+          }
+
+          &:focus-visible {
+            box-shadow: inset 0 0 0 2px rgba(13, 148, 136, 0.28);
           }
         }
 
@@ -473,28 +424,6 @@
             gap: 8px;
             justify-content: center;
             align-items: center;
-          }
-        }
-
-        .btn-account-detail {
-          border: none;
-          border-radius: 10px;
-          padding: 8px 12px;
-          background: linear-gradient(120deg, #0f766e, #0d9488);
-          color: #fff;
-          font-size: 12px;
-          font-weight: 800;
-          cursor: pointer;
-          box-shadow: 0 8px 16px rgba(13, 148, 136, 0.2);
-          transition:
-            transform 0.2s ease,
-            box-shadow 0.2s ease,
-            filter 0.2s ease;
-
-          &:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 10px 20px rgba(13, 148, 136, 0.3);
-            filter: brightness(1.04);
           }
         }
 
@@ -751,6 +680,12 @@
       color: #334155;
     }
 
+    .btn-detail-edit {
+      background: linear-gradient(120deg, #2563eb, #0ea5e9);
+      color: #fff;
+      box-shadow: 0 10px 22px rgba(37, 99, 235, 0.22);
+    }
+
     .btn-detail-primary {
       background: linear-gradient(120deg, #0f766e, #0d9488);
       color: #fff;
@@ -925,10 +860,10 @@
     display: grid;
     place-items: center;
     overflow: hidden;
-    border: 1px solid rgba(13, 148, 136, 0.28);
-    background: #ffffff;
+    border: 1px solid rgba(203, 213, 225, 0.95);
+    background: #fff;
     box-shadow:
-      inset 0 0 0 7px rgba(240, 253, 250, 0.78),
+      inset 0 0 0 7px rgba(248, 250, 252, 0.9),
       0 16px 34px rgba(15, 23, 42, 0.12);
     color: #0f766e;
     font-size: 38px;
@@ -941,8 +876,9 @@
     img {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
       display: block;
+      background: #fff;
     }
   }
 
@@ -961,10 +897,10 @@
   .account-edit-avatar__picker:hover {
     .account-edit-avatar__preview {
       transform: translateY(-2px);
-      border-color: #0f766e;
+      border-color: #94a3b8;
       box-shadow:
-        inset 0 0 0 7px rgba(240, 253, 250, 0.86),
-        0 20px 40px rgba(13, 148, 136, 0.18);
+        inset 0 0 0 7px rgba(248, 250, 252, 0.96),
+        0 20px 40px rgba(15, 23, 42, 0.14);
     }
   }
 
@@ -1143,24 +1079,6 @@
   }
   50% {
     opacity: 1;
-  }
-}
-
-@keyframes driftOrbOne {
-  from {
-    transform: translate(0, 0);
-  }
-  to {
-    transform: translate(26px, -14px);
-  }
-}
-
-@keyframes driftOrbTwo {
-  from {
-    transform: translate(0, 0);
-  }
-  to {
-    transform: translate(-20px, 16px);
   }
 }
 

@@ -114,20 +114,22 @@ exports.getActivePromotionPrograms = async ({ productLimit = 8 } = {}) => {
           LEFT JOIN SUB_CATEGORY SC ON P.SubCategoryID = SC.SubCategoryID
           OUTER APPLY (
             SELECT TOP 1
-              BD.Barcode
-            FROM BATCH_DETAIL BD
-            LEFT JOIN BATCHES B ON B.ID = BD.BatchID
-            WHERE BD.ProductID = P.ProductID
-              AND ISNULL(BD.IsActive, 1) = 1
+              BC.Barcode
+            FROM BARCODE BC
+            INNER JOIN BATCH_DETAIL BD ON BD.Id = BC.id_batch_detail
+            LEFT JOIN BATCHES B ON B.ID = BD.BatchId
+            WHERE BC.ProductID = P.ProductID
+              AND ISNULL(BC.IsActive, 1) = 1
               AND (B.IsActive = 1 OR B.IsActive IS NULL)
-              AND ISNULL(BD.Barcode, '') <> ''
-            ORDER BY B.CreatedAt DESC, BD.CreatedAt DESC
+              AND ISNULL(BC.Barcode, '') <> ''
+            ORDER BY B.CreatedAt DESC, BC.CreatedAt DESC
           ) LOT
           LEFT JOIN (
-            SELECT ProductID, SUM(CAST(Quantity AS INT)) AS StockQuantity
-            FROM BATCH_DETAIL
-            WHERE ISNULL(IsActive, 1) = 1
-            GROUP BY ProductID
+            SELECT BC.ProductID, SUM(CAST(BD.Quantity AS INT)) AS StockQuantity
+            FROM BATCH_DETAIL BD
+            INNER JOIN BARCODE BC ON BC.id_batch_detail = BD.Id
+            WHERE ISNULL(BC.IsActive, 1) = 1
+            GROUP BY BC.ProductID
           ) BDQ ON BDQ.ProductID = P.ProductID
           WHERE PS.SaleEventID = E.id
             AND PS.status = 1
@@ -227,20 +229,22 @@ exports.getEventProducts = async (id) => {
       LEFT JOIN SUB_CATEGORY SC ON P.SubCategoryID = SC.SubCategoryID
       OUTER APPLY (
         SELECT TOP 1
-          BD.Barcode
-        FROM BATCH_DETAIL BD
-        LEFT JOIN BATCHES B ON B.ID = BD.BatchID
-        WHERE BD.ProductID = P.ProductID
-          AND ISNULL(BD.IsActive, 1) = 1
+          BC.Barcode
+        FROM BARCODE BC
+        INNER JOIN BATCH_DETAIL BD ON BD.Id = BC.id_batch_detail
+        LEFT JOIN BATCHES B ON B.ID = BD.BatchId
+        WHERE BC.ProductID = P.ProductID
+          AND ISNULL(BC.IsActive, 1) = 1
           AND (B.IsActive = 1 OR B.IsActive IS NULL)
-          AND ISNULL(BD.Barcode, '') <> ''
-        ORDER BY B.CreatedAt DESC, BD.CreatedAt DESC
+          AND ISNULL(BC.Barcode, '') <> ''
+        ORDER BY B.CreatedAt DESC, BC.CreatedAt DESC
       ) LOT
       LEFT JOIN (
-        SELECT ProductID, SUM(CAST(Quantity AS INT)) AS StockQuantity
-        FROM BATCH_DETAIL
-        WHERE ISNULL(IsActive, 1) = 1
-        GROUP BY ProductID
+        SELECT BC.ProductID, SUM(CAST(BD.Quantity AS INT)) AS StockQuantity
+        FROM BATCH_DETAIL BD
+        INNER JOIN BARCODE BC ON BC.id_batch_detail = BD.Id
+        WHERE ISNULL(BC.IsActive, 1) = 1
+        GROUP BY BC.ProductID
       ) BDQ ON BDQ.ProductID = P.ProductID
       WHERE PS.SaleEventID = @SaleEventID
         AND PS.status = 1

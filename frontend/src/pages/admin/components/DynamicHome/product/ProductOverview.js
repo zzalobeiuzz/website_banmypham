@@ -161,9 +161,9 @@ const ProductOverviewComponent = () => {
     navigate("/admin/product/add");
   };
 
-  const showPopup = ({ status = "info", message = "" }) => {
+  const showPopup = useCallback(({ status = "info", message = "" }) => {
     setNotify({ open: true, status, message });
-  };
+  }, []);
 
   const closePopup = () => {
     setNotify((prev) => ({ ...prev, open: false }));
@@ -327,17 +327,43 @@ const ProductOverviewComponent = () => {
     const product = rowProducts[index];
     if (!product) return null;
 
+    const goToProductDetail = () => {
+      if (!product.ProductID) {
+        showPopup({ status: "warning", message: "Sáº£n pháº©m chÆ°a cÃ³ ID, khÃ´ng thá»ƒ xem chi tiáº¿t!" });
+        return;
+      }
+      goTo(`/admin/product/detail/${product.ProductID}`);
+    };
+
+    const handleRowClick = (event) => {
+      if (event.target.closest("input, textarea, button, select, a")) return;
+      goToProductDetail();
+    };
+
+    const handleRowKeyDown = (event) => {
+      if (event.target.closest("input, textarea, button, select, a")) return;
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        goToProductDetail();
+      }
+    };
+
     return (
       <ul
         key={product.ProductID}
-        className={`list-unstyled row-data ${index % 2 === 0 ? "even" : "odd"}`}
+        className={`list-unstyled row-data is-clickable ${index % 2 === 0 ? "even" : "odd"}`}
         style={style}
+        role="button"
+        tabIndex={0}
+        onClick={handleRowClick}
+        onKeyDown={handleRowKeyDown}
       >
         {/* ✔ Checkbox chọn */}
         <li className="list-stt">
           <input
             type="checkbox"
             checked={rowSelectedProducts.includes(product.ProductID)}
+            onClick={(event) => event.stopPropagation()}
             onChange={() => onCheckboxChange(product.ProductID)}
           />
 
@@ -351,6 +377,7 @@ const ProductOverviewComponent = () => {
             <textarea
               className="input-name"
               value={product.ProductName}
+              onClick={(event) => event.stopPropagation()}
               onChange={(e) =>
                 onProductChange(
                   product.ProductID,
@@ -387,7 +414,10 @@ const ProductOverviewComponent = () => {
               inputMode="numeric"
               value={formatPrice(product.Price)}
               onFocus={keepCaret}
-              onClick={keepCaret}
+              onClick={(event) => {
+                event.stopPropagation();
+                keepCaret(event);
+              }}
               onKeyUp={keepCaret}
               onChange={(e) => {
                 onPriceChange(product.ProductID, e.target.value);
@@ -401,22 +431,10 @@ const ProductOverviewComponent = () => {
         <li className="list-category">{product.CategoryName}</li>
         <li className="list-stock">
           {product.StockQuantity}
-          <button
-            className="view-detail"
-            onClick={() => {
-              if (!product.ProductID) {
-                showPopup({ status: "warning", message: "Sản phẩm chưa có ID, không thể xem chi tiết!" });
-                return;
-              }
-              goTo(`/admin/product/detail/${product.ProductID}`);
-            }}
-          >
-            Xem chi tiết
-          </button>
         </li>
       </ul>
     );
-  }, []);
+  }, [showPopup]);
 
   // 🔼 Mở category container
   const handleOpen = () => {

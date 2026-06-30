@@ -24,6 +24,117 @@ const createAutoBatchForProduct = async (transaction, payload = {}) => {
 		return;
 	}
 
+	for (let i = 0; i < normalizedBatches.length; i += 1) {
+		const batch = normalizedBatches[i];
+		const batchIdValue = String(batch?.batchId || "").trim() || `BATCH_${Date.now()}_${i}_${Math.floor(Math.random() * 10000)}`;
+		const barcodeValue = String(batch?.barcode || "").trim();
+
+		if (!barcodeValue) {
+			continue;
+		}
+
+		await new sql.Request(transaction)
+			.input("BatchID", sql.NVarChar(50), batchIdValue)
+			.input("BatchNote", sql.NVarChar(255), batch.note || payload.note || `Lo tu nhap ma khi them san pham ${productId}`)
+			.query(`
+				IF NOT EXISTS (
+					SELECT 1 FROM BATCHES WHERE CAST(ID AS NVARCHAR(100)) = @BatchID
+				)
+				BEGIN
+					INSERT INTO BATCHES (ID, CreatedAt, Note)
+					VALUES (@BatchID, GETDATE(), @BatchNote)
+				END
+			`);
+
+		const detailResult = await new sql.Request(transaction)
+			.input("BatchID", sql.NVarChar(50), batchIdValue)
+			.input("Barcode", sql.NVarChar(100), barcodeValue)
+			.input("Quantity", sql.Int, batch.quantity)
+			.query(`
+				DECLARE @BatchDetailId INT;
+
+				SELECT TOP 1 @BatchDetailId = Id
+				FROM BATCH_DETAIL
+				WHERE CAST(BatchId AS NVARCHAR(100)) = @BatchID
+					AND CAST(Barcode AS NVARCHAR(100)) = @Barcode;
+
+				IF @BatchDetailId IS NULL
+				BEGIN
+					INSERT INTO BATCH_DETAIL (BatchId, Barcode, Quantity)
+					VALUES (@BatchID, @Barcode, @Quantity);
+
+					SET @BatchDetailId = SCOPE_IDENTITY();
+				END
+				ELSE
+				BEGIN
+					UPDATE BATCH_DETAIL
+					SET Quantity = @Quantity,
+							Barcode = @Barcode
+					WHERE Id = @BatchDetailId;
+				END
+
+				SELECT @BatchDetailId AS BatchDetailId;
+			`);
+
+		const batchDetailId = detailResult.recordset?.[0]?.BatchDetailId;
+		if (!batchDetailId) {
+			continue;
+		}
+
+		await new sql.Request(transaction)
+			.input("Barcode", sql.NVarChar(100), barcodeValue)
+			.input("ProductID", sql.NVarChar(50), productId)
+			.input("BatchDetailId", sql.Int, Number(batchDetailId))
+			.input("ExpiryDate", sql.Date, batch.expiryDate ? new Date(batch.expiryDate) : null)
+			.query(`
+				IF EXISTS (
+					SELECT 1
+					FROM BARCODE
+					WHERE Barcode = @Barcode
+						AND ProductID = @ProductID
+						AND id_batch_detail = @BatchDetailId
+				)
+				BEGIN
+					UPDATE BARCODE
+					SET ExpiryDate = @ExpiryDate,
+							IsActive = 1
+					WHERE Barcode = @Barcode
+						AND ProductID = @ProductID
+						AND id_batch_detail = @BatchDetailId
+				END
+				ELSE
+				BEGIN
+					INSERT INTO BARCODE (Barcode, ProductID, id_batch_detail, ExpiryDate, CreatedAt, IsActive)
+					VALUES (@Barcode, @ProductID, @BatchDetailId, @ExpiryDate, CAST(GETDATE() AS DATE), 1)
+				END
+			`);
+	}
+
+	if (shouldDeactivateMissingLots) {
+		const incomingBarcodes = normalizedBatches.map((batch) => String(batch?.barcode || "").trim()).filter(Boolean);
+		const deactivateRequest = new sql.Request(transaction)
+			.input("ProductID", sql.NVarChar(50), productId);
+		let excludeClause = "";
+
+		if (incomingBarcodes.length > 0) {
+			const placeholders = incomingBarcodes.map((_, index) => `@KeepBarcode_${index}`);
+			incomingBarcodes.forEach((barcode, index) => {
+				deactivateRequest.input(`KeepBarcode_${index}`, sql.NVarChar(100), barcode);
+			});
+			excludeClause = `AND Barcode NOT IN (${placeholders.join(", ")})`;
+		}
+
+		await deactivateRequest.query(`
+			UPDATE BARCODE
+			SET IsActive = 0
+			WHERE ProductID = @ProductID
+				AND ISNULL(IsActive, 1) = 1
+				${excludeClause}
+		`);
+	}
+
+	return;
+
 	const meta = await new sql.Request(transaction).query(`
 		SELECT
 			CASE WHEN OBJECT_ID('BATCHES', 'U') IS NOT NULL THEN 1 ELSE 0 END AS HasBatches,
@@ -402,30 +513,20 @@ exports.syncExpiredBatchDetailsStatus = async () => {
 	try {
 		const pool = await connectDB();
 		const result = await pool.request().query(`
-			DECLARE @expiryColumn SYSNAME = NULL;
-
-			IF COL_LENGTH('BATCH_DETAIL', 'ExpiryDate') IS NOT NULL SET @expiryColumn = 'ExpiryDate';
-			ELSE IF COL_LENGTH('BATCH_DETAIL', 'ExpiredDate') IS NOT NULL SET @expiryColumn = 'ExpiredDate';
-			ELSE IF COL_LENGTH('BATCH_DETAIL', 'ExpireDate') IS NOT NULL SET @expiryColumn = 'ExpireDate';
-
-			IF @expiryColumn IS NULL OR COL_LENGTH('BATCH_DETAIL', 'IsActive') IS NULL
+			IF OBJECT_ID('BARCODE', 'U') IS NULL
 			BEGIN
 				SELECT 0 AS UpdatedRows;
 				RETURN;
 			END
 
-			DECLARE @sql NVARCHAR(MAX) = N'
-				UPDATE BD
-				SET BD.IsActive = 0
-				FROM BATCH_DETAIL BD
-				WHERE ISNULL(BD.IsActive, 1) = 1
-					AND BD.' + QUOTENAME(@expiryColumn) + N' IS NOT NULL
-					AND CAST(BD.' + QUOTENAME(@expiryColumn) + N' AS DATE) < CAST(GETDATE() AS DATE);
+			UPDATE BC
+			SET BC.IsActive = 0
+			FROM BARCODE BC
+			WHERE ISNULL(BC.IsActive, 1) = 1
+				AND BC.ExpiryDate IS NOT NULL
+				AND CAST(BC.ExpiryDate AS DATE) < CAST(GETDATE() AS DATE);
 
-				SELECT @@ROWCOUNT AS UpdatedRows;
-			';
-
-			EXEC sp_executesql @sql;
+			SELECT @@ROWCOUNT AS UpdatedRows;
 		`);
 
 		return Number(result.recordset?.[0]?.UpdatedRows || 0);
@@ -461,7 +562,15 @@ exports.checkProductExists = async (productId) => {
 						D.Usage,                      -- 🔹 Công dụng
 						D.Ingredient,                -- 🔹 Thành phần
 						D.ProductDescription,         -- 🔹 Hướng dẫn sử dụng
-						D.HowToUse                    -- 🔹 Thông tin khác (nếu có)
+						D.HowToUse,
+						PS.id AS ProductSaleID,
+						PS.sale_price,
+						PS.start_date AS sale_start_date,
+						PS.end_date AS sale_end_date,
+						PS.status AS sale_status,
+						PS.SaleEventID,
+						PS.ProgramName,
+						SE.title AS SaleEventTitle
           
 					FROM PRODUCT P
 
@@ -472,16 +581,28 @@ exports.checkProductExists = async (productId) => {
 					LEFT JOIN Sub_Category SC ON P.SubCategoryID = SC.SubCategoryID
 
 					LEFT JOIN (
-						SELECT ProductID, SUM(CAST(Quantity AS INT)) AS StockQuantity
+						SELECT BC.ProductID, SUM(CAST(BD.Quantity AS INT)) AS StockQuantity
 						FROM BATCH_DETAIL BD
-						LEFT JOIN BATCHES B ON B.ID = BD.BatchID
-						WHERE ISNULL(BD.IsActive, 1) = 1
+						INNER JOIN BARCODE BC ON BC.id_batch_detail = BD.Id
+						LEFT JOIN BATCHES B ON B.ID = BD.BatchId
+						WHERE ISNULL(BC.IsActive, 1) = 1
 							AND (B.IsActive = 1 OR B.IsActive IS NULL)
-						GROUP BY ProductID
+						GROUP BY BC.ProductID
 					) BDQ ON BDQ.ProductID = P.ProductID
           
 					-- 🔗 Lấy chi tiết sản phẩm
 					LEFT JOIN Product_Detail D ON P.DetailID = D.IDDetail
+
+					OUTER APPLY (
+						SELECT TOP 1 *
+						FROM PRODUCT_SALE PS
+						WHERE CAST(PS.product_id AS NVARCHAR(50)) = CAST(P.ProductID AS NVARCHAR(50))
+							AND ISNULL(PS.status, 1) = 1
+							AND ISNULL(PS.end_date, CONVERT(datetime, '9999-12-31')) >= GETDATE()
+						ORDER BY PS.created_at DESC, PS.id DESC
+					) PS
+
+					LEFT JOIN SALE_EVENT SE ON SE.id = PS.SaleEventID
           
 					-- 🔍 Điều kiện lọc: sản phẩm có ProductID cụ thể
 					WHERE P.ProductID = @ProductID
@@ -1202,7 +1323,7 @@ exports.getBatchDetailsByProductId = async (productId) => {
 						B.CreatedAt AS BatchCreatedAt,
 						B.Note AS BatchNote
 					FROM BATCH_DETAIL BD
-					LEFT JOIN BATCHES B ON B.ID = BD.BatchID
+					LEFT JOIN BATCHES B ON B.ID = BD.BatchId
 					WHERE BD.ProductID = @ProductID
 						AND ISNULL(BD.IsActive, 1) = 1
 						AND (B.IsActive = 1 OR B.IsActive IS NULL)
@@ -1216,7 +1337,7 @@ exports.getBatchDetailsByProductId = async (productId) => {
 				.query(`
 					SELECT BD.*
 					FROM BATCH_DETAIL BD
-					LEFT JOIN BATCHES B ON B.ID = BD.BatchID
+					LEFT JOIN BATCHES B ON B.ID = BD.BatchId
 					WHERE BD.ProductID = @ProductID
 						AND ISNULL(BD.IsActive, 1) = 1
 						AND (B.IsActive = 1 OR B.IsActive IS NULL)
@@ -1259,6 +1380,7 @@ exports.updateProductDetailAndBatches = async (payload) => {
 			HowToUse,
 			DetailID,
 			batchDetails = [],
+			sale = null,
 		} = payload;
 
 		if (!ProductID) {
@@ -1368,5 +1490,515 @@ exports.updateProductDetailAndBatches = async (payload) => {
 
 		console.error("❌ Lỗi updateProductDetailAndBatches:", error.message);
 		return { success: false, message: "Lỗi cập nhật chi tiết sản phẩm", error: error.message };
+	}
+};
+
+exports.checkProductExistsByBarcode = async (barcode) => {
+	try {
+		const pool = await connectDB();
+		const result = await pool.request()
+			.input("Barcode", sql.NVarChar(100), String(barcode || "").trim())
+			.query(`
+				SELECT TOP 1
+					P.*,
+					ISNULL(BDQ.StockQuantity, 0) AS BatchStockQuantity,
+					C.CategoryName,
+					SC.SubCategoryName,
+					D.Usage,
+					D.Ingredient,
+					D.ProductDescription,
+					D.HowToUse,
+					BC.Barcode AS MatchedBatchBarcode
+				FROM BARCODE BC
+				INNER JOIN PRODUCT P ON P.ProductID = BC.ProductID
+				LEFT JOIN Category C ON P.CategoryID = C.CategoryID
+				LEFT JOIN Sub_Category SC ON P.SubCategoryID = SC.SubCategoryID
+				LEFT JOIN (
+					SELECT BC2.ProductID, SUM(CAST(BD.Quantity AS INT)) AS StockQuantity
+					FROM BATCH_DETAIL BD
+					INNER JOIN BARCODE BC2 ON BC2.id_batch_detail = BD.Id
+					LEFT JOIN BATCHES B ON B.ID = BD.BatchId
+					WHERE ISNULL(BC2.IsActive, 1) = 1
+						AND (B.IsActive = 1 OR B.IsActive IS NULL)
+					GROUP BY BC2.ProductID
+				) BDQ ON BDQ.ProductID = P.ProductID
+				LEFT JOIN Product_Detail D ON P.DetailID = D.IDDetail
+				WHERE BC.Barcode = @Barcode
+			`);
+
+		const firstRow = result.recordset?.[0] || null;
+		if (!firstRow) return null;
+
+		const {
+			CategoryName,
+			SubCategoryName,
+			BatchStockQuantity,
+			Usage,
+			Ingredient,
+			ProductDescription,
+			HowToUse,
+			MatchedBatchBarcode,
+			...productInfo
+		} = firstRow;
+
+		return {
+			...productInfo,
+			CategoryName,
+			SubCategoryName,
+			StockQuantity: Number(BatchStockQuantity || 0),
+			Usage,
+			Ingredient,
+			ProductDescription,
+			HowToUse,
+			MatchedBatchBarcode,
+		};
+	} catch (error) {
+		console.error("Loi truy van san pham theo barcode:", error.message);
+		throw new Error("Da xay ra loi khi kiem tra san pham theo barcode");
+	}
+};
+
+exports.checkBarcodeExistsForProduct = async (productId, barcode, excludeBatchId = "") => {
+	try {
+		const pool = await connectDB();
+		const result = await pool.request()
+			.input("ProductID", sql.NVarChar(50), String(productId || "").trim())
+			.input("Barcode", sql.NVarChar(100), String(barcode || "").trim())
+			.input("ExcludeBatchID", sql.NVarChar(100), String(excludeBatchId || "").trim())
+			.query(`
+				SELECT COUNT(*) AS BarcodeCount
+				FROM BARCODE BC
+				INNER JOIN BATCH_DETAIL BD ON BD.Id = BC.id_batch_detail
+				WHERE BC.ProductID = @ProductID
+					AND BC.Barcode = @Barcode
+					AND ISNULL(BC.IsActive, 1) = 1
+					AND (@ExcludeBatchID = '' OR CAST(BD.BatchId AS NVARCHAR(100)) <> @ExcludeBatchID)
+			`);
+
+		return Number(result.recordset?.[0]?.BarcodeCount || 0) > 0;
+	} catch (error) {
+		console.error("Loi kiem tra barcode cho san pham:", error.message);
+		throw new Error("Da xay ra loi khi kiem tra barcode cho san pham");
+	}
+};
+
+exports.unhideProductByBarcode = async (barcode) => {
+	try {
+		const pool = await connectDB();
+		const result = await pool.request()
+			.input("Barcode", sql.NVarChar(100), String(barcode || "").trim())
+			.query(`
+				UPDATE P
+				SET P.IsHidden = 0,
+						P.UpdatedAt = GETDATE()
+				FROM PRODUCT P
+				INNER JOIN BARCODE BC ON BC.ProductID = P.ProductID
+				WHERE P.IsHidden = 1
+					AND BC.Barcode = @Barcode
+					AND ISNULL(BC.IsActive, 1) = 1;
+
+				SELECT @@ROWCOUNT AS AffectedRows;
+			`);
+
+		return Number(result.recordset?.[0]?.AffectedRows || 0) > 0;
+	} catch (error) {
+		console.error("Loi hien lai san pham theo barcode:", error.message);
+		throw new Error("Da xay ra loi khi cap nhat trang thai hien thi san pham");
+	}
+};
+
+exports.checkHiddenProductConflictForAdd = async (productId, barcode) => {
+	try {
+		const pool = await connectDB();
+		const result = await pool.request()
+			.input("ProductID", sql.NVarChar(50), String(productId || "").trim())
+			.input("Barcode", sql.NVarChar(100), String(barcode || "").trim())
+			.query(`
+				SELECT
+					CASE
+						WHEN EXISTS (
+							SELECT 1
+							FROM PRODUCT
+							WHERE IsHidden = 0
+								AND ProductID = @ProductID
+						) THEN 1
+						ELSE 0
+					END AS IsDuplicateProductID,
+					CASE
+						WHEN LTRIM(RTRIM(ISNULL(@Barcode, ''))) <> ''
+							AND EXISTS (
+								SELECT 1
+								FROM BARCODE BC
+								INNER JOIN PRODUCT P ON P.ProductID = BC.ProductID
+								WHERE P.IsHidden = 0
+									AND ISNULL(BC.IsActive, 1) = 1
+									AND BC.Barcode = @Barcode
+							) THEN 1
+						ELSE 0
+					END AS IsDuplicateBarcode
+			`);
+
+		const row = result.recordset?.[0] || {};
+		return {
+			isDuplicateProductID: row.IsDuplicateProductID === 1,
+			isDuplicateBarcode: row.IsDuplicateBarcode === 1,
+		};
+	} catch (error) {
+		console.error("Loi kiem tra trung ProductID/Barcode:", error.message);
+		throw new Error("Da xay ra loi khi kiem tra trung san pham truoc khi them moi");
+	}
+};
+
+exports.getBatchDetailsByProductId = async (productId) => {
+	try {
+		const pool = await connectDB();
+		const result = await pool.request()
+			.input("ProductID", sql.NVarChar(50), String(productId || "").trim())
+			.query(`
+				SELECT
+					BD.Id,
+					BD.BatchId,
+					BD.Quantity,
+					BC.Barcode,
+					BC.ProductID,
+					BC.CreatedAt,
+					BC.ExpiryDate,
+					ISNULL(BC.IsActive, 1) AS IsActive,
+					B.CreatedAt AS BatchCreatedAt,
+					B.Note AS BatchNote
+				FROM BARCODE BC
+				INNER JOIN BATCH_DETAIL BD ON BD.Id = BC.id_batch_detail
+				LEFT JOIN BATCHES B ON B.ID = BD.BatchId
+				WHERE BC.ProductID = @ProductID
+					AND ISNULL(BC.IsActive, 1) = 1
+					AND (B.IsActive = 1 OR B.IsActive IS NULL)
+				ORDER BY B.CreatedAt DESC, BC.CreatedAt DESC, BD.Id DESC
+			`);
+
+		return (result.recordset || []).map((row, index) => ({
+			batchId: row.BatchId || `ROW_${index + 1}`,
+			barcode: row.Barcode || "",
+			quantity: Number(row.Quantity || 0),
+			createdAt: row.BatchCreatedAt || row.CreatedAt || null,
+			expiryDate: row.ExpiryDate || null,
+			note: row.BatchNote || "",
+		}));
+	} catch (error) {
+		console.error("Loi lay danh sach lo hang theo san pham:", error.message);
+		return [];
+	}
+};
+
+const parseProductSaleDate = (value) => {
+	if (!value) return null;
+	const parsed = new Date(value);
+	return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const updateProductSaleForProduct = async ({ transaction, productId, productPrice, sale }) => {
+	const normalizedProductId = String(productId || "").trim();
+	if (!normalizedProductId || sale === undefined || sale === null) {
+		return;
+	}
+
+	const normalizedSale = sale && typeof sale === "object" ? sale : {};
+	const saleMode = String(normalizedSale.saleMode || normalizedSale.sale_mode || "none").trim();
+	const saleEnabled = normalizedSale.enabled === true || saleMode === "independent" || saleMode === "event";
+
+	const oldSaleEventsResult = await new sql.Request(transaction)
+		.input("ProductID", sql.NVarChar(50), normalizedProductId)
+		.query(`
+			SELECT DISTINCT SaleEventID
+			FROM PRODUCT_SALE
+			WHERE CAST(product_id AS NVARCHAR(50)) = @ProductID
+				AND SaleEventID IS NOT NULL
+		`);
+
+	await new sql.Request(transaction)
+		.input("ProductID", sql.NVarChar(50), normalizedProductId)
+		.query(`
+			DELETE FROM PRODUCT_SALE
+			WHERE CAST(product_id AS NVARCHAR(50)) = @ProductID
+		`);
+
+	if (!saleEnabled || saleMode === "none") {
+		const oldEventIds = (oldSaleEventsResult.recordset || [])
+			.map((row) => Number(row.SaleEventID || 0))
+			.filter(Boolean);
+
+		for (const eventId of oldEventIds) {
+			await new sql.Request(transaction)
+				.input("id", sql.Int, eventId)
+				.query(`
+					UPDATE SALE_EVENT
+					SET total_products_count = (
+						SELECT COUNT(*) FROM PRODUCT_SALE WHERE SaleEventID = @id
+					)
+					WHERE id = @id
+				`);
+		}
+		return;
+	}
+
+	const salePrice = Number(normalizedSale.salePrice || normalizedSale.sale_price || 0);
+	if (!Number.isFinite(salePrice) || salePrice <= 0) {
+		throw new Error("Gia sale phai lon hon 0");
+	}
+
+	const originalPrice = Number(productPrice || 0);
+	if (originalPrice > 0 && salePrice >= originalPrice) {
+		throw new Error("Gia sale phai nho hon gia goc");
+	}
+
+	let saleEventId = null;
+	let programName = String(normalizedSale.programName || normalizedSale.ProgramName || "").trim() || null;
+	let startDate = parseProductSaleDate(normalizedSale.startDate || normalizedSale.start_date);
+	let endDate = parseProductSaleDate(normalizedSale.endDate || normalizedSale.end_date);
+	let status = 1;
+
+	if (saleMode === "event") {
+		saleEventId = Number(normalizedSale.saleEventId || normalizedSale.SaleEventID || 0);
+		if (!saleEventId) {
+			throw new Error("Vui long chon su kien sale");
+		}
+
+		const eventResult = await new sql.Request(transaction)
+			.input("id", sql.Int, saleEventId)
+			.query(`
+				SELECT id, title, start_date, end_date, status
+				FROM SALE_EVENT
+				WHERE id = @id
+			`);
+		const saleEvent = eventResult.recordset?.[0];
+		if (!saleEvent) {
+			throw new Error("Khong tim thay su kien sale");
+		}
+
+		startDate = parseProductSaleDate(saleEvent.start_date);
+		endDate = parseProductSaleDate(saleEvent.end_date);
+		status = Number(saleEvent.status ?? 1) === 1 ? 1 : 0;
+		programName = programName || saleEvent.title || null;
+	} else {
+		saleEventId = null;
+		programName = null;
+	}
+
+	if (startDate && endDate && startDate > endDate) {
+		throw new Error("Ngay bat dau sale phai nho hon hoac bang ngay ket thuc");
+	}
+
+	await new sql.Request(transaction)
+		.input("product_id", sql.NVarChar(50), normalizedProductId)
+		.input("sale_price", sql.Decimal(10, 2), salePrice)
+		.input("start_date", sql.DateTime, startDate)
+		.input("end_date", sql.DateTime, endDate)
+		.input("status", sql.TinyInt, status)
+		.input("SaleEventID", sql.Int, saleEventId || null)
+		.input("ProgramName", sql.NVarChar(255), programName)
+		.query(`
+			INSERT INTO PRODUCT_SALE
+				(product_id, sale_price, start_date, end_date, status, SaleEventID, ProgramName)
+			VALUES
+				(@product_id, @sale_price, @start_date, @end_date, @status, @SaleEventID, @ProgramName)
+		`);
+
+	const eventIdsToUpdate = new Set(
+		(oldSaleEventsResult.recordset || [])
+			.map((row) => Number(row.SaleEventID || 0))
+			.filter(Boolean),
+	);
+	if (saleEventId) eventIdsToUpdate.add(saleEventId);
+
+	for (const eventId of eventIdsToUpdate) {
+		await new sql.Request(transaction)
+			.input("id", sql.Int, eventId)
+			.query(`
+				UPDATE SALE_EVENT
+				SET total_products_count = (
+					SELECT COUNT(*) FROM PRODUCT_SALE WHERE SaleEventID = @id
+				)
+				WHERE id = @id
+			`);
+	}
+};
+
+exports.updateProductDetailAndBatches = async (payload) => {
+	const pool = await connectDB();
+	const transaction = new sql.Transaction(pool);
+
+	try {
+		await transaction.begin();
+
+		const {
+			ProductID,
+			ProductName,
+			Price,
+			SupplierID,
+			CategoryID,
+			SubCategoryID,
+			ProductDescription,
+			Ingredient,
+			Usage,
+			HowToUse,
+			DetailID,
+			batchDetails = [],
+			sale = null,
+		} = payload;
+
+		if (!ProductID) {
+			throw new Error("Thieu ProductID khi cap nhat chi tiet san pham");
+		}
+
+		await new sql.Request(transaction)
+			.input("ProductID", sql.NVarChar(50), ProductID)
+			.input("ProductName", sql.NVarChar(sql.MAX), ProductName ?? null)
+			.input("Price", sql.Int, Price ?? null)
+			.input("SupplierID", sql.NVarChar(100), SupplierID ?? null)
+			.input("CategoryID", sql.NVarChar(100), CategoryID ?? null)
+			.input("SubCategoryID", sql.NVarChar(100), SubCategoryID ?? null)
+			.query(`
+				UPDATE PRODUCT
+				SET ProductName = COALESCE(@ProductName, ProductName),
+						Price = COALESCE(@Price, Price),
+						SupplierID = COALESCE(@SupplierID, SupplierID),
+						CategoryID = COALESCE(@CategoryID, CategoryID),
+						SubCategoryID = @SubCategoryID,
+						UpdatedAt = GETDATE()
+				WHERE ProductID = @ProductID
+			`);
+
+		if (DetailID) {
+			await new sql.Request(transaction)
+				.input("IDDetail", sql.NVarChar(50), DetailID)
+				.input("ProductDescription", sql.NVarChar(sql.MAX), ProductDescription ?? null)
+				.input("Ingredient", sql.NVarChar(sql.MAX), Ingredient ?? null)
+				.input("Usage", sql.NVarChar(sql.MAX), Usage ?? null)
+				.input("HowToUse", sql.NVarChar(sql.MAX), HowToUse ?? null)
+				.query(`
+					UPDATE PRODUCT_DETAIL
+					SET ProductDescription = @ProductDescription,
+							Ingredient = @Ingredient,
+							Usage = @Usage,
+							HowToUse = @HowToUse
+					WHERE IDDetail = @IDDetail
+				`);
+		}
+
+		for (const batch of Array.isArray(batchDetails) ? batchDetails : []) {
+			const batchId = String(batch?.batchId || "").trim();
+			const barcode = String(batch?.barcode || "").trim();
+
+			if (!batchId || !barcode || /^ROW_\d+$/i.test(batchId)) {
+				continue;
+			}
+
+			await new sql.Request(transaction)
+				.input("ProductID", sql.NVarChar(50), ProductID)
+				.input("BatchID", sql.NVarChar(100), batchId)
+				.input("Barcode", sql.NVarChar(100), barcode)
+				.input("Quantity", sql.Int, Number(batch?.quantity || 0))
+				.input("CreatedAt", sql.DateTime, batch?.createdAt ? new Date(batch.createdAt) : new Date())
+				.input("ExpiryDate", sql.Date, batch?.expiryDate ? new Date(batch.expiryDate) : null)
+				.query(`
+					IF EXISTS (
+						SELECT 1
+						FROM BARCODE
+						WHERE Barcode = @Barcode
+							AND ProductID <> @ProductID
+							AND ISNULL(IsActive, 1) = 1
+					)
+					BEGIN
+						RAISERROR(N'Barcode da ton tai o san pham khac', 16, 1);
+						RETURN;
+					END
+
+					IF NOT EXISTS (
+						SELECT 1
+						FROM BATCHES
+						WHERE CAST(ID AS NVARCHAR(100)) = @BatchID
+					)
+					BEGIN
+						INSERT INTO BATCHES (ID, CreatedAt, Note)
+						VALUES (@BatchID, @CreatedAt, N'Lo tao tu man sua san pham');
+					END
+
+					DECLARE @BatchDetailId INT = NULL;
+
+					SELECT TOP 1 @BatchDetailId = BD.Id
+					FROM BATCH_DETAIL BD
+					INNER JOIN BARCODE BC ON BC.id_batch_detail = BD.Id
+					WHERE BC.ProductID = @ProductID
+						AND CAST(BD.BatchId AS NVARCHAR(100)) = @BatchID;
+
+					IF @BatchDetailId IS NULL
+					BEGIN
+						INSERT INTO BATCH_DETAIL (BatchId, Barcode, Quantity)
+						VALUES (@BatchID, @Barcode, @Quantity);
+
+						SET @BatchDetailId = SCOPE_IDENTITY();
+					END
+					ELSE
+					BEGIN
+						UPDATE BATCH_DETAIL
+						SET Barcode = @Barcode,
+								Quantity = @Quantity
+						WHERE Id = @BatchDetailId;
+					END
+
+					IF EXISTS (
+						SELECT 1
+						FROM BARCODE
+						WHERE Barcode = @Barcode
+							AND ProductID = @ProductID
+							AND id_batch_detail <> @BatchDetailId
+							AND ISNULL(IsActive, 1) = 1
+					)
+					BEGIN
+						RAISERROR(N'Barcode da ton tai trong lo khac cua san pham nay', 16, 1);
+						RETURN;
+					END
+
+					IF EXISTS (
+						SELECT 1
+						FROM BARCODE
+						WHERE id_batch_detail = @BatchDetailId
+							AND ProductID = @ProductID
+					)
+					BEGIN
+						UPDATE BARCODE
+						SET Barcode = @Barcode,
+								ExpiryDate = @ExpiryDate,
+								IsActive = 1
+						WHERE id_batch_detail = @BatchDetailId
+							AND ProductID = @ProductID;
+					END
+					ELSE
+					BEGIN
+						INSERT INTO BARCODE (Barcode, ProductID, id_batch_detail, ExpiryDate, CreatedAt, IsActive)
+						VALUES (@Barcode, @ProductID, @BatchDetailId, @ExpiryDate, CAST(@CreatedAt AS DATE), 1);
+					END
+				`);
+		}
+
+		await updateProductSaleForProduct({
+			transaction,
+			productId: ProductID,
+			productPrice: Price,
+			sale,
+		});
+
+		await transaction.commit();
+		return { success: true, message: "Cap nhat san pham va lo hang thanh cong" };
+	} catch (error) {
+		if (transaction._aborted !== true) {
+			try {
+				await transaction.rollback();
+			} catch (rollbackErr) {
+				console.error("Rollback updateProductDetailAndBatches that bai:", rollbackErr.message);
+			}
+		}
+
+		console.error("Loi updateProductDetailAndBatches:", error.message);
+		return { success: false, message: "Loi cap nhat chi tiet san pham", error: error.message };
 	}
 };

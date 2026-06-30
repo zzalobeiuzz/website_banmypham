@@ -174,16 +174,35 @@ const AccountPage = () => {
   const [loading, setLoading] = useState(false);
   const showLoading = useMinimumLoading(loading, 500);
   const [notify, setNotify] = useState({ open: false, status: "info", message: "" });
+  const [createAvatarUrlBroken, setCreateAvatarUrlBroken] = useState(false);
+  const [editAvatarUrlBroken, setEditAvatarUrlBroken] = useState(false);
+  const createAvatarPreviewUrl = useMemo(() => {
+    if (createAccountForm.avatarFile) {
+      return URL.createObjectURL(createAccountForm.avatarFile);
+    }
+
+    if (createAvatarUrlBroken) return "";
+    return String(createAccountForm.avatarUrl || "").trim();
+  }, [createAccountForm.avatarFile, createAccountForm.avatarUrl, createAvatarUrlBroken]);
+
   const editAvatarPreviewUrl = useMemo(() => {
     if (editAccountForm.avatarFile) {
       return URL.createObjectURL(editAccountForm.avatarFile);
     }
 
     const webAvatar = String(editAccountForm.avatarUrl || "").trim();
-    if (webAvatar) return webAvatar;
+    if (webAvatar) return editAvatarUrlBroken ? "" : webAvatar;
 
     return resolveAvatarSrc(editAccountForm.avatar);
-  }, [editAccountForm.avatar, editAccountForm.avatarFile, editAccountForm.avatarUrl]);
+  }, [editAccountForm.avatar, editAccountForm.avatarFile, editAccountForm.avatarUrl, editAvatarUrlBroken]);
+
+  useEffect(() => {
+    return () => {
+      if (createAvatarPreviewUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(createAvatarPreviewUrl);
+      }
+    };
+  }, [createAvatarPreviewUrl]);
 
   useEffect(() => {
     return () => {
@@ -214,6 +233,7 @@ const AccountPage = () => {
   };
 
   const openEditPopup = (row) => {
+    setEditAvatarUrlBroken(false);
     setEditAccountForm({
       email: getAccountEmail(row),
       displayName: String(row?.DisplayName || row?.displayName || "").trim(),
@@ -226,12 +246,50 @@ const AccountPage = () => {
     setShowEditPopup(true);
   };
 
+  const openEditFromDetail = () => {
+    if (!detailAccount) return;
+    const account = detailAccount;
+    closeDetailPopup();
+    openEditPopup(account);
+  };
+
   const closeEditPopup = () => {
     if (savingEditAccount) return;
     setShowEditPopup(false);
   };
 
+  const getDroppedImageUrl = (event) => {
+    const normalizeDroppedUrl = (value) => {
+      const normalized = String(value || "")
+        .trim()
+        .replace(/&amp;/g, "&")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">");
+
+      if (normalized.startsWith("//")) return `https:${normalized}`;
+      return normalized;
+    };
+
+    const uriList = normalizeDroppedUrl(event?.dataTransfer?.getData("text/uri-list"));
+    if (/^https?:\/\//i.test(uriList) || uriList.startsWith("data:")) return uriList;
+
+    const plain = normalizeDroppedUrl(event?.dataTransfer?.getData("text/plain"));
+    if (/^https?:\/\//i.test(plain) || plain.startsWith("data:")) return plain;
+
+    const html = String(event?.dataTransfer?.getData("text/html") || "").trim();
+    const imgMatch = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+    const imgSrc = normalizeDroppedUrl(imgMatch?.[1]);
+    if (/^https?:\/\//i.test(imgSrc) || imgSrc.startsWith("data:")) return imgSrc;
+
+    return "";
+  };
+
   const handleChangeEditField = (field, value) => {
+    if (field === "avatarUrl") {
+      setEditAvatarUrlBroken(false);
+    }
     setEditAccountForm((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -247,11 +305,30 @@ const AccountPage = () => {
       avatarFile: file,
       avatarUrl: "",
     }));
+    setEditAvatarUrlBroken(false);
   };
 
   const handleEditAvatarDrop = (event) => {
     event.preventDefault();
-    handleEditAvatarFile(event.dataTransfer.files?.[0]);
+    const file = event.dataTransfer.files?.[0];
+    if (file) {
+      handleEditAvatarFile(file);
+      return;
+    }
+
+    const droppedUrl = getDroppedImageUrl(event);
+    if (droppedUrl) {
+      setEditAvatarUrlBroken(false);
+      setEditAccountForm((prev) => ({
+        ...prev,
+        avatarFile: null,
+        avatarUrl: droppedUrl,
+      }));
+      showPopup({ status: "info", message: "Đã nhận ảnh từ web. Đang kiểm tra ảnh..." });
+      return;
+    }
+
+    showPopup({ status: "warning", message: "Chỉ nhận file ảnh hoặc ảnh/link ảnh kéo từ web." });
   };
 
   const handleEditAvatarDragOver = (event) => {
@@ -440,6 +517,7 @@ const AccountPage = () => {
   };
 
   const resetCreateForm = () => {
+    setCreateAvatarUrlBroken(false);
     setCreateAccountForm({
       email: "",
       displayName: "",
@@ -461,11 +539,83 @@ const AccountPage = () => {
   };
 
   const handleChangeCreateField = (field, value) => {
-    setCreateAccountForm((prev) => ({ ...prev, [field]: value }));
+    if (field === "avatarUrl") {
+      setCreateAvatarUrlBroken(false);
+    }
+    setCreateAccountForm((prev) => ({
+      ...prev,
+      [field]: value,
+      ...(field === "avatarUrl" ? { avatarFile: null } : {}),
+    }));
+  };
+
+  const handleCreateAvatarFile = (file) => {
+    if (!file) return;
+    if (!String(file.type || "").startsWith("image/")) {
+      showPopup({ status: "warning", message: "Vui lòng chọn đúng file ảnh avatar." });
+      return;
+    }
+
+    setCreateAccountForm((prev) => ({
+      ...prev,
+      avatarFile: file,
+      avatarUrl: "",
+    }));
+    setCreateAvatarUrlBroken(false);
+  };
+
+  const handleCreateAvatarPreviewLoad = () => {
+    if (!String(createAccountForm.avatarUrl || "").trim()) return;
+    showPopup({ status: "success", message: "Ảnh từ web tải được. Bấm tạo tài khoản để lưu ảnh." });
+  };
+
+  const handleCreateAvatarPreviewError = () => {
+    if (!String(createAccountForm.avatarUrl || "").trim()) return;
+    setCreateAvatarUrlBroken(true);
+    showPopup({ status: "warning", message: "Không tải được ảnh từ URL này. Vui lòng kiểm tra lại đường dẫn ảnh." });
+  };
+
+  const handleEditAvatarPreviewLoad = () => {
+    if (!String(editAccountForm.avatarUrl || "").trim()) return;
+    showPopup({ status: "success", message: "Ảnh từ web tải được. Bấm lưu thay đổi để cập nhật ảnh." });
+  };
+
+  const handleEditAvatarPreviewError = () => {
+    if (!String(editAccountForm.avatarUrl || "").trim()) return;
+    setEditAvatarUrlBroken(true);
+    showPopup({ status: "warning", message: "Không tải được ảnh từ URL này. Vui lòng kiểm tra lại đường dẫn ảnh." });
+  };
+
+  const handleCreateAvatarDrop = (event) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files?.[0];
+    if (file) {
+      handleCreateAvatarFile(file);
+      return;
+    }
+
+    const droppedUrl = getDroppedImageUrl(event);
+    if (droppedUrl) {
+      setCreateAvatarUrlBroken(false);
+      setCreateAccountForm((prev) => ({
+        ...prev,
+        avatarFile: null,
+        avatarUrl: droppedUrl,
+      }));
+      showPopup({ status: "info", message: "Đã nhận ảnh từ web. Đang kiểm tra ảnh..." });
+      return;
+    }
+
+    showPopup({ status: "warning", message: "Chỉ nhận file ảnh hoặc ảnh/link ảnh kéo từ web." });
+  };
+
+  const handleCreateAvatarDragOver = (event) => {
+    event.preventDefault();
   };
 
   const handleCreateAccount = async () => {
     const email = String(createAccountForm.email || "").trim().toLowerCase();
+    const avatarUrl = String(createAccountForm.avatarUrl || "").trim();
     if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
       showPopup({ status: "warning", message: "Email không hợp lệ." });
       return;
@@ -484,6 +634,11 @@ const AccountPage = () => {
       return;
     }
 
+    if (avatarUrl && createAvatarUrlBroken) {
+      showPopup({ status: "warning", message: "URL ảnh chưa tải được, vui lòng đổi URL khác trước khi tạo tài khoản." });
+      return;
+    }
+
     try {
       setCreatingAccount(true);
       let token = localStorage.getItem("accessToken");
@@ -492,7 +647,7 @@ const AccountPage = () => {
       payload.append("displayName", displayName);
       payload.append("password", password);
       payload.append("role", String(role));
-      payload.append("avatarUrl", String(createAccountForm.avatarUrl || "").trim());
+      payload.append("avatarUrl", avatarUrl);
       if (createAccountForm.avatarFile) {
         payload.append("avatarFile", createAccountForm.avatarFile);
       }
@@ -521,7 +676,12 @@ const AccountPage = () => {
         return;
       }
 
-      showPopup({ status: "success", message: res?.message || "Tạo tài khoản thành công." });
+      showPopup({
+        status: "success",
+        message: avatarUrl
+          ? "Tạo tài khoản thành công. Ảnh từ web đã được tải và lưu vào hệ thống."
+          : res?.message || "Tạo tài khoản thành công.",
+      });
       setShowCreatePopup(false);
       resetCreateForm();
       await fetchAccounts();
@@ -595,6 +755,7 @@ const AccountPage = () => {
     const avatar = String(editAccountForm.avatar || "").trim();
     const role = Number(editAccountForm.role);
     const isActive = Number(editAccountForm.isActive);
+    const avatarUrl = String(editAccountForm.avatarUrl || "").trim();
 
     if (!email) {
       showPopup({ status: "warning", message: "Khong tim thay email tai khoan de cap nhat." });
@@ -616,13 +777,18 @@ const AccountPage = () => {
       return;
     }
 
+    if (avatarUrl && editAvatarUrlBroken) {
+      showPopup({ status: "warning", message: "URL ảnh chưa tải được, vui lòng đổi URL khác trước khi lưu." });
+      return;
+    }
+
     try {
       setSavingEditAccount(true);
       let token = localStorage.getItem("accessToken");
       const payload = new FormData();
       payload.append("displayName", displayName);
       payload.append("avatar", avatar);
-      payload.append("avatarUrl", String(editAccountForm.avatarUrl || "").trim());
+      payload.append("avatarUrl", avatarUrl);
       payload.append("role", String(role));
       payload.append("isActive", String(isActive));
       if (editAccountForm.avatarFile) {
@@ -667,7 +833,12 @@ const AccountPage = () => {
         } catch (error) {}
       }
 
-      showPopup({ status: "success", message: res?.message || "Cap nhat tai khoan thanh cong." });
+      showPopup({
+        status: "success",
+        message: avatarUrl
+          ? "Cập nhật tài khoản thành công. Ảnh từ web đã được tải và lưu vào hệ thống."
+          : res?.message || "Cap nhat tai khoan thanh cong.",
+      });
       setShowEditPopup(false);
       await fetchAccounts();
     } catch (error) {
@@ -678,9 +849,6 @@ const AccountPage = () => {
   };
   return (
     <div className="account-page">
-      <div className="account-bg-orb orb-one" />
-      <div className="account-bg-orb orb-two" />
-      <div className="account-bg-grid" />
       <Notification open={notify.open} status={notify.status} message={notify.message} onClose={closePopup} />
       <ToolBar
         title={TXT.title}
@@ -778,6 +946,16 @@ const AccountPage = () => {
                     key={`${row?.Email || "account"}-${idx}`}
                     className="account-table-row"
                     style={{ animationDelay: `${Math.min(idx * 40, 520)}ms` }}
+                    onClick={() => setDetailAccount(row)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setDetailAccount(row);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    title="Bấm để xem và chỉnh sửa tài khoản"
                   >
                     {columns.map((column) => (
                       <td
@@ -796,15 +974,11 @@ const AccountPage = () => {
                       <div className="action-buttons">
                         <button
                           type="button"
-                          className="btn-account-detail"
-                          onClick={() => setDetailAccount(row)}
-                        >
-                          Chi tiết
-                        </button>
-                        <button
-                          type="button"
                           className="btn-edit-account"
-                          onClick={() => openEditPopup(row)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openEditPopup(row);
+                          }}
                           disabled={savingEditAccount || deletingEmail === getAccountEmail(row)}
                         >
                           Sửa
@@ -812,7 +986,10 @@ const AccountPage = () => {
                         <button
                           type="button"
                           className="btn-reset-password"
-                          onClick={() => handleResetPassword(row)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleResetPassword(row);
+                          }}
                           disabled={resettingEmail === getAccountEmail(row) || deletingEmail === getAccountEmail(row)}
                         >
                           {resettingEmail === getAccountEmail(row) ? "Đang reset..." : "Reset mật khẩu"}
@@ -820,7 +997,10 @@ const AccountPage = () => {
                         <button
                           type="button"
                           className="btn-delete-account"
-                          onClick={() => handleDeleteAccount(row)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleDeleteAccount(row);
+                          }}
                           disabled={deletingEmail === getAccountEmail(row) || resettingEmail === getAccountEmail(row)}
                           title="Xóa tài khoản"
                           aria-label="Xóa tài khoản"
@@ -841,8 +1021,14 @@ const AccountPage = () => {
         open={showCreatePopup}
         isCreating={creatingAccount}
         form={createAccountForm}
+        avatarPreviewUrl={createAvatarPreviewUrl}
         onClose={closeCreatePopup}
         onChangeField={handleChangeCreateField}
+        onAvatarFile={handleCreateAvatarFile}
+        onAvatarDrop={handleCreateAvatarDrop}
+        onAvatarDragOver={handleCreateAvatarDragOver}
+        onAvatarPreviewLoad={handleCreateAvatarPreviewLoad}
+        onAvatarPreviewError={handleCreateAvatarPreviewError}
         onSubmit={handleCreateAccount}
       />
 
@@ -921,7 +1107,12 @@ const AccountPage = () => {
                   />
                   <span className="account-edit-avatar__preview">
                     {editAvatarPreviewUrl ? (
-                      <img src={editAvatarPreviewUrl} alt={editAccountForm.displayName || editAccountForm.email || "avatar"} />
+                      <img
+                        src={editAvatarPreviewUrl}
+                        alt={editAccountForm.displayName || editAccountForm.email || "avatar"}
+                        onLoad={handleEditAvatarPreviewLoad}
+                        onError={handleEditAvatarPreviewError}
+                      />
                     ) : (
                       <span>{String(editAccountForm.displayName || editAccountForm.email || "?").charAt(0).toUpperCase()}</span>
                     )}
@@ -930,6 +1121,17 @@ const AccountPage = () => {
                     {editAccountForm.avatarFile ? `Đã chọn: ${editAccountForm.avatarFile.name}` : "Bấm hoặc kéo ảnh mới vào đây để thay đổi"}
                   </span>
                 </label>
+              </div>
+              <div className="account-create-field account-create-field-full">
+                <label htmlFor="account-edit-avatar-url">Ảnh từ web</label>
+                <input
+                  id="account-edit-avatar-url"
+                  type="url"
+                  value={editAccountForm.avatarUrl || ""}
+                  onChange={(event) => handleChangeEditField("avatarUrl", event.target.value)}
+                  placeholder="https://example.com/avatar.png"
+                  disabled={savingEditAccount}
+                />
               </div>
               <div className="account-create-hint">
                 Email không chỉnh trực tiếp để tránh lệch dữ liệu đăng nhập.
@@ -1002,6 +1204,14 @@ const AccountPage = () => {
             <div className="account-detail-actions">
               <button type="button" className="btn-detail-secondary" onClick={closeDetailPopup}>
                 Đóng
+              </button>
+              <button
+                type="button"
+                className="btn-detail-edit"
+                onClick={openEditFromDetail}
+                disabled={savingEditAccount || deletingEmail === getAccountEmail(detailAccount)}
+              >
+                Sửa tài khoản
               </button>
               <button
                 type="button"

@@ -356,18 +356,45 @@ const BrandDetailPopup = ({
     <div className="brand-detail-modal" onClick={onClose}>
       <div className="brand-detail-modal__content" onClick={(e) => e.stopPropagation()}>
         <div className="brand-detail-modal__header">
-          <h3>Chi tiết thương hiệu</h3>
+          <div className="brand-detail-modal__title">
+            <span>{activeTab === "products" ? "Sản phẩm thương hiệu" : "Thông tin thương hiệu"}</span>
+            <h3>{form.Brand || brand?.Brand || brand?.name || "Chi tiết thương hiệu"}</h3>
+          </div>
           <div className="brand-detail-modal__header-actions">
-            {!editingTab && (
+            {!editingTab ? (
               <button
                 type="button"
-                className="brand-btn-detail-edit"
+                className="brand-header-action brand-header-action--edit"
                 onClick={() => setEditingTab(activeTab)}
-                aria-label="Chỉnh sửa"
-                title="Chỉnh sửa"
+                aria-label="Chỉnh sửa tab hiện tại"
+                title="Chỉnh sửa tab hiện tại"
               >
-                ✎
+                <span>✎</span>
+                Sửa {activeTab === "products" ? "sản phẩm" : "thông tin"}
               </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="brand-header-action brand-header-action--cancel"
+                  onClick={handleCancelEdit}
+                  disabled={saving}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  className="brand-header-action brand-header-action--save"
+                  onClick={handleSave}
+                  disabled={saving}
+                >
+                  {saving
+                    ? "Đang lưu..."
+                    : editingTab === "products"
+                    ? "Lưu sản phẩm"
+                    : "Lưu thông tin"}
+                </button>
+              </>
             )}
             <button type="button" className="brand-detail-modal__close" onClick={onClose}>
               ×
@@ -644,26 +671,6 @@ const BrandDetailPopup = ({
             )}
 
             <div className="brand-detail-modal__actions">
-              {editingTab && (
-                <>
-                  <button type="button" className="brand-btn-detail-cancel" onClick={handleCancelEdit}>
-                    Hủy
-                  </button>
-                  <button
-                    type="button"
-                    className="brand-btn-submit"
-                    onClick={handleSave}
-                    disabled={saving}
-                  >
-                    {saving
-                      ? "Đang lưu..."
-                      : editingTab === "products"
-                      ? "Lưu sản phẩm"
-                      : "Lưu thông tin"}
-                  </button>
-                </>
-              )}
-
               <button type="button" className="brand-btn-detail-close" onClick={onClose}>
                 Đóng
               </button>

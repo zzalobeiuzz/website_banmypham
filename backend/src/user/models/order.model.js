@@ -318,21 +318,24 @@ const deductInventoryFromBatch = async (
       //               → sau đó FIFO (Id ASC, lô cũ nhất trước)
       const findBatchSql = `
         SELECT TOP 1 
-          [Id], 
-          [BatchId], 
-          [ProductId], 
-          [Barcode], 
-          [Quantity], 
-          [ExpiryDate], 
-          [isActive]
-        FROM BATCH_DETAIL
-        WHERE [ProductId] = @ProductId 
-          AND [Quantity] > 0
-          AND ([isActive] = 1 OR [isActive] IS NULL)
+          BD.[Id],
+          BD.[BatchId],
+          BC.[ProductID] AS [ProductId],
+          BC.[Barcode],
+          BD.[Quantity],
+          BC.[ExpiryDate],
+          BC.[IsActive]
+        FROM BATCH_DETAIL BD
+        INNER JOIN BARCODE BC ON BC.id_batch_detail = BD.Id
+        LEFT JOIN BATCHES B ON B.ID = BD.BatchId
+        WHERE BC.[ProductID] = @ProductId
+          AND BD.[Quantity] > 0
+          AND (BC.[IsActive] = 1 OR BC.[IsActive] IS NULL)
+          AND (B.IsActive = 1 OR B.IsActive IS NULL)
         ORDER BY 
-          CASE WHEN [ExpiryDate] IS NOT NULL THEN 0 ELSE 1 END ASC,
-          [ExpiryDate] ASC,
-          [Id] ASC
+          CASE WHEN BC.[ExpiryDate] IS NOT NULL THEN 0 ELSE 1 END ASC,
+          BC.[ExpiryDate] ASC,
+          BD.[Id] ASC
       `;
 
       const batchResult = await transaction

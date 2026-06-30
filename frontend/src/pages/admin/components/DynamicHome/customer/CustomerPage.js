@@ -830,7 +830,18 @@ const fetchCustomers = async () => {
 
               <tbody>
                 {filteredCustomers.map((customer, idx) => (
-                  <tr key={idx} className="customer-row">
+                  <tr
+                    key={idx}
+                    className="customer-row"
+                    tabIndex={0}
+                    onClick={() => fetchCustomerDetail(customer.CustomerID)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        fetchCustomerDetail(customer.CustomerID);
+                      }
+                    }}
+                  >
                     <td className="td-customer-code">
                       <span className="customer-code-field">
                         {customer.CustomerCode ?? "N/A"}
@@ -891,14 +902,11 @@ const fetchCustomers = async () => {
 
                     <td className="actions-cell td-actions">
                       <button
-                        className="btn-action detail"
-                        onClick={() => fetchCustomerDetail(customer.CustomerID)}
-                      >
-                        Chi tiết
-                      </button>
-                      <button
                         className="btn-action delete"
-                        onClick={() => openDeleteConfirmPopup(customer)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openDeleteConfirmPopup(customer);
+                        }}
                       >
                         Xóa
                       </button>
