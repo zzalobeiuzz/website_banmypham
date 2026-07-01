@@ -133,8 +133,10 @@
   .lo-hang-products-block {
     border: 1px solid #e2e8f0;
     border-radius: 10px;
-    overflow: hidden;
+    overflow: visible;
     background: #ffffff;
+    position: relative;
+    z-index: 5;
   }
 
   .lo-hang-products-title {
@@ -189,11 +191,13 @@
   .add-product-row {
     display: grid;
     align-items: center;
-    grid-template-columns: 1.4fr 1fr 120px 120px 170px auto;
+    grid-template-columns: 1.4fr 1fr 120px 120px 145px auto;
     gap: 8px;
     padding: 10px;
     border-bottom: 1px solid #e2e8f0;
     background: #f8fafc;
+    position: relative;
+    z-index: 30;
 
     &__input {
       border: 1px solid #cbd5e1;
@@ -209,6 +213,16 @@
         border-color: #70a1ff;
         box-shadow: 0 0 0 3px rgba(112, 161, 255, 0.2);
       }
+    }
+
+    &__status {
+      min-width: 145px;
+      padding-right: 28px;
+      font-size: 12.5px;
+      -webkit-appearance: menulist-button;
+      appearance: menulist-button;
+      background-position: right 8px center;
+      background-repeat: no-repeat;
     }
 
     &__button {
@@ -264,6 +278,7 @@
       position: relative;
       width: 507px;
       max-width: 100%;
+      z-index: 80;
 
       &__toggle {
         width: 100%;
@@ -307,14 +322,15 @@
         top: calc(100% + 4px);
         left: 0;
         right: 0;
-        min-width: 520px;
-        max-height: 320px;
-        overflow: auto;
+        width: min(760px, calc(100vw - 80px));
+        min-width: 640px;
+        max-height: min(520px, 58vh);
+        overflow: hidden;
         border: 1px solid #cbd5e1;
         border-radius: 8px;
         background: #fff;
-        z-index: 12;
-        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+        z-index: 9999;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
       }
 
       &__empty {
@@ -364,12 +380,13 @@
 
       .shared-product-assign__table-wrap {
         width: 100%;
+        max-height: min(500px, 55vh);
         overflow: auto;
       }
 
       .shared-product-assign__table {
         width: 100%;
-        min-width: 500px;
+        min-width: 720px;
         border-collapse: collapse;
 
         th,

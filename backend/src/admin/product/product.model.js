@@ -1150,7 +1150,7 @@ exports.addProductDB = async (product) => {
 			return { success: false, message: "Thiếu mã sản phẩm" };
 		}
 
-		if (batchBarcodes.length === 0) {
+		if (batchBarcodes.length === 0 && product.RequireBatchBarcode === true) {
 			return { success: false, message: "Thiếu Barcode trong lô hàng" };
 		}
 
@@ -1182,6 +1182,20 @@ exports.addProductDB = async (product) => {
 			Instructions, Image, DetailID, SubCategoryName, CreatedAt, UpdatedAt, BatchDetails
 		} = product;
 
+		const detailRequest = new sql.Request(transaction);
+		await detailRequest
+			.input("IDDetail", sql.NVarChar(50), DetailID)
+			.input("ProductDescription", sql.NVarChar(sql.MAX), ProductDescription ?? null)
+			.input("Ingredient", sql.NVarChar(sql.MAX), Ingredients ?? null)
+			.input("Usage", sql.NVarChar(sql.MAX), Usage ?? null)
+			.input("HowToUse", sql.NVarChar(sql.MAX), Instructions ?? null)
+			.query(`
+				INSERT INTO PRODUCT_DETAIL
+				(IDDetail, ProductDescription, Ingredient, Usage, HowToUse)
+				VALUES
+				(@IDDetail, @ProductDescription, @Ingredient, @Usage, @HowToUse)
+			`);
+
 		const productRequest = new sql.Request(transaction);
 		await productRequest
 			.input("ProductID", sql.VarChar(50), ProductID)
@@ -1202,20 +1216,6 @@ exports.addProductDB = async (product) => {
 				(ProductID, ProductName, Price, Type, CategoryID, SupplierID, SubCategoryID, IsHot, IsHidden, Image, DetailID, CreatedAt, UpdatedAt)
 				VALUES
 				(@ProductID, @ProductName, @Price, @Type, @CategoryID, @SupplierID, @SubCategoryID, @IsHot, @IsHidden, @Image, @DetailID, @CreatedAt, @UpdatedAt)
-			`);
-
-		const detailRequest = new sql.Request(transaction);
-		await detailRequest
-			.input("IDDetail", sql.NVarChar(50), DetailID)
-			.input("ProductDescription", sql.NVarChar(sql.MAX), ProductDescription ?? null)
-			.input("Ingredient", sql.NVarChar(sql.MAX), Ingredients ?? null)
-			.input("Usage", sql.NVarChar(sql.MAX), Usage ?? null)
-			.input("HowToUse", sql.NVarChar(sql.MAX), Instructions ?? null)
-			.query(`
-				INSERT INTO PRODUCT_DETAIL
-				(IDDetail, ProductDescription, Ingredient, Usage, HowToUse)
-				VALUES
-				(@IDDetail, @ProductDescription, @Ingredient, @Usage, @HowToUse)
 			`);
 
 		const subCategoryRequest = new sql.Request(transaction);

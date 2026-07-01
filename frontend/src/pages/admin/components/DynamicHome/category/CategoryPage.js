@@ -407,12 +407,17 @@ const CategoryPage = () => {
                 )}
 
                 {Array.isArray(c.SubCategories) && c.SubCategories.length > 0 ? (
-                  <table className="subcategory-table">
-                    <thead>
+                <table className="subcategory-table">
+                  <colgroup>
+                    <col className="subcategory-name-col" />
+                    <col className="subcategory-count-col" />
+                    <col className="subcategory-delete-col" />
+                  </colgroup>
+                  <thead>
                       <tr>
-                        <th>Tên danh mục con</th>
+                        <th>Phân loại</th>
                         <th>Số sản phẩm</th>
-                        <th>Thao tác</th>
+                        <th className="subcategory-delete-head" aria-label="Xóa danh mục con"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -420,7 +425,7 @@ const CategoryPage = () => {
                         <tr key={sub.SubCategoryID}>
                           <td>{sub.SubCategoryName}</td>
                           <td>{countsBySubCategory[sub.SubCategoryID] || 0}</td>
-                          <td>
+                          <td className="subcategory-delete-cell">
                             <button
                               type="button"
                               className="btn-delete-subcategory"

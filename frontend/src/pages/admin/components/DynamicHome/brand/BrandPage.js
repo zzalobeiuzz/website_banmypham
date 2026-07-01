@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import "react-quill/dist/quill.snow.css";
 import { useNavigate } from "react-router-dom";
 import { API_BASE, UPLOAD_BASE } from "../../../../../constants";
@@ -59,31 +59,27 @@ const BrandPage = () => {
     logo_url: "",
   });
 
-  useEffect(() => {
-    let mounted = true;
-
-    const fetchBrands = async () => {
-      try {
-        setLoading(true);
-        setError("");
-        const res = await request("GET", `${API_BASE}/api/admin/brand`);
-        if (!mounted) return;
-        setBrands(Array.isArray(res?.data) ? res.data : []);
-      } catch (err) {
-        if (!mounted) return;
-        setError(err?.message || "Không thể tải danh sách thương hiệu.");
+  const fetchBrands = useCallback(async ({ reset = false } = {}) => {
+    try {
+      setLoading(true);
+      setError("");
+      if (reset) {
         setBrands([]);
-      } finally {
-        if (mounted) setLoading(false);
       }
-    };
 
-    fetchBrands();
-
-    return () => {
-      mounted = false;
-    };
+      const res = await request("GET", `${API_BASE}/api/admin/brand`);
+      setBrands(Array.isArray(res?.data) ? res.data : []);
+    } catch (err) {
+      setError(err?.message || "Không thể tải danh sách thương hiệu.");
+      setBrands([]);
+    } finally {
+      setLoading(false);
+    }
   }, [request]);
+
+  useEffect(() => {
+    fetchBrands();
+  }, [fetchBrands]);
 
   useEffect(() => {
     const scrollContainer = document.querySelector(".dynamic-content");
@@ -309,18 +305,14 @@ const BrandPage = () => {
         formData.append("logoFile", logoFile);
       }
 
-      const res = await request(
+      await request(
         "POST",
         `${API_BASE}/api/admin/brand`,
         formData,
       );
-      const created = res?.data;
-
-      if (created) {
-        setBrands((prev) => [created, ...prev]);
-      }
 
       showNotification("Tạo thương hiệu thành công.", "success");
+      await fetchBrands({ reset: true });
 
       setCreateForm({
         idBrand: "",

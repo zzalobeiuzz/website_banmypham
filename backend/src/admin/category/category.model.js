@@ -102,40 +102,84 @@ exports.countProductsBySubCategoryId = async (subCategoryId) => {
 
 exports.softDeleteCategory = async (categoryId) => {
   const pool = await connectDB();
+  const transaction = new sql.Transaction(pool);
 
-  const result = await pool
-    .request()
-    .input("CategoryID", sql.NVarChar(50), categoryId)
-    .query(`
-      UPDATE ${CATEGORY_TABLE}
-      SET IsHidden = 1
-      WHERE CategoryID = @CategoryID
-        AND (IsHidden = 0 OR IsHidden IS NULL)
-    `);
+  await transaction.begin();
 
-  return {
-    success: true,
-    affectedRows: result.rowsAffected?.[0] || 0,
-  };
+  try {
+    await new sql.Request(transaction)
+      .input("CategoryID", sql.NVarChar(50), categoryId)
+      .query(`
+        UPDATE PRODUCT
+        SET CategoryID = NULL,
+            SubCategoryID = NULL
+        WHERE CategoryID = @CategoryID
+      `);
+
+    await new sql.Request(transaction)
+      .input("CategoryID", sql.NVarChar(50), categoryId)
+      .query(`
+        UPDATE ${SUBCATEGORY_TABLE}
+        SET IsHidden = 1
+        WHERE CategoryID = @CategoryID
+          AND (IsHidden = 0 OR IsHidden IS NULL)
+      `);
+
+    const result = await new sql.Request(transaction)
+      .input("CategoryID", sql.NVarChar(50), categoryId)
+      .query(`
+        UPDATE ${CATEGORY_TABLE}
+        SET IsHidden = 1
+        WHERE CategoryID = @CategoryID
+          AND (IsHidden = 0 OR IsHidden IS NULL)
+      `);
+
+    await transaction.commit();
+
+    return {
+      success: true,
+      affectedRows: result.rowsAffected?.[0] || 0,
+    };
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
 };
 
 exports.deleteSubCategory = async (subCategoryId) => {
   const pool = await connectDB();
+  const transaction = new sql.Transaction(pool);
 
-  const result = await pool
-    .request()
-    .input("SubCategoryID", sql.NVarChar(50), subCategoryId)
-    .query(`
-      UPDATE ${SUBCATEGORY_TABLE}
-      SET IsHidden = 1
-      WHERE SubCategoryID = @SubCategoryID
-        AND (IsHidden = 0 OR IsHidden IS NULL)
-    `);
+  await transaction.begin();
 
-  return {
-    success: true,
-    affectedRows: result.rowsAffected?.[0] || 0,
-  };
+  try {
+    await new sql.Request(transaction)
+      .input("SubCategoryID", sql.NVarChar(50), subCategoryId)
+      .query(`
+        UPDATE PRODUCT
+        SET SubCategoryID = NULL
+        WHERE SubCategoryID = @SubCategoryID
+      `);
+
+    const result = await new sql.Request(transaction)
+      .input("SubCategoryID", sql.NVarChar(50), subCategoryId)
+      .query(`
+        UPDATE ${SUBCATEGORY_TABLE}
+        SET IsHidden = 1
+        WHERE SubCategoryID = @SubCategoryID
+          AND (IsHidden = 0 OR IsHidden IS NULL)
+      `);
+
+    await transaction.commit();
+
+    return {
+      success: true,
+      affectedRows: result.rowsAffected?.[0] || 0,
+    };
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
 };
 
 exports.getAllCategories = async () => {

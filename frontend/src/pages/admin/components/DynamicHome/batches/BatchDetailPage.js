@@ -648,7 +648,7 @@ const BatchDetailPage = () => {
                     onChange={(e) => handleNewRowChange(newRow.rowId, "expiryDate", e.target.value)}
                   />
                   <select
-                    className="add-product-row__input"
+                    className="add-product-row__input add-product-row__status"
                     value={String(newRow.isActive)}
                     onChange={(e) => handleNewRowChange(newRow.rowId, "isActive", Number(e.target.value))}
                     style={{

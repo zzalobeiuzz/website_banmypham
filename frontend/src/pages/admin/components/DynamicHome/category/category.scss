@@ -13,11 +13,13 @@
     padding: 0;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    align-items: start;
     gap: 14px;
   }
 
   .category-card--add {
     min-height: 178px;
+    height: 178px;
     border: 2px dashed #93c5fd;
     background: linear-gradient(180deg, #f8fbff 0%, #eef5ff 100%);
     align-items: center;
@@ -43,6 +45,8 @@
   .category-card {
     position: relative;
     min-height: 165px;
+    height: auto;
+    max-height: 520px;
     padding: 12px;
     cursor: pointer;
     border-radius: 12px;
@@ -156,6 +160,9 @@
       border-radius: 10px;
       overflow: hidden;
       background: #fcfdff;
+      max-height: 360px;
+      display: flex;
+      flex-direction: column;
 
       .subcategory-header-row {
         display: flex;
@@ -238,12 +245,41 @@
       .subcategory-table {
         width: 100%;
         border-collapse: collapse;
+        display: block;
+        overflow-y: auto;
+        max-height: 260px;
+
+        thead,
+        tbody,
+        tr {
+          display: table;
+          width: 100%;
+          table-layout: fixed;
+        }
+
+        .subcategory-name-col {
+          width: 58%;
+        }
+
+        .subcategory-count-col {
+          width: 28%;
+        }
+
+        .subcategory-delete-col {
+          width: 32px;
+        }
+
+        thead {
+          position: sticky;
+          top: 0;
+          z-index: 1;
+        }
 
         th,
         td {
           text-align: left;
           font-size: 13px;
-          padding: 10px 12px;
+          padding: 10px 10px;
           border-bottom: 1px solid #eef2f7;
         }
 
@@ -251,6 +287,19 @@
           color: #475569;
           font-weight: 700;
           background: #ffffff;
+        }
+
+        .subcategory-delete-head,
+        .subcategory-delete-cell {
+          width: 32px;
+          padding-left: 4px;
+          padding-right: 6px;
+          text-align: center;
+        }
+
+        th:nth-child(2),
+        td:nth-child(2) {
+          text-align: center;
         }
 
         tbody tr:last-child td {
@@ -272,7 +321,6 @@
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          float: right;
 
           &:hover:not(:disabled) {
             background: #fee2e2;

@@ -297,6 +297,18 @@ const BatchesPage = () => {
     }
   };
 
+  const goToLotDetail = (lotId) => {
+    const targetId = String(lotId || "").trim();
+    if (!targetId) return;
+    navigate(`${encodeURIComponent(targetId)}`);
+  };
+
+  const handleLotRowKeyDown = (event, lotId) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    goToLotDetail(lotId);
+  };
+
   const filteredLots = useMemo(() => {
     const k = String(keyword || "").trim().toLowerCase();
     let nextLots = Array.isArray(lots) ? [...lots] : [];
@@ -564,7 +576,14 @@ const BatchesPage = () => {
                   </tr>
                 ) : (
                   filteredLots.map((lot) => (
-                    <tr key={lot.ID}>
+                    <tr
+                      key={lot.ID}
+                      className="lo-hang-row-clickable"
+                      tabIndex={0}
+                      role="button"
+                      onClick={() => goToLotDetail(lot.ID)}
+                      onKeyDown={(event) => handleLotRowKeyDown(event, lot.ID)}
+                    >
                       <td>{lot.ID}</td>
                       <td>{formatDateOnly(lot.CreatedAt)}</td>
                       <td>{formatTimeOnly(lot.CreatedAt)}</td>
@@ -572,16 +591,12 @@ const BatchesPage = () => {
                       <td>
                         <button
                           type="button"
-                          className="btn-view-lot"
-                          onClick={() => navigate(`${encodeURIComponent(String(lot.ID || ""))}`)}
-                          disabled={deletingLotId === String(lot.ID || "")}
-                        >
-                          Xem chi tiết
-                        </button>
-                        <button
-                          type="button"
                           className="btn-delete-lot-row"
-                          onClick={() => handleDeleteFromList(lot.ID)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleDeleteFromList(lot.ID);
+                          }}
+                          onKeyDown={(event) => event.stopPropagation()}
                           disabled={deletingLotId === String(lot.ID || "")}
                         >
                           {deletingLotId === String(lot.ID || "") ? "Đang xóa..." : "Xóa"}
