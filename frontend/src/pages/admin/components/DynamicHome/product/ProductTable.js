@@ -111,6 +111,109 @@ const LotBarcode = ({ value }) => {
   );
 };
 
+const ProductEditSelect = ({ value, onChange, options = [], placeholder, disabled = false }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [keyword, setKeyword] = useState("");
+  const selectRef = useRef(null);
+  const searchRef = useRef(null);
+  const selectedOption = options.find((item) => String(item.value) === String(value));
+  const filteredOptions = useMemo(() => {
+    const normalizedKeyword = keyword.trim().toLowerCase();
+    if (!normalizedKeyword) return options;
+
+    return options.filter((item) =>
+      String(item.label || "").toLowerCase().includes(normalizedKeyword)
+      || String(item.value || "").toLowerCase().includes(normalizedKeyword),
+    );
+  }, [keyword, options]);
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (!selectRef.current || selectRef.current.contains(event.target)) return;
+      setIsOpen(false);
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, []);
+
+  useEffect(() => {
+    if (disabled) setIsOpen(false);
+  }, [disabled]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setKeyword("");
+      return;
+    }
+
+    window.setTimeout(() => searchRef.current?.focus(), 0);
+  }, [isOpen]);
+
+  const handleSelect = (nextValue) => {
+    onChange(nextValue);
+    setIsOpen(false);
+  };
+
+  return (
+    <div
+      ref={selectRef}
+      className={`product-edit-select ${isOpen ? "is-open" : ""} ${disabled ? "is-disabled" : ""}`}
+    >
+      <button
+        type="button"
+        className="product-edit-select__button"
+        onClick={() => !disabled && setIsOpen((prev) => !prev)}
+        disabled={disabled}
+      >
+        <span>{selectedOption?.label || placeholder}</span>
+      </button>
+
+      {isOpen && (
+        <div className="product-edit-select__menu">
+          <div className="product-edit-select__search">
+            <input
+              ref={searchRef}
+              type="text"
+              value={keyword}
+              onChange={(event) => setKeyword(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") event.preventDefault();
+              }}
+              placeholder="Nhập từ khóa để lọc"
+            />
+          </div>
+
+          <button
+            type="button"
+            className={`product-edit-select__option ${!value ? "is-selected" : ""}`}
+            onClick={() => handleSelect("")}
+          >
+            {placeholder}
+          </button>
+
+          {filteredOptions.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              className={`product-edit-select__option ${
+                String(item.value) === String(value) ? "is-selected" : ""
+              }`}
+              onClick={() => handleSelect(item.value)}
+            >
+              {item.label}
+            </button>
+          ))}
+
+          {filteredOptions.length === 0 && (
+            <div className="product-edit-select__empty">Không có kết quả phù hợp</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ProductDetail = () => {
   const { id } = useParams();
   const { request } = useHttp();
@@ -130,6 +233,8 @@ const ProductDetail = () => {
   const [saleEvents, setSaleEvents] = useState([]);
   const [isBatchDropdownOpen, setIsBatchDropdownOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [notify, setNotify] = useState({ open: false, status: "info", message: "" });
 
   const [editFields, setEditFields] = useState({
@@ -639,6 +744,55 @@ const ProductDetail = () => {
     }
   };
 
+  const handleDeleteProduct = async () => {
+    const productId = String(product?.ProductID || id || "").trim();
+    if (!productId) {
+      showPopup({ status: "error", message: "Không tìm thấy mã sản phẩm để xóa." });
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      const res = await request(
+        "DELETE",
+        `${API_BASE}/api/admin/products/deleteProducts`,
+        [productId],
+        "Xóa sản phẩm"
+      );
+
+      if (res?.success === false) {
+        showPopup({ status: "error", message: res?.message || "Không thể xóa sản phẩm." });
+        return;
+      }
+
+      setDeleteConfirmOpen(false);
+      showPopup({ status: "success", message: res?.message || "Đã xóa sản phẩm thành công." });
+      window.setTimeout(() => {
+        navigate("/admin/product");
+      }, 450);
+    } catch (error) {
+      console.error("Lỗi khi xóa sản phẩm:", error);
+      showPopup({ status: "error", message: error?.message || "Không thể xóa sản phẩm." });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const openDeleteConfirm = () => {
+    const productId = String(product?.ProductID || id || "").trim();
+    if (!productId) {
+      showPopup({ status: "error", message: "Không tìm thấy mã sản phẩm để xóa." });
+      return;
+    }
+
+    setDeleteConfirmOpen(true);
+  };
+
+  const closeDeleteConfirm = () => {
+    if (isDeleting) return;
+    setDeleteConfirmOpen(false);
+  };
+
   const handlePrintBatchBarcode = (batch) => {
     const barcodeValue = String(batch?.barcode || "").trim();
     if (!barcodeValue) {
@@ -713,13 +867,46 @@ const ProductDetail = () => {
   };
 
   return (
-    <div className="product-detail__container">
+    <div className={`product-detail__container ${isEdit ? "product-detail__container--edit-layout" : ""}`}>
       <Notification
         open={notify.open}
         status={notify.status}
         message={notify.message}
         onClose={closePopup}
       />
+      {deleteConfirmOpen && (
+        <div className="product-delete-modal-backdrop" onClick={closeDeleteConfirm}>
+          <div className="product-delete-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="product-delete-modal__icon">!</div>
+            <div className="product-delete-modal__content">
+              <h3>Xác nhận xóa sản phẩm</h3>
+              <p>
+                Bạn có chắc muốn xóa sản phẩm{" "}
+                <strong>{product?.ProductID || id}</strong>?
+              </p>
+              <span>Sản phẩm sẽ được ẩn khỏi danh sách bán hàng.</span>
+            </div>
+            <div className="product-delete-modal__actions">
+              <button
+                type="button"
+                className="product-delete-modal__cancel"
+                onClick={closeDeleteConfirm}
+                disabled={isDeleting}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                className="product-delete-modal__confirm"
+                onClick={handleDeleteProduct}
+                disabled={isDeleting}
+              >
+                {isDeleting ? "Đang xóa..." : "Xóa sản phẩm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showLoading && (
         <AdminLoadingScreen message="Đang tải thông tin sản phẩm..." />
       )}
@@ -737,7 +924,7 @@ const ProductDetail = () => {
                   onClick={() => (isEdit ? handleSaveProductDetail() : setIsEdit(true))}
                   disabled={isSaving}
                 >
-                  {isSaving ? "Đang lưu..." : isEdit ? "💾 Lưu" : "✏️ Sửa"}
+                  {isSaving ? "Đang lưu..." : isEdit ? "Lưu" : "Sửa"}
                 </button>
                 {isEdit && (
                   <button
@@ -745,10 +932,17 @@ const ProductDetail = () => {
                     onClick={handleCancelEdit}
                     disabled={isSaving}
                   >
-                    ✖ Hủy
+                    Hủy
                   </button>
                 )}
-                <button className="btn-delete">🗑️ Xóa</button>
+                <button
+                  type="button"
+                  className="btn-delete"
+                  onClick={openDeleteConfirm}
+                  disabled={isSaving || isDeleting}
+                >
+                  {isDeleting ? "Đang xóa..." : "Xóa"}
+                </button>
               </div>
             )}
           </div>
@@ -783,7 +977,7 @@ const ProductDetail = () => {
                           handleInputChange("SubCategoryID", e.target.value)
                         }
                       >
-                        <option value="">-- Chọn danh mục con --</option>
+                        <option value="">-- Chọn phân loại --</option>
                         {categories
                           .find(
                             (cat) => cat.CategoryID === editFields.CategoryID
@@ -861,6 +1055,85 @@ const ProductDetail = () => {
               </div>
 
               <div className="product-detail__info">
+                {isEdit && (
+                  <div className="product-detail-edit-form">
+                    <div className="product-detail-edit-form__group product-detail-edit-form__identity">
+                      <label>
+                        <span>Mã sản phẩm</span>
+                        <input type="text" value={product.ProductID || ""} readOnly />
+                      </label>
+                      <label>
+                        <span>Tên sản phẩm</span>
+                        <input
+                          type="text"
+                          value={editFields.ProductName}
+                          onChange={(e) => handleInputChange("ProductName", e.target.value)}
+                          placeholder="Tên sản phẩm"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="product-detail-edit-form__group product-detail-edit-form__meta">
+                      <label>
+                        <span>Giá</span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={formatPriceWithDots(editFields.Price)}
+                          onChange={(e) => handlePriceChange(e.target.value)}
+                          placeholder="Nhập giá"
+                        />
+                      </label>
+                      <label>
+                        <span>Số lượng tồn</span>
+                        <input type="text" value={String(editableStock)} readOnly />
+                      </label>
+                      <label>
+                        <span>Thương hiệu</span>
+                        <ProductEditSelect
+                          value={editFields.SupplierID || ""}
+                          onChange={(nextValue) => handleInputChange("SupplierID", nextValue)}
+                          placeholder="Chọn thương hiệu"
+                          options={brands.map((item) => ({
+                            value: item.idBrand,
+                            label: item.Brand || item.name || item.idBrand,
+                          }))}
+                        />
+                      </label>
+                      <label>
+                        <span>Danh mục</span>
+                        <ProductEditSelect
+                          value={editFields.CategoryID}
+                          onChange={(nextValue) => {
+                            handleInputChange("CategoryID", nextValue);
+                            handleInputChange("SubCategoryID", "");
+                          }}
+                          placeholder="Chọn danh mục"
+                          options={categories.map((cat) => ({
+                            value: cat.CategoryID,
+                            label: cat.CategoryName,
+                          }))}
+                        />
+                      </label>
+                      <label>
+                        <span>Phân loại</span>
+                        <ProductEditSelect
+                          value={editFields.SubCategoryID}
+                          onChange={(nextValue) => handleInputChange("SubCategoryID", nextValue)}
+                          disabled={!editFields.CategoryID}
+                          placeholder="Chọn phân loại"
+                          options={(categories
+                            .find((cat) => cat.CategoryID === editFields.CategoryID)
+                            ?.SubCategories || []).map((sub) => ({
+                              value: sub.SubCategoryID,
+                              label: sub.SubCategoryName,
+                            }))}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                )}
+
                 {isEdit ? (
                   <input
                     className="productName-input"
@@ -982,17 +1255,15 @@ const ProductDetail = () => {
                         {currentSaleMode === "event" ? (
                           <label className="sale-edit-field sale-edit-field--wide">
                             <span>Sự kiện sale</span>
-                            <select
+                            <ProductEditSelect
                               value={editFields.saleEventId || ""}
-                              onChange={(e) => handleSaleEventChange(e.target.value)}
-                            >
-                              <option value="">-- Chọn sự kiện --</option>
-                              {saleEvents.map((event) => (
-                                <option key={event.id} value={event.id}>
-                                  {event.title || event.code || `Event ${event.id}`}
-                                </option>
-                              ))}
-                            </select>
+                              onChange={handleSaleEventChange}
+                              placeholder="Chọn sự kiện"
+                              options={saleEvents.map((event) => ({
+                                value: event.id,
+                                label: event.title || event.code || `Event ${event.id}`,
+                              }))}
+                            />
                           </label>
                         ) : (
                           <>
@@ -1139,7 +1410,7 @@ const ProductDetail = () => {
                                 </div>
 
                                 <div className="lot-edit-field">
-                                  <span className="lot-edit-field__label">Số lượng trong lô</span>
+                                  <span className="lot-edit-field__label">Số lượng</span>
                                   <input
                                     type="number"
                                     min="0"

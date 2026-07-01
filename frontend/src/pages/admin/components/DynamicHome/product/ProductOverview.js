@@ -32,6 +32,8 @@ const ProductOverviewComponent = () => {
   const [editMode, setEditMode] = useState(false); // ✏️ Chế độ chỉnh sửa
   const [searchKeyword, setSearchKeyword] = useState(""); // 🔍 Keyword search
   const [notify, setNotify] = useState({ open: false, status: "info", message: "" });
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const categoryButtonsRef = useRef(null);
@@ -533,6 +535,13 @@ const ProductOverviewComponent = () => {
       showPopup({ status: "warning", message: "Vui lòng chọn ít nhất một sản phẩm trước khi xóa." });
       return;
     }
+
+    setDeleteConfirmOpen(true);
+    if (selectedProducts.length > 0) return;
+    if (selectedProducts.length === 0) {
+      showPopup({ status: "warning", message: "Vui lòng chọn ít nhất một sản phẩm trước khi xóa." });
+      return;
+    }
     const confirmDelete = window.confirm(
       "Bạn có chắc chắn muốn xóa các sản phẩm đã chọn?",
     );
@@ -556,6 +565,64 @@ const ProductOverviewComponent = () => {
     }
   };
 
+  const handleConfirmDelete = async () => {
+    if (selectedProducts.length === 0) {
+      setDeleteConfirmOpen(false);
+      showPopup({ status: "warning", message: "Vui lòng chọn ít nhất một sản phẩm trước khi xóa." });
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      const res = await request(
+        "DELETE",
+        `${API_BASE}/api/admin/products/deleteProducts`,
+        selectedProducts,
+        "Xóa sản phẩm",
+      );
+
+      setDeleteConfirmOpen(false);
+      showPopup({ status: "success", message: res?.message || "Đã xóa thành công!" });
+      setProducts((prev) =>
+        prev.filter((p) => !selectedProducts.includes(p.ProductID)),
+      );
+      setSelectedProducts([]);
+    } catch (error) {
+      console.error("Lỗi khi xóa:", error);
+      showPopup({ status: "error", message: error?.message || "Có lỗi xảy ra khi xóa dữ liệu!" });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const closeDeleteConfirm = () => {
+    if (isDeleting) return;
+    setDeleteConfirmOpen(false);
+  };
+
+  useEffect(() => {
+    const handleDeleteShortcut = (event) => {
+      if (event.key !== "Delete") return;
+      if (event.defaultPrevented || deleteConfirmOpen || isDeleting) return;
+
+      const target = event.target;
+      const tagName = String(target?.tagName || "").toLowerCase();
+      const isTypingTarget =
+        target?.isContentEditable ||
+        tagName === "input" ||
+        tagName === "textarea" ||
+        tagName === "select";
+
+      if (isTypingTarget || selectedProducts.length === 0) return;
+
+      event.preventDefault();
+      setDeleteConfirmOpen(true);
+    };
+
+    window.addEventListener("keydown", handleDeleteShortcut);
+    return () => window.removeEventListener("keydown", handleDeleteShortcut);
+  }, [deleteConfirmOpen, isDeleting, selectedProducts.length]);
+
   // ================= UI =================
 
   return (
@@ -567,6 +634,39 @@ const ProductOverviewComponent = () => {
         onClose={closePopup}
       />
       {/* 🔍 Toolbar tìm kiếm */}
+      {deleteConfirmOpen && (
+        <div className="product-delete-modal-backdrop" onClick={closeDeleteConfirm}>
+          <div className="product-delete-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="product-delete-modal__icon">!</div>
+            <div className="product-delete-modal__content">
+              <h3>Xác nhận xóa sản phẩm</h3>
+              <p>
+                Bạn có chắc muốn xóa{" "}
+                <strong>{selectedProducts.length}</strong> sản phẩm đã chọn?
+              </p>
+              <span>Sản phẩm sẽ được ẩn khỏi danh sách bán hàng.</span>
+            </div>
+            <div className="product-delete-modal__actions">
+              <button
+                type="button"
+                className="product-delete-modal__cancel"
+                onClick={closeDeleteConfirm}
+                disabled={isDeleting}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                className="product-delete-modal__confirm"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? "Đang xóa..." : "Xóa sản phẩm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <ToolBar
         title="Sản phẩm"
         onSearchChange={setSearchKeyword}

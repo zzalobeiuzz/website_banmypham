@@ -362,6 +362,212 @@
   }
 }
 
+// Notification redesign override, placed last so older notification styles cannot win.
+.notification__success-box--popup {
+  width: min(520px, calc(100vw - 32px));
+  min-width: 0 !important;
+  max-width: 520px !important;
+  min-height: 0 !important;
+  padding: 30px 34px 28px !important;
+  border: 1px solid rgba(248, 113, 113, 0.18);
+  border-radius: 18px !important;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.3) !important;
+}
+
+.notification__success-box--warning,
+.notification__success-box--error,
+.notification__success-box--info {
+  .notification__badge {
+    min-width: 0;
+    margin: 0 0 16px;
+    padding: 0;
+    background: transparent !important;
+    color: #dc2626;
+    font-size: 28px;
+    font-weight: 950;
+    line-height: 1.15;
+  }
+
+  .notification__message {
+    margin: 0 0 22px;
+    color: #dc2626;
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1.35;
+  }
+
+  .notification__question {
+    color: #991b1b;
+    font-size: 15px;
+    font-weight: 750;
+  }
+}
+
+.notification__success-box--warning {
+  .notification__badge {
+    display: none;
+  }
+
+  .notification__message,
+  .notification__question,
+  .notification__close-btn {
+    text-transform: uppercase;
+  }
+}
+
+.notification__dismiss-btn {
+  top: 14px !important;
+  right: 14px !important;
+  width: 34px !important;
+  height: 34px !important;
+  background: #fee2e2 !important;
+  color: #dc2626 !important;
+  font-size: 24px !important;
+  font-weight: 900;
+  box-shadow: none;
+
+  &:hover {
+    background: #fecaca !important;
+    color: #b91c1c !important;
+  }
+}
+
+.notification__actions {
+  justify-content: center;
+
+  .notification__close-btn {
+    flex: 0 0 auto !important;
+    min-width: 150px;
+    min-height: 44px;
+    padding: 0 24px !important;
+    border-radius: 999px !important;
+    background: #dc2626 !important;
+    color: #ffffff !important;
+    font-size: 16px;
+    font-weight: 900 !important;
+    box-shadow: 0 14px 28px rgba(220, 38, 38, 0.22);
+    transition:
+      transform 0.16s ease,
+      background 0.16s ease,
+      box-shadow 0.16s ease;
+
+    &:hover {
+      background: #b91c1c !important;
+      transform: translateY(-1px);
+      box-shadow: 0 18px 34px rgba(220, 38, 38, 0.3);
+    }
+  }
+
+  .notification__close-btn--secondary {
+    background: #f1f5f9 !important;
+    color: #334155 !important;
+    box-shadow: none;
+
+    &:hover {
+      background: #e2e8f0 !important;
+      color: #0f172a !important;
+      box-shadow: none;
+    }
+  }
+}
+
+// Final notification redesign override.
+.notification__success-box--popup {
+  width: min(520px, calc(100vw - 32px));
+  min-width: 0 !important;
+  max-width: 520px !important;
+  min-height: 0 !important;
+  padding: 30px 34px 28px !important;
+  border: 1px solid rgba(248, 113, 113, 0.18);
+  border-radius: 18px !important;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.3) !important;
+}
+
+.notification__success-box--warning,
+.notification__success-box--error,
+.notification__success-box--info {
+  .notification__badge {
+    min-width: 0;
+    margin: 0 0 16px;
+    padding: 0;
+    background: transparent !important;
+    color: #dc2626;
+    font-size: 28px;
+    font-weight: 950;
+    line-height: 1.15;
+  }
+
+  .notification__message {
+    margin: 0 0 22px;
+    color: #dc2626;
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1.35;
+  }
+
+  .notification__question {
+    color: #991b1b;
+    font-size: 15px;
+    font-weight: 750;
+  }
+}
+
+.notification__dismiss-btn {
+  top: 14px !important;
+  right: 14px !important;
+  width: 34px !important;
+  height: 34px !important;
+  background: #fee2e2 !important;
+  color: #dc2626 !important;
+  font-size: 24px !important;
+  font-weight: 900;
+  box-shadow: none;
+
+  &:hover {
+    background: #fecaca !important;
+    color: #b91c1c !important;
+  }
+}
+
+.notification__actions {
+  justify-content: center;
+
+  .notification__close-btn {
+    flex: 0 0 auto !important;
+    min-width: 150px;
+    min-height: 44px;
+    padding: 0 24px !important;
+    border-radius: 999px !important;
+    background: #dc2626 !important;
+    color: #ffffff !important;
+    font-size: 16px;
+    font-weight: 900 !important;
+    box-shadow: 0 14px 28px rgba(220, 38, 38, 0.22);
+    transition:
+      transform 0.16s ease,
+      background 0.16s ease,
+      box-shadow 0.16s ease;
+
+    &:hover {
+      background: #b91c1c !important;
+      transform: translateY(-1px);
+      box-shadow: 0 18px 34px rgba(220, 38, 38, 0.3);
+    }
+  }
+
+  .notification__close-btn--secondary {
+    background: #f1f5f9 !important;
+    color: #334155 !important;
+    box-shadow: none;
+
+    &:hover {
+      background: #e2e8f0 !important;
+      color: #0f172a !important;
+      box-shadow: none;
+    }
+  }
+}
+
 //========================ADMIN LOADING========================
 .admin-loading-screen {
   width: 100%;
@@ -555,5 +761,102 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+// Notification redesign override, placed last so older notification styles cannot win.
+.notification__success-box--popup {
+  width: min(520px, calc(100vw - 32px));
+  min-width: 0 !important;
+  max-width: 520px !important;
+  min-height: 0 !important;
+  padding: 30px 34px 28px !important;
+  border: 1px solid rgba(248, 113, 113, 0.18);
+  border-radius: 18px !important;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.3) !important;
+}
+
+.notification__success-box--warning,
+.notification__success-box--error,
+.notification__success-box--info {
+  .notification__badge {
+    min-width: 0;
+    margin: 0 0 16px;
+    padding: 0;
+    background: transparent !important;
+    color: #dc2626;
+    font-size: 28px;
+    font-weight: 950;
+    line-height: 1.15;
+  }
+
+  .notification__message {
+    margin: 0 0 22px;
+    color: #dc2626;
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1.35;
+  }
+
+  .notification__question {
+    color: #991b1b;
+    font-size: 15px;
+    font-weight: 750;
+  }
+}
+
+.notification__dismiss-btn {
+  top: 14px !important;
+  right: 14px !important;
+  width: 34px !important;
+  height: 34px !important;
+  background: #fee2e2 !important;
+  color: #dc2626 !important;
+  font-size: 24px !important;
+  font-weight: 900;
+  box-shadow: none;
+
+  &:hover {
+    background: #fecaca !important;
+    color: #b91c1c !important;
+  }
+}
+
+.notification__actions {
+  justify-content: center;
+
+  .notification__close-btn {
+    flex: 0 0 auto !important;
+    min-width: 150px;
+    min-height: 44px;
+    padding: 0 24px !important;
+    border-radius: 999px !important;
+    background: #dc2626 !important;
+    color: #ffffff !important;
+    font-size: 16px;
+    font-weight: 900 !important;
+    box-shadow: 0 14px 28px rgba(220, 38, 38, 0.22);
+    transition:
+      transform 0.16s ease,
+      background 0.16s ease,
+      box-shadow 0.16s ease;
+
+    &:hover {
+      background: #b91c1c !important;
+      transform: translateY(-1px);
+      box-shadow: 0 18px 34px rgba(220, 38, 38, 0.3);
+    }
+  }
+
+  .notification__close-btn--secondary {
+    background: #f1f5f9 !important;
+    color: #334155 !important;
+    box-shadow: none;
+
+    &:hover {
+      background: #e2e8f0 !important;
+      color: #0f172a !important;
+      box-shadow: none;
+    }
   }
 }

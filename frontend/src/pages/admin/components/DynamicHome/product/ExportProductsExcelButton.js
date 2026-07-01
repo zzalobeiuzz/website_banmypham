@@ -55,7 +55,7 @@ const ExportProductsExcelButton = ({
       ProductName: "Tên sản phẩm",
       Type: "Loại sản phẩm",
       CategoryName: "Danh mục",
-      SubCategoryName: "Danh mục con",
+      SubCategoryName: "Phân loại",
       Price: "Giá",
       sale_price: "Giá khuyến mãi",
       StockQuantity: "Số lượng tồn kho",

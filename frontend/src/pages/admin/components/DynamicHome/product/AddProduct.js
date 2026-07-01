@@ -197,6 +197,109 @@ const BarcodeDisplay = ({ value }) => {
   );
 };
 
+const CustomSelect = ({ value, onChange, options = [], placeholder, disabled = false }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [keyword, setKeyword] = useState("");
+  const selectRef = useRef(null);
+  const searchRef = useRef(null);
+  const selectedOption = options.find((item) => String(item.value) === String(value));
+  const filteredOptions = useMemo(() => {
+    const normalizedKeyword = keyword.trim().toLowerCase();
+    if (!normalizedKeyword) return options;
+
+    return options.filter((item) =>
+      String(item.label || "").toLowerCase().includes(normalizedKeyword)
+      || String(item.value || "").toLowerCase().includes(normalizedKeyword),
+    );
+  }, [keyword, options]);
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (!selectRef.current || selectRef.current.contains(event.target)) return;
+      setIsOpen(false);
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, []);
+
+  useEffect(() => {
+    if (disabled) setIsOpen(false);
+  }, [disabled]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setKeyword("");
+      return;
+    }
+
+    window.setTimeout(() => searchRef.current?.focus(), 0);
+  }, [isOpen]);
+
+  const handleSelect = (nextValue) => {
+    onChange(nextValue);
+    setIsOpen(false);
+  };
+
+  return (
+    <div
+      ref={selectRef}
+      className={`admin-custom-select ${isOpen ? "is-open" : ""} ${disabled ? "is-disabled" : ""}`}
+    >
+      <button
+        type="button"
+        className="admin-custom-select__button"
+        onClick={() => !disabled && setIsOpen((prev) => !prev)}
+        disabled={disabled}
+      >
+        <span>{selectedOption?.label || placeholder}</span>
+      </button>
+
+      {isOpen && (
+        <div className="admin-custom-select__menu">
+          <div className="admin-custom-select__search">
+            <input
+              ref={searchRef}
+              type="text"
+              value={keyword}
+              onChange={(event) => setKeyword(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") event.preventDefault();
+              }}
+              placeholder="Nhập từ khóa để lọc"
+            />
+          </div>
+
+          <button
+            type="button"
+            className={`admin-custom-select__option ${!value ? "is-selected" : ""}`}
+            onClick={() => handleSelect("")}
+          >
+            {placeholder}
+          </button>
+
+          {filteredOptions.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              className={`admin-custom-select__option ${
+                String(item.value) === String(value) ? "is-selected" : ""
+              }`}
+              onClick={() => handleSelect(item.value)}
+            >
+              {item.label}
+            </button>
+          ))}
+
+          {filteredOptions.length === 0 && (
+            <div className="admin-custom-select__empty">Không có kết quả phù hợp</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ==================== 🧩 COMPONENT CHÍNH: AddProduct ====================
 const AddProduct = () => {
   const navigate = useNavigate();
@@ -228,6 +331,7 @@ const AddProduct = () => {
     visible: false,       // 👁️ Có hiển thị hay không
     message: "",          // 💬 Nội dung thông báo
     type: "success",      // ✅ success hoặc ❌ error
+    afterAddSuccess: false,
   });
 
   // 🗂️ STATE: Danh mục chính / phụ
@@ -326,8 +430,27 @@ const AddProduct = () => {
   }, [request]);
 
   // ==================== 🔔 HÀM HIỂN THỊ THÔNG BÁO ====================
-  const showNotification = (message, type = "success") => {
-    setNotify({ visible: true, message, type });
+  const showNotification = (message, type = "success", options = {}) => {
+    setNotify({
+      visible: true,
+      message,
+      type,
+      afterAddSuccess: Boolean(options.afterAddSuccess),
+    });
+  };
+
+  const closeNotification = () => {
+    setNotify((prev) => ({ ...prev, visible: false, afterAddSuccess: false }));
+  };
+
+  const handleAddSuccessClose = () => {
+    closeNotification();
+    navigate("/admin/product");
+  };
+
+  const handleAddSuccessContinue = () => {
+    closeNotification();
+    scrollToTop();
   };
 
   // ==================== ✍️ CẬP NHẬT STATE SẢN PHẨM ====================
@@ -335,19 +458,19 @@ const AddProduct = () => {
     setProductData((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleBarcodeInputChange = (value) => {
-    handleChange("barcode", value);
-    if (!isExistingProduct) {
-      setLotDrafts((prev) => {
-        if (!Array.isArray(prev) || prev.length === 0) return [createEmptyLot(value)];
-        const next = [...prev];
-        const first = next[0] || createEmptyLot();
-        if (!String(first.barcode || "").trim()) {
-          next[0] = { ...first, barcode: String(value || "").trim() };
-        }
-        return next;
-      });
-    }
+  const applyBarcodeToFirstLot = (value) => {
+    const barcode = String(value || "").trim();
+    if (!barcode) return;
+
+    setLotDrafts((prev) => {
+      const next = Array.isArray(prev) && prev.length > 0 ? [...prev] : [createEmptyLot()];
+      next[0] = {
+        ...(next[0] || createEmptyLot()),
+        barcode,
+      };
+      return next;
+    });
+    setSelectedPrintBarcode(barcode);
   };
 
   const recalculateStockFromLots = (lots) => {
@@ -438,10 +561,8 @@ const AddProduct = () => {
   };
 
   useEffect(() => {
-    const productBarcode = String(productData.barcode || "").trim();
     const availableValues = Array.from(new Set([
       ...printableLotOptions.map((item) => item.value),
-      productBarcode,
     ].filter(Boolean)));
 
     setSelectedPrintBarcode((prev) => {
@@ -454,7 +575,7 @@ const AddProduct = () => {
       }
       return current;
     });
-  }, [printableLotOptions, productData.barcode]);
+  }, [printableLotOptions]);
 
   // ==================== 📂 CHỌN DANH MỤC → LOAD DANH MỤC CON ====================
   const handleCategoryChange = (e) => {
@@ -648,10 +769,7 @@ const AddProduct = () => {
 
         if (data.barcodeExists && trimmedBarcode) {
           if (source === "scan") {
-            setProductData((prev) => ({
-              ...prev,
-              barcode: trimmedBarcode,
-            }));
+            applyBarcodeToFirstLot(trimmedBarcode);
             return;
           }
 
@@ -666,10 +784,7 @@ const AddProduct = () => {
 
         if (trimmedBarcode) {
           if (source === "scan") {
-            setProductData((prev) => ({
-              ...prev,
-              barcode: trimmedBarcode,
-            }));
+            applyBarcodeToFirstLot(trimmedBarcode);
             return;
           }
 
@@ -766,7 +881,7 @@ const AddProduct = () => {
         }))
         .filter((lot) => lot.quantity > 0 || lot.barcode);
 
-      if (normalizedLotDrafts.length === 0) {
+      if (normalizedLotDrafts.length === 0 && productData.requireLot === true) {
         showNotification("Vui lòng nhập ít nhất 1 lô hàng với Barcode và Số lượng.", "error");
         setIsSubmitting(false);
         return;
@@ -785,7 +900,7 @@ const AddProduct = () => {
       }
 
       formData.append("ProductID", productData.productCode);
-      formData.append("Barcode", productData.barcode);
+      formData.append("Barcode", normalizedLotDrafts[0]?.barcode || "");
       formData.append("IsUpdateAfterScan", isExistingProduct ? "1" : "0");
       formData.append("ProductName", productData.name);
       formData.append("Price", productData.price);
@@ -817,7 +932,7 @@ const AddProduct = () => {
 
       if (res.success) {
         scrollToTop();
-        showNotification("Thêm sản phẩm thành công!", "success");
+        showNotification("Thêm sản phẩm thành công!", "success", { afterAddSuccess: true });
 
         // 🔄 Reset lại toàn bộ form khi thêm sản phẩm thành công
         setProductData({
@@ -916,7 +1031,7 @@ const AddProduct = () => {
   };
 
   const handlePrintBarcode = (inputBarcode = "") => {
-    const barcodeValue = String(inputBarcode || selectedPrintBarcode || productData.barcode || "").trim();
+    const barcodeValue = String(inputBarcode || selectedPrintBarcode || "").trim();
     if (!barcodeValue) {
       showNotification("Chưa có barcode để in", "error");
       return;
@@ -1106,8 +1221,10 @@ const AddProduct = () => {
         <Notification
           message={notify.message}           // Nội dung thông báo
           type={notify.type}                 // success | error
-          onClose={() => setNotify({ ...notify, visible: false })} // Khi bấm "Có"
-          onConfirm={handleGoBack}                                    // Khi bấm "Không"
+          onClose={notify.afterAddSuccess ? handleAddSuccessClose : closeNotification}
+          onConfirm={notify.afterAddSuccess ? handleAddSuccessContinue : undefined}
+          closeText={notify.afterAddSuccess ? "Đóng" : undefined}
+          confirmText={notify.afterAddSuccess ? "Tiếp tục" : undefined}
         />
       )}
 
@@ -1187,11 +1304,6 @@ const AddProduct = () => {
             {printableLotOptions.map((item) => (
               <option key={item.value} value={item.value}>{item.label}</option>
             ))}
-            {!printableLotOptions.length && String(productData.barcode || "").trim() && (
-              <option value={String(productData.barcode || "").trim()}>
-                Barcode sản phẩm - {String(productData.barcode || "").trim()}
-              </option>
-            )}
           </select>
 
           <div className={`barcode-graphic ${selectedPrintBarcode ? "has-value" : ""}`}>
@@ -1234,16 +1346,6 @@ const AddProduct = () => {
                 required
               />
             </div>
-            <div className="input-id w-25">
-              <label>Barcode</label>
-              <input
-                type="text"
-                value={productData.barcode}
-                onChange={(e) => handleBarcodeInputChange(e.target.value)}
-                onBlur={(e) => handleIdentityBlur("barcode", e)}
-                required
-              />
-            </div>
             <div className="input-name flex-fill">
               <label>Tên sản phẩm</label>
               <input
@@ -1269,45 +1371,42 @@ const AddProduct = () => {
 
             <div className="input-category w-25">
               <label>Danh mục</label>
-              <select value={selectedCategoryID} onChange={handleCategoryChange}>
-                <option value="">Chọn danh mục</option>
-                {categories.map((cat) => (
-                  <option key={cat.CategoryID} value={cat.CategoryID}>
-                    {cat.CategoryName}
-                  </option>
-                ))}
-              </select>
+              <CustomSelect
+                value={selectedCategoryID}
+                onChange={(nextValue) => handleCategoryChange({ target: { value: nextValue } })}
+                placeholder="Chọn danh mục"
+                options={categories.map((cat) => ({
+                  value: cat.CategoryID,
+                  label: cat.CategoryName,
+                }))}
+              />
             </div>
 
             <div className="input-type">
-              <label>Danh mục con</label>
-              <select
+              <label>Phân loại</label>
+              <CustomSelect
                 value={selectedSubCategoryID}
-                onChange={(e) => setSelectedSubCategoryID(e.target.value)}
+                onChange={setSelectedSubCategoryID}
                 disabled={!selectedCategoryID}
-              >
-                <option value="">Chọn danh mục con</option>
-                {subCategories.map((sub) => (
-                  <option key={sub.SubCategoryID} value={sub.SubCategoryID}>
-                    {sub.SubCategoryName}
-                  </option>
-                ))}
-              </select>
+                placeholder="Chọn phân loại"
+                options={subCategories.map((sub) => ({
+                  value: sub.SubCategoryID,
+                  label: sub.SubCategoryName,
+                }))}
+              />
             </div>
 
             <div className="input-supplier">
               <label>Thương hiệu</label>
-              <select
+              <CustomSelect
                 value={productData.supplierID}
-                onChange={(e) => handleChange("supplierID", e.target.value)}
-              >
-                <option value="">Chọn thương hiệu</option>
-                {brands.map((item) => (
-                  <option key={item.idBrand} value={item.idBrand}>
-                    {item.Brand || item.name || item.idBrand}
-                  </option>
-                ))}
-              </select>
+                onChange={(nextValue) => handleChange("supplierID", nextValue)}
+                placeholder="Chọn thương hiệu"
+                options={brands.map((item) => ({
+                  value: item.idBrand,
+                  label: item.Brand || item.name || item.idBrand,
+                }))}
+              />
             </div>
 
             <div className="input-stock">
@@ -1347,7 +1446,7 @@ const AddProduct = () => {
 
                 />
 
-                {isBatchDropdownOpen && filteredBatchOptions.length > 0 && (
+                {isBatchDropdownOpen && (
                   <div className="lot-selector-dropdown">
                     {filteredBatchOptions.slice(0, 8).map((item) => (
                       <button
@@ -1372,9 +1471,18 @@ const AddProduct = () => {
                           setIsBatchDropdownOpen(false);
                         }}
                       >
-                        {item.value}
+                        <strong>{item.value}</strong>
+                        {(item.note || item.createdAt) && (
+                          <small>
+                            {item.note || `Ngày nhập: ${toDateInputValue(item.createdAt)}`}
+                          </small>
+                        )}
                       </button>
                     ))}
+
+                    {filteredBatchOptions.length === 0 && (
+                      <div className="lot-selector-empty">Không có mã lô phù hợp</div>
+                    )}
                   </div>
                 )}
 
@@ -1406,7 +1514,7 @@ const AddProduct = () => {
                     />
                   </div>
                   <div className="lot-editor-field lot-editor-field--qty">
-                    <span>Số lượng sp</span>
+                    <span>SL</span>
                     <input
                       type="number"
                       min="0"
@@ -1434,10 +1542,12 @@ const AddProduct = () => {
                   <button
                     type="button"
                     className="btn-remove-lot"
+                    aria-label="Xoa lo hang"
+                    title="Xoa lo hang"
                     onClick={() => removeLotDraft(index)}
                     disabled={lotDrafts.length <= 1}
                   >
-                    Xóa
+                    X
                   </button>
                 </div>
               ))}
@@ -1472,6 +1582,16 @@ const AddProduct = () => {
             onChange={(val) => handleChange("instructions", val)}
             modules={quillModules}
           />
+
+          <div className="add-product-footer-actions">
+            <button
+              type="submit"
+              className="btn-save btn-save-bottom"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Đang lưu..." : isExistingProduct ? "Lưu cập nhật" : "Lưu"}
+            </button>
+          </div>
 
         </form>
       </div>

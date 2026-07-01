@@ -69,7 +69,7 @@ const PopupNotification = ({
   return (
     <div className="notification">
       <div className="notification__overlay">
-        <div className="notification__success-box notification__success-box--popup">
+        <div className={`notification__success-box notification__success-box--popup notification__success-box--${config.className}`}>
           <button
             type="button"
             className="notification__dismiss-btn"
@@ -101,19 +101,20 @@ const PopupNotification = ({
                 {question ? <p className="notification__question">{question}</p> : null}
                 <div className="notification__actions">
                   <button
+                    type="button"
                     className="notification__close-btn notification__close-btn--secondary"
                     onClick={onConfirm}
                   >
                     {confirmText}
                   </button>
-                  <button className="notification__close-btn" onClick={onClose}>
+                  <button type="button" className="notification__close-btn" onClick={onClose}>
                     {closeText || config.buttonText}
                   </button>
                 </div>
               </>
             ) : (
               <div className="notification__actions">
-                <button className="notification__close-btn" onClick={onClose}>
+                <button type="button" className="notification__close-btn" onClick={onClose}>
                   {closeText || config.buttonText}
                 </button>
               </div>
