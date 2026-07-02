@@ -670,11 +670,6 @@ const BrandDetailPopup = ({
               </>
             )}
 
-            <div className="brand-detail-modal__actions">
-              <button type="button" className="brand-btn-detail-close" onClick={onClose}>
-                Đóng
-              </button>
-            </div>
           </div>
         </div>
       </div>

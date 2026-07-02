@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useHttp from "../../../../../hooks/useHttp";
 import { API_BASE, UPLOAD_BASE } from "../../../../../constants";
@@ -20,6 +20,16 @@ const ROLE_FILTERS = {
   ADMIN: "admin",
   CUSTOMER: "customer",
 };
+
+const ACCOUNT_ROLE_OPTIONS = [
+  { value: 0, label: "Khách hàng" },
+  { value: 1, label: "Admin" },
+];
+
+const ACCOUNT_STATUS_OPTIONS = [
+  { value: 1, label: "Hoạt động" },
+  { value: 0, label: "Tạm dừng" },
+];
 
 const COLUMN_WIDTH_MAP = {
   Email: 280,
@@ -45,6 +55,57 @@ const COLUMN_LABEL_MAP = {
 
 const DEFAULT_COLUMN_WIDTH = 180;
 const ACTION_COLUMN_WIDTH = 330;
+
+const AccountEditSelect = ({ value, options, onChange, disabled = false, placeholder = "Chọn" }) => {
+  const selectRef = useRef(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedOption = options.find((option) => String(option.value) === String(value));
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const handleOutsideClick = (event) => {
+      if (!selectRef.current || selectRef.current.contains(event.target)) return;
+      setIsOpen(false);
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [isOpen]);
+
+  return (
+    <div ref={selectRef} className={`account-edit-select ${isOpen ? "is-open" : ""} ${disabled ? "is-disabled" : ""}`}>
+      <button
+        type="button"
+        className="account-edit-select__button"
+        onClick={() => !disabled && setIsOpen((prev) => !prev)}
+        disabled={disabled}
+      >
+        <span>{selectedOption?.label || placeholder}</span>
+        <span className="account-edit-select__chevron" aria-hidden="true" />
+      </button>
+      {isOpen && !disabled && (
+        <div className="account-edit-select__menu">
+          {options.map((option) => (
+            <button
+              type="button"
+              key={option.value}
+              className={`account-edit-select__option ${
+                String(option.value) === String(value) ? "is-selected" : ""
+              }`}
+              onClick={() => {
+                onChange(option.value);
+                setIsOpen(false);
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const normalizeValue = (value, column = "") => {
   if (String(column).toLowerCase() === "role") {
@@ -1054,7 +1115,7 @@ const AccountPage = () => {
             </div>
 
             <div className="account-create-form">
-              <div className="account-create-field account-create-field-full">
+              <div className="account-create-field">
                 <label>Email</label>
                 <input value={editAccountForm.email} disabled />
               </div>
@@ -1071,26 +1132,22 @@ const AccountPage = () => {
 
               <div className="account-create-field">
                 <label>Vai trò</label>
-                <select
+                <AccountEditSelect
                   value={editAccountForm.role}
-                  onChange={(event) => handleChangeEditField("role", Number(event.target.value))}
+                  options={ACCOUNT_ROLE_OPTIONS}
+                  onChange={(value) => handleChangeEditField("role", Number(value))}
                   disabled={savingEditAccount}
-                >
-                  <option value={0}>Khách hàng</option>
-                  <option value={1}>Admin</option>
-                </select>
+                />
               </div>
 
               <div className="account-create-field">
                 <label>Trạng thái</label>
-                <select
+                <AccountEditSelect
                   value={editAccountForm.isActive}
-                  onChange={(event) => handleChangeEditField("isActive", Number(event.target.value))}
+                  options={ACCOUNT_STATUS_OPTIONS}
+                  onChange={(value) => handleChangeEditField("isActive", Number(value))}
                   disabled={savingEditAccount}
-                >
-                  <option value={1}>Hoạt động</option>
-                  <option value={0}>Tạm dừng</option>
-                </select>
+                />
               </div>
 
               <div className="account-edit-avatar account-create-field-full">
@@ -1121,20 +1178,6 @@ const AccountPage = () => {
                     {editAccountForm.avatarFile ? `Đã chọn: ${editAccountForm.avatarFile.name}` : "Bấm hoặc kéo ảnh mới vào đây để thay đổi"}
                   </span>
                 </label>
-              </div>
-              <div className="account-create-field account-create-field-full">
-                <label htmlFor="account-edit-avatar-url">Ảnh từ web</label>
-                <input
-                  id="account-edit-avatar-url"
-                  type="url"
-                  value={editAccountForm.avatarUrl || ""}
-                  onChange={(event) => handleChangeEditField("avatarUrl", event.target.value)}
-                  placeholder="https://example.com/avatar.png"
-                  disabled={savingEditAccount}
-                />
-              </div>
-              <div className="account-create-hint">
-                Email không chỉnh trực tiếp để tránh lệch dữ liệu đăng nhập.
               </div>
 
               <div className="account-create-actions account-create-field-full">

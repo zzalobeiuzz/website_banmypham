@@ -10,6 +10,11 @@ import PopupNotification from "../../shared/PopupNotification";
 import ProductAssignPicker from "../shared/ProductAssignPicker";
 import "./batch-detail.scss";
 
+const BUSINESS_STATUS_OPTIONS = [
+  { value: 1, label: "Đang kinh doanh", tone: "active" },
+  { value: 0, label: "Ngừng kinh doanh", tone: "inactive" },
+];
+
 const BatchDetailPage = () => {
   const navigate = useNavigate();
   const { batchId } = useParams();
@@ -29,6 +34,7 @@ const BatchDetailPage = () => {
   const [editCreatedAt, setEditCreatedAt] = useState("");
   const [newProductRows, setNewProductRows] = useState([]);
   const [activePickerRowId, setActivePickerRowId] = useState(null);
+  const [activeStatusRowId, setActiveStatusRowId] = useState(null);
   const [notify, setNotify] = useState({ open: false, status: "info", message: "" });
   const [popupNotify, setPopupNotify] = useState({ open: false, status: "success", message: "" });
 
@@ -83,6 +89,9 @@ const BatchDetailPage = () => {
     isActive: 1,
     expiryDate: "",
   });
+
+  const getBusinessStatusOption = (value) =>
+    BUSINESS_STATUS_OPTIONS.find((option) => Number(option.value) === Number(value)) || BUSINESS_STATUS_OPTIONS[0];
 
   const resolveProductImage = (value) => {
     const raw = String(value || "").trim();
@@ -253,6 +262,9 @@ const BatchDetailPage = () => {
     setNewProductRows((prev) => prev.filter((row) => row.rowId !== rowId));
     if (activePickerRowId === rowId) {
       setActivePickerRowId(null);
+    }
+    if (activeStatusRowId === rowId) {
+      setActiveStatusRowId(null);
     }
   };
 
@@ -647,17 +659,35 @@ const BatchDetailPage = () => {
                     value={newRow.expiryDate}
                     onChange={(e) => handleNewRowChange(newRow.rowId, "expiryDate", e.target.value)}
                   />
-                  <select
-                    className="add-product-row__input add-product-row__status"
-                    value={String(newRow.isActive)}
-                    onChange={(e) => handleNewRowChange(newRow.rowId, "isActive", Number(e.target.value))}
-                    style={{
-                      backgroundColor: Number(newRow.isActive) === 1 ? "#d1fae5" : "#fee2e2",
-                    }}
-                  >
-                    <option value="1">Đang kinh doanh</option>
-                    <option value="0">Ngừng kinh doanh</option>
-                  </select>
+                  <div className={`batch-status-dropdown ${activeStatusRowId === newRow.rowId ? "is-open" : ""}`}>
+                    <button
+                      type="button"
+                      className={`batch-status-dropdown__toggle batch-status-dropdown__toggle--${getBusinessStatusOption(newRow.isActive).tone}`}
+                      onClick={() => setActiveStatusRowId((prev) => (prev === newRow.rowId ? null : newRow.rowId))}
+                    >
+                      <span>{getBusinessStatusOption(newRow.isActive).label}</span>
+                      <span className="batch-status-dropdown__chevron" aria-hidden="true" />
+                    </button>
+                    {activeStatusRowId === newRow.rowId && (
+                      <div className="batch-status-dropdown__menu">
+                        {BUSINESS_STATUS_OPTIONS.map((option) => (
+                          <button
+                            type="button"
+                            key={option.value}
+                            className={`batch-status-dropdown__option batch-status-dropdown__option--${option.tone} ${
+                              Number(newRow.isActive) === option.value ? "is-selected" : ""
+                            }`}
+                            onClick={() => {
+                              handleNewRowChange(newRow.rowId, "isActive", option.value);
+                              setActiveStatusRowId(null);
+                            }}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <button
                     type="button"
                     className="add-product-row__delete"
